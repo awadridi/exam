@@ -196,8 +196,7 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for word_file in word_files:
             pdf_file = word_file.replace(".docx", ".pdf")
-            zipf.write(pdf_file, os.path.basenameيا عوّاد 🌟، خليني أعطيك نسخة كاملة ونظيفة من الكود بدون أي رموز أو نصوص إضافية تسبب أخطاء. هذا الكود جاهز للنسخ واللصق في ملفك `assign.py`:
-
+            zipf.write(pdf_file, os.path.basename
 ```python
 import streamlit as st
 import pandas as pd
