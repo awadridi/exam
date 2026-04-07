@@ -246,16 +246,26 @@ with tab_manage:
                 workbook  = writer.book
                 worksheet = writer.sheets['العاملين']
 
-                # تنسيق العناوين
+                # --- السطر السحري لجعل الورقة من اليمين لليسار ---
+                worksheet.right_to_left() 
+
+                # تنسيق العناوين (كبرنا الخط لـ 16)
                 header_format = workbook.add_format({
                     'bold': True, 'align': 'center', 'valign': 'vcenter',
-                    'fg_color': '#D7E4BC', 'border': 1, 'font_size': 14
+                    'fg_color': '#D7E4BC', 'border': 1, 'font_size': 16
                 })
 
-                # تنسيق الخلايا
+                # تنسيق الخلايا (كبرنا الخط لـ 14 وخلينا المحاذاة يمين)
                 cell_format = workbook.add_format({
-                    'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 12
+                    'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 14
                 })
+
+                # تطبيق التنسيق وتوسيع الأعمدة أكثر لتناسب الخط الكبير
+                for col_num, value in enumerate(df_hall_export.columns.values):
+                    worksheet.write(0, col_num, value, header_format)
+                    worksheet.set_column(col_num, col_num, 25, cell_format) # زدنا العرض لـ 25
+                
+                worksheet.set_column(1, 1, 45, cell_format) # الاسم خليناه عريض جداً (45)
 
                 for col_num, value in enumerate(df_hall_export.columns.values):
                     worksheet.write(0, col_num, value, header_format)
