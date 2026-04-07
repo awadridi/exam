@@ -7,7 +7,7 @@ import os
 import re
 
 # =====================================
-# 1. إعدادات الواجهة وتنسيق الأزرار
+# 1. إعدادات الواجهة وتنسيق الأزرار القوي
 # =====================================
 st.set_page_config(page_title="نظام التكليفات الذكي 2026", layout="wide")
 
@@ -18,41 +18,38 @@ st.markdown("""
         border: 1px solid #444; border-radius: 10px;
         background-color: #262730; margin-bottom: 10px;
     }
-    div[data-testid="stExpander"] p, div[data-testid="stExpander"] label {
-        color: #ffffff !important; font-weight: 500;
-    }
     
-    /* تنسيق زر حفظ البيانات (أخضر) */
-    div.stButton > button[key^="btn_"] {
-        background-color: #28a745 !initial;
+    /* زر حفظ البيانات - أخضر */
+    button[kind="secondary"]:has(div:contains("حفظ")) {
+        background-color: #28a745 !important;
         color: white !important;
-        border: none;
-    }
-    
-    /* تنسيق زر إلغاء التكليف (أحمر) */
-    div.stButton > button[key^="del_"] {
-        background-color: #dc3545 !important;
-        color: white !important;
-        border: none;
-    }
-    
-    /* تنسيق زر تحميل التكليف (أزرق) */
-    div.stDownloadButton > button {
-        background-color: #007bff !important;
-        color: white !important;
-        border: none;
-        width: 100%;
+        border: 1px solid #1e7e34 !important;
     }
 
-    .stButton>button:hover, .stDownloadButton>button:hover {
-        opacity: 0.9;
-        border: 1px solid white;
+    /* زر إلغاء التكليف - أحمر */
+    button[kind="secondary"]:has(div:contains("إلغاء")) {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border: 1px solid #bd2130 !important;
+    }
+
+    /* زر تحميل التكليف - أزرق */
+    button[kind="primary"] {
+        background-color: #007bff !important;
+        color: white !important;
+        border: 1px solid #0069d9 !important;
+    }
+    
+    /* تحسين شكل النصوص داخل الأزرار */
+    .stButton p, .stDownloadButton p {
+        font-weight: bold !important;
+        font-size: 16px !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # قاعدة البيانات
-db_path = os.path.join(os.getcwd(), "final_fix_v12.db")
+db_path = os.path.join(os.getcwd(), "final_fix_v13.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
@@ -155,11 +152,12 @@ with tab_search:
                         if file_data:
                             st.download_button(f"📥 تحميل التكليف", data=file_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
+# التبويبات الأخرى كما هي
 with tab_upload:
     cu1, cu2 = st.columns(2)
     with cu1:
         f_t = st.file_uploader("ملف الموظفين", type="xlsx")
-        if f_t and st.button("تأكيد الرفع"):
+        if f_t and st.button("تأكيد الرفع", key="confirm_t"):
             df = pd.read_excel(f_t)
             for _, r in df.iterrows():
                 c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
@@ -168,7 +166,7 @@ with tab_upload:
             st.success("تم الرفع")
     with cu2:
         f_h = st.file_uploader("ملف القاعات", type="xlsx")
-        if f_h and st.button("رفع القاعات"):
+        if f_h and st.button("رفع القاعات", key="confirm_h"):
             dfh = pd.read_excel(f_h)
             c.execute("DELETE FROM halls")
             for _, r in dfh.iterrows():
@@ -177,5 +175,5 @@ with tab_upload:
             st.success("تم الرفع")
 
 with tab_manage:
-    if st.button("🗑️ مسح شامل للبيانات"):
+    if st.button("🗑️ مسح شامل للبيانات", key="wipe_all"):
         c.execute("DELETE FROM teachers"); c.execute("DELETE FROM halls"); conn.commit(); st.rerun()
