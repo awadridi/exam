@@ -92,28 +92,68 @@ with st.expander("إضافة"):
     role = st.selectbox("الوظيفة", ["مراقب","رئيس قاعة","آذن","سكرتير"], key="new_role")
 
     if st.button("إضافة المعلم"):
-        if name and id and school and city and phone:
-            if id in teachers['هوية'].astype(str).values:
-                st.warning("رقم الهوية موجود مسبقًا!")
-            else:
-                new_row = pd.DataFrame([{
-                    'هوية': id,
-                    'اسم': name,
-                    'مدرسة': school,
-                    'سكن': city,
-                    'وظيفة': role,
-                    'جوال': phone,
-                    'قاعة مختارة': None,
-                    'مهمة': role
-                }])
-                teachers = pd.concat([teachers, new_row], ignore_index=True)
-                save_assignments()
-                st.success("تمت إضافة المعلم بنجاح ✅")
+        if not all([name, id, school, city, phone]):
+            st.warning("جميع الحقول إلزامية، يجب إدخال رقم الجوال!")
+        elif id in teachers['هوية'].astype(str).values:
+            st.warning("رقم الهوية موجود مسبقًا!")
         else:
-            st.warning("املأ جميع الحقول قبل الإضافة!")
+            new_row = pd.DataFrame([{
+                'هوية': id,
+                'اسم': name,
+                'مدرسة': school,
+                'سكن': city,
+                'وظيفة': role,
+                'جوال': phone,
+                'قاعة مختارة': None,
+                'مهمة': role
+            }])
+            teachers = pd.concat([teachers, new_row], ignore_index=True)
+            save_assignments()
+            st.success("تمت إضافة المعلم بنجاح ✅")
+
+# ================== البحث بالاسم ==================
+st.subheader("🔍 البحث والتعيين بالاسم")
+search_name = st.text_input("ابحث بالاسم:", key="search_name")
+if search_name:
+    results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
+    if not results.empty:
+        selected_teacher = st.selectbox("اختر المعلم:", results['اسم'], key="select_teacher")
+        row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
+
+        hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+        hall = st.selectbox("اختر القاعة:", hall_options, key="select_hall")
+        role = st.selectbox("اختر المهمة:", ["مراقب","رئيس قاعة","آذن","سكرتير"], index=["مراقب","رئيس قاعة","آذن","سكرتير"].index(row['مهمة']), key="select_role")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("تعيين"):
+                if hall != "اختر القاعة..." and role != "":
+                    teachers.loc[teachers['اسم']==selected_teacher, ['قاعة مختارة','مهمة']] = [hall, role]
+                    save_assignments()
+                    st.success(f"تم تعيين {selected_teacher} في {hall} كمهمة {role}")
+                else:
+                    st.warning("اختر القاعة والمهمة قبل التعيين!")
+
+        with col2:
+            if st.button("توليد كتاب Word"):
+                if row['قاعة مختارة']:
+                    doc = generate_doc(row)
+                    os.makedirs("تكليفات", exist_ok=True)
+                    path = f"تكليفات/{row['اسم']}.docx"
+                    doc.save(path)
+                    with open(path, "rb") as f:
+                        st.download_button("تحميل Word", f, file_name=f"{row['اسم']}.docx")
+                else:
+                    st.warning("المعلم غير معين في أي قاعة بعد!")
+
+        with col3:
+            if st.button("إلغاء التعيين"):
+                teachers.loc[teachers['اسم']==selected_teacher, ['قاعة مختارة','مهمة']] = [None,row['وظيفة']]
+                save_assignments()
+                st.warning(f"تم إلغاء التعيين للمعلم {selected_teacher}")
 
 # ================== البحث بالهوية ==================
-st.subheader("🔍 البحث والتعيين بالهوية")
+st.subheader("🔍 البحث بالهوية")
 search_id = st.text_input("أدخل رقم الهوية:", key="search_id")
 if search_id:
     result = teachers[teachers['هوية'].astype(str) == search_id]
