@@ -342,6 +342,7 @@ with tab_manage:
             else:
                 st.info("⚠️ لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
+    
     # --- قسم تصدير كتب التكليف Word ---
                 def generate_word_assignments(df, hall):
                     doc = Document()
@@ -400,6 +401,7 @@ with tab_manage:
                         mime="text/csv",
                         use_container_width=True
                     )
+
     st.divider()
     st.subheader("⚠️ منطقة الخطر")
     if st.button("⚠️ مسح شامل للتكليفات"):
