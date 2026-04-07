@@ -32,7 +32,6 @@ def get_db_connection():
 conn = get_db_connection()
 c = conn.cursor()
 
-# إنشاء الجدول بالأعمدة الأساسية
 c.execute('''
 CREATE TABLE IF NOT EXISTS teachers (
     id TEXT PRIMARY KEY,
@@ -52,8 +51,6 @@ conn.commit()
 # =====================================
 def create_docx(row):
     doc = Document()
-    
-    # ترويسة افتراضية - يمكنك تعديل النص بين الاقتباسات
     header = doc.add_paragraph("دولة فلسطين\nوزارة التربية والتعليم")
     header.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
@@ -96,9 +93,11 @@ if not st.session_state.logged:
     with col_l:
         pwd = st.text_input("أدخل كلمة المرور", type="password")
         if st.button("دخول"):
-            if pwd == "1234": # غيرها لاحقاً
+            if pwd == "1234": 
                 st.session_state.logged = True
                 st.rerun()
+            else:
+                st.error("كلمة المرور غير صحيحة")
     st.stop()
 
 # =====================================
@@ -116,9 +115,9 @@ with tab_search:
     if not df_data.empty:
         if search_q:
             df_data = df_data[
-                df_data['name'].str.contains(search_q, na=False) | 
+                df_data['name'].astype(str).str.contains(search_q, na=False) | 
                 df_data['id'].astype(str).str.contains(search_q) |
-                df_data['school'].str.contains(search_q, na=False)
+                df_data['school'].astype(str).str.contains(search_q, na=False)
             ]
 
         for i, row in df_data.iterrows():
@@ -128,7 +127,7 @@ with tab_search:
                     st.write(f"**رقم الهوية:** {row['id']}")
                     st.write(f"**المدينة:** {row['city']}")
                 with c2:
-                    if row['hall']:
+                    if row['hall'] and str(row['hall']).strip() != "":
                         doc_file = create_docx(row)
                         st.download_button(
                             label=f"📄 تحميل كتاب {row['name']}",
@@ -138,3 +137,80 @@ with tab_search:
                             key=f"dl_{row['id']}"
                         )
                     else:
+                        st.warning("⚠️ لا توجد قاعة معينة حالياً.")
+    else:
+        st.info("النظام فارغ. يرجى رفع ملف الإكسل أولاً.")
+
+# --- التبويب الثاني: الرفع ---
+with tab_upload:
+    st.subheader("تحميل البيانات من ملف Excel")
+    up_file = st.file_uploader("اختر ملف الإكسل", type="xlsx")
+    
+    if up_file:
+        df_excel = pd.read_excel(up_file)
+        st.write("معاينة أولية للبيانات:")
+        st.dataframe(df_excel.head())
+
+        if st.button("🚀 تأكيد حفظ البيانات في النظام"):
+            with st.spinner("جاري استيراد البيانات..."):
+                try:
+                    def get_col(df, keywords):
+                        for col in df.columns:
+                            if any(key in str(col).lower() for key in keywords):
+                                return col
+                        return None
+
+                    col_id = get_col(df_excel, ['id', 'هوية'])
+                    col_name = get_col(df_excel, ['name', 'اسم'])
+                    col_school = get_col(df_excel, ['school', 'مدرسة'])
+                    col_city = get_col(df_excel, ['city', 'سكن', 'مدينة'])
+                    col_phone = get_col(df_excel, ['phone', 'جوال'])
+                    col_role = get_col(df_excel, ['role', 'مهمة'])
+                    col_hall = get_col(df_excel, ['hall', 'قاعة'])
+                    col_accept = get_col(df_excel, ['accept', 'r'])
+
+                    for _, row in df_excel.iterrows():
+                        c.execute('''
+                        INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, accept)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            str(row[col_id]) if col_id else "",
+                            str(row[col_name]) if col_name else "",
+                            str(row[col_school]) if col_school else "",
+                            str(row[col_city]) if col_city else "",
+                            str(row[col_phone]) if col_phone else "",
+                            str(row[col_role]) if col_role else "",
+                            str(row[col_hall]) if col_hall else "",
+                            str(row[col_accept]) if col_accept else "نعم"
+                        ))
+                    conn.commit()
+                    st.success("تم التحديث بنجاح! ✅")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"حدث خطأ: {e}")
+
+# --- التبويب الثالث: الإدارة ---
+with tab_manage:
+    st.subheader("الإجراءات الجماعية")
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        ready = pd.read_sql("SELECT * FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
+        if st.button(f"📦 تحميل ({len(ready)}) كتاب في ملف ZIP"):
+            if not ready.empty:
+                zip_io = io.BytesIO()
+                with zipfile.ZipFile(zip_io, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for _, r in ready.iterrows():
+                        d_io = create_docx(r)
+                        zf.writestr(f"تكليف_{r['name']}.docx", d_io.getvalue())
+                zip_io.seek(0)
+                st.download_button("📥 بدء التحميل", data=zip_io, file_name="all_assignments.zip")
+            else:
+                st.error("لا يوجد معلمون معينون بقاعات.")
+
+    with col_b:
+        if st.button("🗑️ مسح جميع البيانات الحالية"):
+            c.execute("DELETE FROM teachers")
+            conn.commit()
+            st.warning("تم إفراغ قاعدة البيانات.")
+            st.rerun()
