@@ -295,8 +295,14 @@ with tab_manage:
                 st.write(f"👥 عدد المكلفين في {hall_to_manage}: **{len(df_members)}**")
                 
 # جلب قائمة بكل القاعات المتاحة في النظام لاستخدامها في النقل
-                all_halls_df = pd.read_sql("SELECT DISTINCT hall_name FROM schools", conn)
-                halls_list = sorted(all_halls_df['hall_name'].tolist())
+                # جلب قائمة القاعات من المعلمين المكلفين لضمان عدم حدوث خطأ في اسم الجدول
+                all_halls_list = pd.read_sql("SELECT DISTINCT hall FROM teachers WHERE hall != ''", conn)['hall'].tolist()
+                
+                # إذا كانت القائمة فارغة (لا يوجد قاعات بعد)، أضف القاعة الحالية فقط
+                if not all_halls_list:
+                    all_halls_list = [hall_to_manage]
+                
+                halls_list = sorted(list(set(all_halls_list + [hall_to_manage])))
 
              # حلقة التكرار المطورة (لوحة تحكم كاملة)
                 for index, row in df_members.iterrows():
