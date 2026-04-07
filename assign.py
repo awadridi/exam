@@ -217,53 +217,65 @@ with tab_upload:
             f.write(f_template.getbuffer())
         st.success("✅ تم تحديث نموذج كتاب التكليف بنجاح!")
 
-if selected_h_export:
-            # 1. تصفية البيانات للقاعة المختارة
+with tab_manage:
+    st.header("⚙️ أدوات الإدارة والاستخراج")
+    
+    # 1. جلب البيانات من القاعدة
+    df_all = pd.read_sql("SELECT * FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
+    
+    st.subheader("📊 استخراج كشوفات القاعات")
+    
+    if not df_all.empty:
+        # الحصول على قائمة القاعات
+        halls_with_assignments = sorted(df_all['hall'].unique())
+        
+        # تعريف المتغير هنا أولاً قبل استخدامه
+        selected_h_export = st.selectbox("اختر القاعة لتصدير كشف العاملين بها:", [""] + halls_with_assignments)
+        
+        # التأكد أن المستخدم اختار قاعة فعلاً
+        if selected_h_export and selected_h_export != "":
+            # تصفية البيانات
             df_hall_export = df_all[df_all['hall'] == selected_h_export][['id', 'name', 'role', 'school', 'city', 'phone']]
             df_hall_export.columns = ['الرقم الوطني/المنشأة', 'الاسم', 'المهمة', 'المدرسة الأصلية', 'السكن', 'رقم الهاتف']
             
-            # 2. إعداد ملف الإكسل مع التنسيقات
+            # إعداد ملف الإكسل المنسق
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                 df_hall_export.to_excel(writer, index=False, sheet_name='العاملين')
                 
-                # الوصول إلى كائن الـ workbook والـ worksheet لتطبيق التنسيق
                 workbook  = writer.book
                 worksheet = writer.sheets['العاملين']
 
-                # --- تعريف التنسيقات ---
-                # تنسيق العناوين (Header)
+                # تنسيق العناوين
                 header_format = workbook.add_format({
-                    'bold': True,
-                    'text_wrap': True,
-                    'valign': 'vcenter',
-                    'align': 'center',
-                    'fg_color': '#D7E4BC', # لون خلفية أخضر فاتح
-                    'border': 1,            # حدود
-                    'font_size': 14        # حجم الخط
+                    'bold': True, 'align': 'center', 'valign': 'vcenter',
+                    'fg_color': '#D7E4BC', 'border': 1, 'font_size': 14
                 })
 
-                # تنسيق الخلايا العادية (Content)
+                # تنسيق الخلايا
                 cell_format = workbook.add_format({
-                    'valign': 'vcenter',
-                    'align': 'right',       # محاذاة لليمين للغة العربية
-                    'border': 1,            # حدود لكل خلية
-                    'font_size': 12        # حجم خط الخلايا
+                    'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 12
                 })
 
-                # 3. تطبيق التنسيقات على الأعمدة والصفوف
-                # تعيين عرض الأعمدة تلقائياً بشكل تقريبي وتطبيق تنسيق الخلايا
                 for col_num, value in enumerate(df_hall_export.columns.values):
-                    worksheet.write(0, col_num, value, header_format) # تطبيق تنسيق العنوان
-                    worksheet.set_column(col_num, col_num, 20, cell_format) # عرض العمود 20 وتنسيق الخلايا
+                    worksheet.write(0, col_num, value, header_format)
+                    worksheet.set_column(col_num, col_num, 20, cell_format)
                 
-                # إذا أردت جعل عمود الاسم أعرض من البقية:
-                worksheet.set_column(1, 1, 35, cell_format) 
+                worksheet.set_column(1, 1, 35, cell_format) # توسيع عمود الاسم
 
-            # 4. زر التحميل
             st.download_button(
                 label=f"📥 تحميل كشف {selected_h_export} منسق (Excel)",
                 data=buffer.getvalue(),
                 file_name=f"كشف_{selected_h_export}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+    else:
+        st.info("ℹ️ لا توجد تكليفات حالياً لتصديرها.")
+
+    st.divider()
+    st.subheader("⚠️ منطقة الخطر")
+    if st.button("⚠️ مسح شامل للتكليفات"):
+        c.execute("UPDATE teachers SET hall='', role='', hall_city=''")
+        conn.commit()
+        st.success("تم مسح التكليفات بنجاح.")
+        st.rerun()
