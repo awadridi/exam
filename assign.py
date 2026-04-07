@@ -145,37 +145,41 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض والإدارة:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
+            # تجهيز البيانات للإكسل
             df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', school as 'المدرسة', city as 'المدينة', role as 'المهمة' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
             c_exc, c_wrd = st.columns(2)
             with c_exc:
-                # --- تعديل تصدير الإكسل المطور ---
+                # --- تصدير الإكسل المطور مع العرض التلقائي للأعمدة ---
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                     df_m.to_excel(writer, index=False, sheet_name='العاملين')
                     workbook  = writer.book
                     worksheet = writer.sheets['العاملين']
                     
-                    # تنسيق الخط (14، Bold)
-                    format_header = workbook.add_format({'bold': True, 'font_size': 14, 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+                    # التنسيقات
+                    format_header = workbook.add_format({'bold': True, 'font_size': 14, 'border': 1, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'})
                     format_cell = workbook.add_format({'font_size': 14, 'border': 1, 'align': 'right', 'valign': 'vcenter'})
                     
-                    # جعل الورقة من اليمين لليسار (RTL)
                     worksheet.right_to_left()
+                    worksheet.set_landscape()
+                    worksheet.fit_to_pages(1, 0)
                     
-                    # إعدادات الطباعة (أفقي، احتواء الأعمدة في صفحة واحدة)
-                    worksheet.set_landscape() # ورقة أفقية
-                    worksheet.fit_to_pages(1, 0) # احتواء كل الأعمدة بصفحة واحدة
-                    
-                    # تطبيق التنسيقات على الأعمدة
-                    for col_num, value in enumerate(df_m.columns.values):
-                        worksheet.write(0, col_num, value, format_header)
-                        worksheet.set_column(col_num, col_num, 20, format_cell)
+                    # حساب العرض التلقائي للأعمدة بناءً على المحتوى
+                    for col_num, col_name in enumerate(df_m.columns):
+                        # نأخذ طول أطول نص في العمود (سواء كان اسم العمود أو البيانات)
+                        max_len = max(
+                            df_m[col_name].astype(str).map(len).max(), 
+                            len(str(col_name))
+                        ) + 5  # إضافة هامش بسيط
+                        
+                        # تطبيق التنسيقات والعرض
+                        worksheet.write(0, col_num, col_name, format_header)
+                        worksheet.set_column(col_num, col_num, max_len, format_cell)
 
                 st.download_button(f"📊 تحميل كشف {h_choice} (Excel)", data=output.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
             
             with c_wrd:
-                # نحتاج الداتا بكامل الأعمدة للوورد
                 df_m_full = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
                 bulk_f = generate_bulk_word(df_m_full, h_choice)
                 if bulk_f:
@@ -184,7 +188,6 @@ with tab_manage:
             st.write(f"عدد الموظفين: **{len(df_m)}**")
             st.divider()
 
-            # عرض الموظفين للإدارة
             for _, m in df_m_full.iterrows():
                 with st.expander(f"📝 {m['name']} | الوظيفة: {m['role']}"):
                     col1, col2, col3 = st.columns([2, 2, 1])
@@ -192,7 +195,8 @@ with tab_manage:
                         new_h = st.selectbox("نقل لقاعة", list(hall_map.keys()), index=list(hall_map.keys()).index(m['hall']), key=f"m_h_{m['id']}")
                     with col2:
                         roles = ["رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"]
-                        new_r = st.selectbox("تغيير مهمة", roles, index=roles.index(m['role']) if m['role'] in roles else 0, key=f"m_r_{m['id']}")
+                        curr_role_idx = roles.index(m['role']) if m['role'] in roles else 0
+                        new_r = st.selectbox("تغيير مهمة", roles, index=curr_role_idx, key=f"m_r_{m['id']}")
                     with col3:
                         if st.button("تحديث", key=f"m_up_{m['id']}"):
                             c.execute("UPDATE teachers SET hall=?, role=?, hall_city=? WHERE id=?", (new_h, new_r, hall_map.get(new_h, ""), m['id']))
