@@ -4,6 +4,7 @@ import sqlite3
 from docx import Document
 import io
 import os
+import re
 
 # =====================================
 # 1. إعدادات الواجهة
@@ -27,23 +28,22 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # قاعدة البيانات
-db_path = os.path.join(os.getcwd(), "final_fix_v10.db")
+db_path = os.path.join(os.getcwd(), "final_fix_v11.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, phone TEXT, role TEXT, hall TEXT, hall_city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS halls 
-             (number TEXT PRIMARY KEY, hall_name TEXT, city TEXT)''")
+             (number TEXT PRIMARY KEY, hall_name TEXT, city TEXT)''')
 conn.commit()
 
 # =====================================
-# 2. وظيفة الاستبدال الشامل (إجبار Bold لكل المتغيرات)
+# 2. وظيفة الاستبدال (إصلاح الـ Bold و JOB)
 # =====================================
 def generate_from_template(row):
     try:
         doc = Document("template.docx")
         
-        # خريطة البيانات المستهدفة
         replacements = {
             '<NAME>': str(row['name']),
             '<ID>': str(row['id']),
@@ -54,45 +54,40 @@ def generate_from_template(row):
             '<CITY>': str(row['city'])
         }
 
-        def apply_final_bold_replace(paragraph, data_map):
+        def apply_smart_bold_replace(paragraph, data_map):
             text = paragraph.text
-            # إذا كانت الفقرة تحتوي على أي من الوسوم
             if any(key in text for key in data_map):
-                # مسح محتويات الفقرة الحالية مع الحفاظ على الفقرة نفسها
+                # تفريغ الـ runs الحالية
                 for run in paragraph.runs:
                     run.text = ""
                 
-                # تقسيم النص وإعادة بنائه كلمة بكلمة لضمان الـ Bold
-                import re
-                # نمط البحث عن أي وسوم مثل <NAME> أو <JOB>
-                pattern = re.compile(r'(<.*?>)')
-                parts = pattern.split(text)
+                # تقسيم النص بناءً على الوسوم <...>
+                parts = re.split(r'(<[^>]+>)', text)
                 
                 for part in parts:
                     if part in data_map:
-                        # هذا الجزء هو المتغير -> نجعله Bold
+                        # الجزء المتغير نجعله Bold
                         run = paragraph.add_run(data_map[part] if data_map[part] else "")
                         run.bold = True
                     else:
-                        # هذا جزء من النص الثابت -> نص عادي
+                        # النص الثابت يبقى عادياً
                         paragraph.add_run(part)
 
-        # تنفيذ العملية على الفقرات
+        # تنفيذ الاستبدال في الفقرات والجداول
         for p in doc.paragraphs:
-            apply_final_bold_replace(p, replacements)
+            apply_smart_bold_replace(p, replacements)
         
-        # تنفيذ العملية داخل الجداول
         for table in doc.tables:
             for r in table.rows:
                 for cell in r.cells:
                     for p in cell.paragraphs:
-                        apply_final_bold_replace(p, replacements)
+                        apply_smart_bold_replace(p, replacements)
 
         bio = io.BytesIO()
         doc.save(bio)
         bio.seek(0)
         return bio
-    except Exception as e:
+    except Exception:
         return None
 
 # =====================================
@@ -101,7 +96,7 @@ def generate_from_template(row):
 tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين", "📥 رفع الملفات", "⚙️ الإدارة"])
 
 with tab_search:
-    st.subheader("إدارة الموظفين والمهام")
+    st.subheader("إدارة التكليفات")
     
     df_halls = pd.read_sql("SELECT * FROM halls", conn)
     hall_map = {str(r['hall_name']): str(r['city']) for _, r in df_halls.iterrows()}
@@ -129,11 +124,11 @@ with tab_search:
                     
                     b1, b2 = st.columns(2)
                     with b1:
-                        if st.button("💾 حفظ", key=f"btn_{row['id']}"):
+                        if st.button("💾 حفظ البيانات", key=f"btn_{row['id']}"):
                             h_city = hall_map.get(sel_hall, "")
                             c.execute("UPDATE teachers SET hall=?, role=?, hall_city=? WHERE id=?", (sel_hall, sel_role, h_city, row['id']))
                             conn.commit()
-                            st.success("تم!")
+                            st.success("تم الحفظ!")
                             st.rerun()
                     with b2:
                         if row['role'] or row['hall']:
@@ -148,7 +143,7 @@ with tab_search:
                         if file_data:
                             st.download_button(f"📥 تحميل التكليف", data=file_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
-# تبويب الرفع والإدارة كما هي
+# تبويب الرفع
 with tab_upload:
     cu1, cu2 = st.columns(2)
     with cu1:
@@ -159,7 +154,7 @@ with tab_upload:
                 c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
                           (str(r.get('id','')), str(r.get('name','')), str(r.get('school','')), str(r.get('city','')), str(r.get('phone','')), "", "", ""))
             conn.commit()
-            st.success("تم")
+            st.success("تم الرفع")
     with cu2:
         f_h = st.file_uploader("ملف القاعات", type="xlsx")
         if f_h and st.button("رفع القاعات"):
@@ -168,8 +163,8 @@ with tab_upload:
             for _, r in dfh.iterrows():
                 c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r.iloc[0]), str(r.iloc[1]), str(r.iloc[2])))
             conn.commit()
-            st.success("تم")
+            st.success("تم الرفع")
 
 with tab_manage:
-    if st.button("🗑️ مسح شامل"):
+    if st.button("🗑️ مسح شامل للبيانات"):
         c.execute("DELETE FROM teachers"); c.execute("DELETE FROM halls"); conn.commit(); st.rerun()
