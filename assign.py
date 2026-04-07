@@ -34,10 +34,6 @@ if password_input != PASSWORD:
 st.success("تم تسجيل الدخول بنجاح ✅")
 
 # مثال: جدول التوزيع الحالي
-df_assignments = pd.DataFrame({
-    "Teacher": ["أحمد", "سعاد", "محمود"],
-    "Hall": ["قاعة 1", "قاعة 2", "قاعة 3"]
-})
 
 st.title("إدارة التوزيع")
 
