@@ -36,8 +36,25 @@ halls = pd.read_excel(halls_file).rename(columns={
     'اسم القاعة': 'قاعة',
     'البلد': 'بلد'
 })
+
 if 'قاعة مختارة' not in teachers.columns:
     teachers['قاعة مختارة'] = None
+
+# --- عرض جميع المعلمين الموزعين وإلغاء تكليفهم ---
+assigned_teachers = teachers.dropna(subset=['قاعة مختارة'])
+if not assigned_teachers.empty:
+    st.subheader("المعلمون الموزعون على قاعات")
+    teacher_to_remove = st.selectbox(
+        "اختر معلم لإلغاء تكليفه:",
+        assigned_teachers['اسم'],
+        key="remove_assigned_teacher"
+    )
+    if st.button("إلغاء تكليف هذا المعلم", key="remove_assigned_teacher_button"):
+        teachers.loc[teachers['اسم'] == teacher_to_remove, 'قاعة مختارة'] = None
+        teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
+        st.warning(f"تم إلغاء تكليف المعلم {teacher_to_remove}")
+else:
+    st.info("لا يوجد معلمين موزعين حالياً.")
 
 
 if os.path.exists(assignments_file):
