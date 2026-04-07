@@ -10,8 +10,6 @@ exam_file = st.secrets["EXAM_FILE"]
 halls_file = st.secrets["HALLS_FILE"]
 assignments_file = st.secrets["ASSIGNMENTS_FILE"]
 empty_doc = "doc.docx"   # اسم ملف القالب الجديد
-if 'قاعة مختارة' not in teachers.columns:
-    teachers['قاعة مختارة'] = None
 
 
 # كلمة السر
@@ -38,6 +36,9 @@ halls = pd.read_excel(halls_file).rename(columns={
     'اسم القاعة': 'قاعة',
     'البلد': 'بلد'
 })
+if 'قاعة مختارة' not in teachers.columns:
+    teachers['قاعة مختارة'] = None
+
 
 if os.path.exists(assignments_file):
     assignments = pd.read_excel(assignments_file)
