@@ -337,68 +337,60 @@ with tab_manage:
                                 c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
                                 conn.commit()
                                 st.rerun()
-                         
-                    # --- قسم تصدير كتب التكليف Word ---
-                        def generate_word_assignments(df, hall):
-                            doc = Document()
-                            for index, row in df.iterrows():
-                                # عنوان التكليف
-                                p = doc.add_paragraph()
-                                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                                run = p.add_run("كتاب تكليف بمهمة امتحان")
-                                run.bold = True
-                                run.font.size = Pt(18)
-                                
-                                doc.add_paragraph("\n") # مسافة
-                                
-                                # نص التكليف
-                                p_text = doc.add_paragraph()
-                                p_text.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                                content = (
-                                    f"بناءً على الصلاحيات المخولة لنا، تقرر تكليف السيد/ة: {row['name']}\n"
-                                    f"بمهمة: {row['role']}\n"
-                                    f"في قاعة: {hall}\n"
-                                    f"وذلك اعتباراً من تاريخه. نرجو منكم الالتزام بالتعليمات الرسمية."
-                                )
-                                run_content = p_text.add_run(content)
-                                run_content.font.size = Pt(14)
-                                
-                                doc.add_paragraph("\n\n")
-                                p_sig = doc.add_paragraph("ختم وتوقيع مدير المركز: .........................")
-                                p_sig.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                                
-                                if index < len(df) - 1:
-                                    doc.add_page_break() # صفحة جديدة لكل موظف
-                            
-                            target = io.BytesIO()
-                            doc.save(target)
-                            target.seek(0)
-                            return target
+                              # --- 1. تعريف الدالة (يجب أن تبدأ من نفس مستوى الـ for) ---
+                def generate_word_assignments(df, hall):
+                    doc = Document()
+                    for index, row in df.iterrows():
+                        p = doc.add_paragraph()
+                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run = p.add_run("كتاب تكليف بمهمة امتحان")
+                        run.bold = True
+                        run.font.size = Pt(18)
+                        doc.add_paragraph("\n")
+                        p_text = doc.add_paragraph()
+                        p_text.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                        content = (
+                            f"بناءً على الصلاحيات المخولة لنا، تقرر تكليف السيد/ة: {row['name']}\n"
+                            f"بمهمة: {row['role']}\n"
+                            f"في قاعة: {hall}\n"
+                            f"وذلك اعتباراً من تاريخه. نرجو منكم الالتزام بالتعليمات الرسمية."
+                        )
+                        run_content = p_text.add_run(content)
+                        run_content.font.size = Pt(14)
+                        doc.add_paragraph("\n\n")
+                        p_sig = doc.add_paragraph("ختم وتوقيع مدير المركز: .........................")
+                        p_sig.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                        if index < len(df) - 1:
+                            doc.add_page_break()
                     
-                        # إضافة أزرار التحميل تحت بعضها بشكل مرتب
-                        st.write("---")
-                        col_down1, col_down2 = st.columns(2)
-                        with col_down1:
-                            word_file = generate_word_assignments(df_members, hall_to_manage)
-                            st.download_button(
-                                label="📄 تحميل كتب التكليف (Word)",
-                                data=word_file,
-                                file_name=f"تكليفات_{hall_to_manage}.docx",
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                use_container_width=True
-                            )
-                        with col_down2:
-                            # زر الإكسل الموجود عندك سابقاً (مثال)
-                            st.download_button(
-                                label="📊 تحميل قائمة القاعة (Excel)",
-                                data=df_members.to_csv(index=False).encode('utf-8-sig'),
-                                file_name=f"قاعة_{hall_to_manage}.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
+                    target = io.BytesIO()
+                    doc.save(target)
+                    target.seek(0)
+                    return target
 
-
-
+                # --- 2. إضافة الأزرار (تأكد أنها تحت الـ for تماماً) ---
+                st.write("---")
+                col_down1, col_down2 = st.columns(2)
+                
+                with col_down1:
+                    word_file = generate_word_assignments(df_members, hall_to_manage)
+                    st.download_button(
+                        label="📄 تحميل كتب التكليف (Word)",
+                        data=word_file,
+                        file_name=f"تكليفات_{hall_to_manage}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+                
+                with col_down2:
+                    st.download_button(
+                        label="📊 تحميل قائمة القاعة (Excel)",
+                        data=df_members.to_csv(index=False).encode('utf-8-sig'),
+                        file_name=f"قاعة_{hall_to_manage}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )  
+                 
             # لاحظ أن الـ else هنا تعود لمستوى الـ for تماماً
             else:
                 st.info("⚠️ لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
