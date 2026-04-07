@@ -156,26 +156,23 @@ with tab_search:
 # =====================================
 
 # --- إعدادات جوجل شيت (تأكد من وضع القيم الصحيحة هنا) ---
-SHEET_ID = "1kJtaMtltbAF1PeKbTq90kc8MfI_cUsPVAWW8i9YMzlc"
-GID_HALLS = "1364805271"  # استبدل الرقم 0 برقم الورقة الثانية من الرابط
-
-TEACHERS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
-HALLS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID_HALLS}"
+# الروابط الناتجة من "النشر على الويب" (Publish to web)
+TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
+HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 def sync_data():
     try:
-        # مزامنة المعلمين
+        # قراءة البيانات مباشرة من روابط النشر
         df_t = pd.read_csv(TEACHERS_URL)
         df_t.to_sql('teachers', conn, if_exists='replace', index=False)
         
-        # مزامنة القاعات
         df_h = pd.read_csv(HALLS_URL)
         df_h.to_sql('halls', conn, if_exists='replace', index=False)
         
-        st.success("✅ تم تحديث البيانات من Google Sheets بنجاح!")
+        st.success("✅ تم التحديث من جوجل بنجاح!")
         st.rerun()
     except Exception as e:
-        st.error(f"❌ فشل المزامنة: تأكد من إعدادات المشاركة ورابط الملف. (الخطأ: {e})")
+        st.error(f"❌ خطأ: تأكد من اختيار صيغة CSV عند النشر. (الخطأ: {e})")
 
 # التبويبات الجديدة
 tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين", "📥 مزامنة ورفع", "⚙️ الإدارة"])
