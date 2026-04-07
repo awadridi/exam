@@ -409,7 +409,7 @@ with tab_manage:
                 
                             # --- الآن زر التحميل (بمحاذاة كلمة def أعلاه) ---
             st.write("---")
-                try:
+            try:
                     word_file = generate_word_assignments(df_members, hall_to_manage)
                     st.download_button(
                         label="📄 إصدار كتب التكليف الرسمية (Word)",
