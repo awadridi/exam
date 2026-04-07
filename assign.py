@@ -7,7 +7,7 @@ import zipfile
 # ================== إعدادات ==================
 exam_file = st.secrets["EXAM_FILE"]
 halls_file = st.secrets["HALLS_FILE"]
-assignments_file = "assignments.xlsx"  # حفظ التعيينات هنا
+assignments_file = "assignments.xlsx"  # حفظ التعيينات
 PASSWORD = st.secrets["PASSWORD"]
 empty_doc = "doc.docx"  # قالب Word
 
@@ -77,27 +77,58 @@ def generate_doc(row):
                                .replace("<ROLE>", str(row['مهمة']))
     return doc
 
+# ================== إضافة معلم جديد ==================
+st.subheader("➕ إضافة معلم جديد")
+with st.expander("إضافة"):
+    name = st.text_input("الاسم", key="new_name")
+    id = st.text_input("الهوية", key="new_id")
+    school = st.text_input("المدرسة", key="new_school")
+    city = st.text_input("السكن", key="new_city")
+    role = st.selectbox("الوظيفة", ["مراقب","رئيس قاعة","آذن","سكرتير"], key="new_role")
+
+    if st.button("إضافة المعلم"):
+        if name and id and school and city:
+            if id in teachers['هوية'].astype(str).values:
+                st.warning("رقم الهوية موجود مسبقًا!")
+            else:
+                new_row = pd.DataFrame([{
+                    'هوية': id,
+                    'اسم': name,
+                    'مدرسة': school,
+                    'سكن': city,
+                    'وظيفة': role,
+                    'قاعة مختارة': None,
+                    'مهمة': role
+                }])
+                teachers = pd.concat([teachers, new_row], ignore_index=True)
+                save_assignments()
+                st.success("تمت إضافة المعلم بنجاح ✅")
+        else:
+            st.warning("املأ جميع الحقول قبل الإضافة!")
+
 # ================== البحث والتعيين ==================
 st.subheader("🔍 البحث والتعيين")
-search_name = st.text_input("ابحث عن المعلم بالاسم:")
+search_name = st.text_input("ابحث عن المعلم بالاسم:", key="search_name")
 if search_name:
     results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
     if not results.empty:
-        selected_teacher = st.selectbox("اختر المعلم:", results['اسم'])
+        selected_teacher = st.selectbox("اختر المعلم:", results['اسم'], key="select_teacher")
         row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
 
         hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-        hall = st.selectbox("اختر القاعة:", hall_options)
-        role = st.selectbox("اختر المهمة:", ["مراقب","رئيس قاعة","آذن","سكرتير"], index=["مراقب","رئيس قاعة","آذن","سكرتير"].index(row['مهمة']))
+        hall = st.selectbox("اختر القاعة:", hall_options, key="select_hall")
+        role = st.selectbox("اختر المهمة:", ["مراقب","رئيس قاعة","آذن","سكرتير"], index=["مراقب","رئيس قاعة","آذن","سكرتير"].index(row['مهمة']), key="select_role")
 
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("تعيين"):
                 if hall != "اختر القاعة..." and role != "":
                     teachers.loc[teachers['اسم']==selected_teacher, ['قاعة مختارة','مهمة']] = [hall, role]
-                    save_assignments()
-                    st.success(f"تم تعيين {selected_teacher} في {hall} كمهمة {role}")
-                    st.experimental_rerun()
+                    try:
+                        save_assignments()
+                        st.success(f"تم تعيين {selected_teacher} في {hall} كمهمة {role}")
+                    except Exception as e:
+                        st.error(f"حدث خطأ أثناء حفظ التعيين: {e}")
                 else:
                     st.warning("اختر القاعة والمهمة قبل التعيين!")
 
@@ -118,21 +149,19 @@ if search_name:
                 teachers.loc[teachers['اسم']==selected_teacher, ['قاعة مختارة','مهمة']] = [None,row['وظيفة']]
                 save_assignments()
                 st.warning(f"تم إلغاء التعيين للمعلم {selected_teacher}")
-                st.experimental_rerun()
 
 # ================== إدارة القاعات ==================
 st.subheader("🏫 إدارة القاعات")
-hall_filter = st.selectbox("اختر القاعة:", [""] + list(halls['قاعة']))
+hall_filter = st.selectbox("اختر القاعة:", [""] + list(halls['قاعة']), key="hall_filter")
 if hall_filter:
     assigned = teachers[teachers['قاعة مختارة'] == hall_filter]
     st.write(f"عدد المعلمين في القاعة: {len(assigned)}")
     if not assigned.empty:
-        teacher_to_remove = st.selectbox("اختر معلم لإلغاء تكليفه:", assigned['اسم'])
+        teacher_to_remove = st.selectbox("اختر معلم لإلغاء تكليفه:", assigned['اسم'], key="remove_teacher")
         if st.button("إلغاء تكليف هذا المعلم"):
             teachers.loc[teachers['اسم']==teacher_to_remove, ['قاعة مختارة','مهمة']] = [None, assigned.loc[assigned['اسم']==teacher_to_remove, 'وظيفة'].values[0]]
             save_assignments()
             st.warning(f"تم إلغاء تكليف {teacher_to_remove} من القاعة {hall_filter}")
-            st.experimental_rerun()
 
     if st.button("توليد كتب Word + ZIP لهذه القاعة"):
         os.makedirs("تكليفات", exist_ok=True)
