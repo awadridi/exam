@@ -42,28 +42,29 @@ df_assignments = pd.read_excel(assignments_file)
 
 st.title("إدارة التوزيع")
 
-# البحث عن معلم
-teacher_name = st.text_input("ابحث عن اسم المعلم:")
+# البحث عن معلم باستخدام العمود "هوية"
+teacher_id = st.text_input("ابحث عن هوية المعلم:")
 
-if teacher_name:
-    result = df_assignments[df_assignments["Teacher"].str.contains(teacher_name)]
+if teacher_id:
+    result = df_assignments[df_assignments["هوية"].astype(str).str.contains(teacher_id)]
     if not result.empty:
         st.write("📋 بيانات المعلم:")
         st.dataframe(result)
 
         # زر لإلغاء معلم واحد بعد البحث
         if st.button("إلغاء هذا المعلم"):
-            df_assignments = df_assignments[df_assignments["Teacher"] != teacher_name]
-            st.success(f"تم إلغاء توزيع {teacher_name}")
+            df_assignments = df_assignments[df_assignments["هوية"].astype(str) != teacher_id]
+            st.success(f"تم إلغاء توزيع المعلم بالهوية {teacher_id}")
             st.dataframe(df_assignments)
     else:
         st.warning("المعلم غير موجود في التوزيع")
 
 # زر مستقل لإلغاء جميع التوزيعات
 if st.button("إلغاء جميع التوزيعات"):
-    df_assignments = pd.DataFrame(columns=["Teacher", "Hall"])  # جدول فارغ
+    df_assignments = pd.DataFrame(columns=["هوية", "قاعة مختارة"])  # جدول فارغ بنفس الأعمدة
     st.success("تم إلغاء جميع التوزيعات")
     st.dataframe(df_assignments)
+
 
 # --- قراءة الملفات ---
 teachers = pd.read_excel("exam.xlsx").rename(columns={
