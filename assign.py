@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from docx import Document
 from docx2pdf import convert
+import os
 import platform
 
 # استدعاء pythoncom فقط إذا كنت على Windows
