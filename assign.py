@@ -342,15 +342,13 @@ with tab_manage:
                                 from docx import Document
                                 import io
                                 
-                                # تحميل القالب الرسمي الذي رفعته
                                 template_path = "template.docx"
                                 final_doc = Document()
                                 
                                 for index, row in df.iterrows():
-                                    # فتح نسخة جديدة من القالب لكل موظف
                                     doc = Document(template_path)
                                     
-                                    # قائمة الاستبدالات بناءً على الأوسمة في قالبك
+                                    # قاموس البيانات
                                     replacements = {
                                         '<NAME>': str(row.get('name', '')),
                                         '<ID>': str(row.get('id_number', '')),
@@ -361,26 +359,29 @@ with tab_manage:
                                         '<CITY>': str(row.get('city', ''))
                                     }
                                     
-                                    # تنفيذ عملية الاستبدال داخل الفقرات
-                                    for paragraph in doc.paragraphs:
-                                        for key, value in replacements.items():
-                                            if key in paragraph.text:
-                                                paragraph.text = paragraph.text.replace(key, value)
+                                    # وظيفة داخلية للاستبدال مع الحفاظ على التنسيق
+                                    def replace_in_paragraphs(paragraphs):
+                                        for paragraph in paragraphs:
+                                            for key, value in replacements.items():
+                                                if key in paragraph.text:
+                                                    # الاستبدال داخل الـ runs للحفاظ على التنسيق
+                                                    for run in paragraph.runs:
+                                                        if key in run.text:
+                                                            run.text = run.text.replace(key, value)
+                            
+                                    # 1. الاستبدال في الفقرات العادية
+                                    replace_in_paragraphs(doc.paragraphs)
                                     
-                                    # تنفيذ عملية الاستبدال داخل الجداول
+                                    # 2. الاستبدال داخل الجداول (مهم جداً لقالبك)
                                     for table in doc.tables:
                                         for table_row in table.rows:
                                             for cell in table_row.cells:
-                                                for paragraph in cell.paragraphs:
-                                                    for key, value in replacements.items():
-                                                        if key in paragraph.text:
-                                                            paragraph.text = paragraph.text.replace(key, value)
+                                                replace_in_paragraphs(cell.paragraphs)
                                     
-                                    # دمج محتوى القالب المعبأ في المستند النهائي
+                                    # دمج الصفحات
                                     for element in doc.element.body:
                                         final_doc.element.body.append(element)
                                         
-                                    # إضافة فاصل صفحات بين كل مكلف والآخر
                                     if index < len(df) - 1:
                                         final_doc.add_page_break()
                                         
