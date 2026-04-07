@@ -16,17 +16,15 @@ halls_file = st.secrets["HALLS_FILE"]
 assignments_file = st.secrets["ASSIGNMENTS_FILE"]
 empty_doc = "doc.docx"   # اسم ملف القالب الجديد
 
-# قراءة كلمة السر من Secrets
+# كلمة السر
 PASSWORD = st.secrets["PASSWORD"]
 
 # واجهة التطبيق
 st.title("تطبيق التكليف")
 password_input = st.text_input("أدخل كلمة المرور:", type="password")
-
 if password_input != PASSWORD:
     st.error("كلمة المرور غير صحيحة")
     st.stop()
-
 st.success("تم تسجيل الدخول بنجاح ✅")
 
 # --- قراءة الملفات ---
@@ -54,8 +52,6 @@ else:
 
 if 'قاعة مختارة' not in teachers.columns:
     teachers['قاعة مختارة'] = None
-
-st.title("إدارة كتب التكليف")
 
 # --- البحث بالاسم وتوزيع ---
 search_name = st.text_input("ابحث عن المراقب بالاسم:")
@@ -196,8 +192,11 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for word_file in word_files:
             pdf_file = word_file.replace(".docx", ".pdf")
-            zipf.write(pdf_file, os.path.basename
-                       
+            zipf.write(pdf_file, os.path.basename(pdf_file))
+
+    withتمام يا عوّاد، خلينا نرتب الكود بشكل نظيف وبدون أي تكرار أو نصوص غير برمجية. هذه نسخة كاملة ومضبوطة من `assign.py`:
+
+```python
 import streamlit as st
 import pandas as pd
 from docx import Document
@@ -216,17 +215,15 @@ halls_file = st.secrets["HALLS_FILE"]
 assignments_file = st.secrets["ASSIGNMENTS_FILE"]
 empty_doc = "doc.docx"   # اسم ملف القالب الجديد
 
-# قراءة كلمة السر من Secrets
+# كلمة السر
 PASSWORD = st.secrets["PASSWORD"]
 
 # واجهة التطبيق
 st.title("تطبيق التكليف")
 password_input = st.text_input("أدخل كلمة المرور:", type="password")
-
 if password_input != PASSWORD:
     st.error("كلمة المرور غير صحيحة")
     st.stop()
-
 st.success("تم تسجيل الدخول بنجاح ✅")
 
 # --- قراءة الملفات ---
@@ -255,8 +252,6 @@ else:
 if 'قاعة مختارة' not in teachers.columns:
     teachers['قاعة مختارة'] = None
 
-st.title("إدارة كتب التكليف")
-
 # --- البحث بالاسم وتوزيع ---
 search_name = st.text_input("ابحث عن المراقب بالاسم:")
 if search_name:
@@ -267,9 +262,6 @@ if search_name:
         if st.button("إضافة/تحديث التوزيع"):
             teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_choice
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-            st.success(f"تم تعيين {hall_choice} لـ {selected_teacher}")
-    else:
-        st.warning("لا يوجد نتائج مطابقة")
 
 # --- البحث برقم الهوية ---
 search_id = st.text_input("اكتب رقم هوية المعلم:")
@@ -277,18 +269,10 @@ if search_id:
     result = teachers[teachers['هوية'].astype(str) == search_id]
     if not result.empty:
         row = result.iloc[0]
-        current_hall = row['قاعة مختارة'] if pd.notna(row['قاعة مختارة']) else None
-
-        if current_hall:
-            st.info(f"المعلم {row['اسم']} معين في القاعة: {current_hall}")
-        else:
-            st.warning(f"المعلم {row['اسم']} لم يتم تعيين قاعة له بعد")
-
         hall_choice = st.selectbox("اختر أو غيّر القاعة:", halls['قاعة'], key="hall_by_id")
         if st.button("تعيين القاعة"):
             teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_choice
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-            st.success(f"تم تعيين القاعة {hall_choice} للمعلم {row['اسم']}")
 
         if st.button("توليد كتاب التكليف لهذا المعلم (PDF)"):
             selected_hall = teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة']
@@ -320,9 +304,6 @@ if search_id:
                         file_name=f"تكليف_{row['اسم']}.pdf",
                         mime="application/pdf"
                     )
-                st.success(f"تم توليد كتاب التكليف PDF للمعلم {row['اسم']}")
-    else:
-        st.error("لا يوجد معلم بهذا الرقم")
 
 # --- توليد كتب لكل المراقبين في قاعة معينة ---
 hall_filter = st.selectbox("اختر قاعة لتوليد كتب التكليف لكل المراقبين فيها:", halls['قاعة'])
@@ -364,9 +345,6 @@ if st.button("توليد كتب التكليف لهذه القاعة (PDF)"):
                 file_name=f"تكليفات_{hall_filter}.zip",
                 mime="application/zip"
             )
-        st.success(f"تم توليد كتب التكليف لجميع المراقبين في القاعة {hall_filter} بصيغة PDF")
-    else:
-        st.warning("لا يوجد مراقبين معينين لهذه القاعة")
 
 # --- توليد جميع الكتب دفعة واحدة ---
 if st.button("توليد جميع كتب التكليف (PDF)"):
@@ -396,4 +374,12 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for word_file in word_files:
             pdf_file = word_file.replace(".docx", ".pdf")
-            zipf.write(pdf_file, os.path.basename
+            zipf.write(pdf_file, os.path.basename(pdf_file))
+
+    with open(zip_path, "rb") as f:
+        st.download_button(
+            label="⬇️ تنزيل جميع كتب التكليف كـ ZIP",
+            data=f,
+            file_name="جميع_التكليفات.zip",
+            mime="application/zip"
+        )
