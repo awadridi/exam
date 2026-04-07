@@ -416,7 +416,8 @@ with tab_manage:
                         data=word_file,
                         file_name=f"تكليفات_{hall_to_manage}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        use_container_width=True
+                        use_container_width=True,
+                        key=f"btn_word_{hall_to_manage}"  # هذا السطر سيحل المشكلة فوراً
                     )
             except Exception as e:
                     st.error(f"حدث خطأ: {e}")
