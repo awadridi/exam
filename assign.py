@@ -57,6 +57,31 @@ if search_name:
         if st.button("إضافة/تحديث التوزيع"):
             teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_choice
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
+if st.button("إضافة/تحديث التوزيع"):
+    teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_choice
+    teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
+    st.success(f"تم تعيين {hall_choice} لـ {selected_teacher}")
+
+    # توليد كتاب التكليف مباشرة
+    hall_info = halls[halls['قاعة'] == hall_choice].iloc[0]
+    doc = Document(empty_doc)
+    for p in doc.paragraphs:
+        for run in p.runs:
+            run.text = run.text.replace("<NAME>", selected_teacher)\
+                               .replace("<HALL_NAME>", hall_info['قاعة'])\
+                               .replace("<HALL_LOCATION>", hall_info['بلد'])
+    os.makedirs("تكليفات", exist_ok=True)
+    word_path = f"تكليفات/تكليف_{selected_teacher}.docx"
+    doc.save(word_path)
+
+    with open(word_path, "rb") as f:
+        st.download_button(
+            label="⬇️ تنزيل كتاب التكليف Word",
+            data=f,
+            file_name=f"تكليف_{selected_teacher}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+
 
 # --- البحث برقم الهوية ---
 search_id = st.text_input("اكتب رقم هوية المعلم:")
