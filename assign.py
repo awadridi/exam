@@ -424,7 +424,7 @@ with tab_manage:
                 # --- 2. إضافة الأزرار (تأكد أنها تحت الـ for تماماً) ---
             st.write("---")
                 # توليد الملف باستخدام الدالة الجديدة والقالب الرسمي
-             try:
+            try:
                     word_file = generate_word_assignments(df_members, hall_to_manage)
                     
                     st.download_button(
