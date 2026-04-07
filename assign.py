@@ -32,7 +32,7 @@ if "accept" not in cols:
     c.execute("ALTER TABLE teachers ADD COLUMN accept TEXT DEFAULT 'نعم'")
     conn.commit()
 
-# جدول القاعات
+# --- جدول القاعات ---
 c.execute('''
 CREATE TABLE IF NOT EXISTS halls (
     number TEXT,
@@ -66,7 +66,10 @@ def get_teachers():
     return pd.read_sql("SELECT * FROM teachers WHERE accept='نعم'", conn)
 
 def get_halls():
-    return pd.read_sql("SELECT * FROM halls", conn)
+    df = pd.read_sql("SELECT * FROM halls", conn)
+    df['number'] = df['number'].fillna("").astype(str)
+    df['hall'] = df['hall'].fillna("").astype(str)
+    return df
 
 teachers = get_teachers()
 halls = get_halls()
@@ -140,9 +143,8 @@ if search:
 if not result.empty:
     r = result.iloc[0]
     st.write(r)
-    halls['number'] = halls['number'].fillna("").astype(str)
-    halls['hall'] = halls['hall'].fillna("").astype(str)
-    hall_options = [""] + [f"{n} - {h}" for n,h in zip(halls['number'], halls['hall'])]
+    # إعداد قائمة القاعات للاختيار بشكل صحيح
+    hall_options = [""] + [f"{row['number']} - {row['hall']}" for _, row in halls.iterrows()]
     selected_hall = st.selectbox("اختر القاعة", hall_options, key="assign_hall")
     role_assign = st.selectbox("المهمة", role_options, key="assign_role")
 
