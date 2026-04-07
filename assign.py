@@ -9,7 +9,6 @@ import zipfile
 conn = sqlite3.connect("data.db", check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول
 c.execute('''
 CREATE TABLE IF NOT EXISTS teachers (
     id TEXT PRIMARY KEY,
@@ -38,9 +37,9 @@ st.title("🎓 نظام إدارة التكليف")
 if "logged" not in st.session_state:
     st.session_state.logged = False
 
-password = st.text_input("كلمة المرور", type="password")
+password = st.text_input("كلمة المرور", type="password", key="login_pass")
 
-if st.button("دخول"):
+if st.button("دخول", key="login_btn"):
     if password == "1234":
         st.session_state.logged = True
         st.success("تم الدخول ✅")
@@ -60,50 +59,73 @@ def get_halls():
 teachers = get_teachers()
 halls = get_halls()
 
-# --- إضافة معلم ---
-with st.expander("➕ إضافة معلم"):
-    name = st.text_input("الاسم")
-    idd = st.text_input("الهوية")
-    school = st.text_input("المدرسة")
-    city = st.text_input("السكن")
-    phone = st.text_input("الجوال")
-    role = st.selectbox("المهمة", ["مراقب","رئيس قاعة","آذن","سكرتير"])
+# =====================================
+# ➕ إضافة معلم (تم إصلاح مشكلة TAB)
+# =====================================
+with st.expander("➕ إضافة معلم جديد", expanded=True):
+    with st.form("add_teacher_form"):
 
-    if st.button("حفظ المعلم"):
-        try:
-            c.execute("INSERT INTO teachers VALUES (?,?,?,?,?,?,?)",
-                      (idd, name, school, city, phone, role, ""))
-            conn.commit()
-            st.success("تم الحفظ ✅")
-        except:
-            st.warning("المعلم موجود مسبقًا")
+        name = st.text_input("الاسم", key="add_name")
+        idd = st.text_input("الهوية", key="add_id")
+        school = st.text_input("المدرسة", key="add_school")
+        city = st.text_input("السكن", key="add_city")
+        phone = st.text_input("الجوال", key="add_phone")
 
-# --- تعديل / حذف ---
+        role = st.selectbox(
+            "المهمة",
+            ["مراقب","رئيس قاعة","آذن","سكرتير"],
+            key="add_role"
+        )
+
+        submitted = st.form_submit_button("💾 حفظ المعلم")
+
+        if submitted:
+            if not idd or not name:
+                st.warning("⚠️ لازم تعبّي الاسم والهوية")
+            else:
+                try:
+                    c.execute("INSERT INTO teachers VALUES (?,?,?,?,?,?,?)",
+                              (idd, name, school, city, phone, role, ""))
+                    conn.commit()
+                    st.success("تم الحفظ ✅")
+
+                    # تفريغ الحقول بعد الحفظ
+                    for k in ["add_name","add_id","add_school","add_city","add_phone"]:
+                        st.session_state[k] = ""
+
+                except:
+                    st.error("❌ المعلم موجود مسبقًا")
+
+# =====================================
+# ✏️ تعديل / حذف
+# =====================================
 st.subheader("✏️ تعديل أو حذف معلم")
 
 if not teachers.empty:
-    selected = st.selectbox("اختر معلم", teachers['name'])
+    selected = st.selectbox("اختر معلم", teachers['name'], key="edit_select")
 
     row = teachers[teachers['name']==selected].iloc[0]
 
-    new_name = st.text_input("الاسم", row['name'])
-    new_phone = st.text_input("الجوال", row['phone'])
+    new_name = st.text_input("الاسم الجديد", row['name'], key="edit_name")
+    new_phone = st.text_input("الجوال الجديد", row['phone'], key="edit_phone")
 
-    if st.button("تحديث"):
+    if st.button("تحديث", key="update_btn"):
         c.execute("UPDATE teachers SET name=?, phone=? WHERE id=?",
                   (new_name, new_phone, row['id']))
         conn.commit()
         st.success("تم التعديل")
 
-    if st.button("حذف"):
+    if st.button("حذف", key="delete_btn"):
         c.execute("DELETE FROM teachers WHERE id=?", (row['id'],))
         conn.commit()
         st.warning("تم الحذف")
 
-# --- البحث والتعيين ---
+# =====================================
+# 🔍 البحث والتعيين
+# =====================================
 st.subheader("🔍 البحث والتعيين")
 
-search = st.text_input("ابحث")
+search = st.text_input("ابحث", key="search_box")
 
 if search:
     result = teachers[
@@ -116,28 +138,34 @@ if search:
 
         st.write(r)
 
-        hall_options = [""] + list(halls['number'] + " - " + halls['hall'])
-        selected_hall = st.selectbox("اختر القاعة", hall_options)
+        hall_options = [""] + list(halls['number'].astype(str) + " - " + halls['hall'])
+        selected_hall = st.selectbox("اختر القاعة", hall_options, key="assign_hall")
 
-        role = st.selectbox("المهمة", ["مراقب","رئيس قاعة","آذن","سكرتير"])
+        role_assign = st.selectbox(
+            "المهمة",
+            ["مراقب","رئيس قاعة","آذن","سكرتير"],
+            key="assign_role"
+        )
 
-        if st.button("تعيين"):
+        if st.button("تعيين", key="assign_btn"):
             hall_name = selected_hall.split(" - ")[1] if selected_hall else ""
             c.execute("UPDATE teachers SET hall=?, role=? WHERE id=?",
-                      (hall_name, role, r['id']))
+                      (hall_name, role_assign, r['id']))
             conn.commit()
             st.success("تم التعيين")
 
-        if st.button("إلغاء"):
+        if st.button("إلغاء", key="cancel_btn"):
             c.execute("UPDATE teachers SET hall='' WHERE id=?", (r['id'],))
             conn.commit()
             st.warning("تم الإلغاء")
 
-# --- القاعات ---
-st.subheader("🏛️ إدارة القاعات")
+# =====================================
+# 🏛️ القاعات + الطباعة
+# =====================================
+st.subheader("🏛️ القاعات")
 
 if not halls.empty:
-    hall_select = st.selectbox("اختر قاعة", halls['hall'])
+    hall_select = st.selectbox("اختر قاعة", halls['hall'], key="hall_select")
 
     hall_teachers = teachers[teachers['hall']==hall_select]
 
@@ -145,10 +173,9 @@ if not halls.empty:
 
     if not hall_teachers.empty:
 
-        # طباعة فردي
-        single = st.selectbox("طباعة لمعلم", hall_teachers['name'])
+        single = st.selectbox("طباعة لمعلم", hall_teachers['name'], key="print_single")
 
-        if st.button("طباعة كتاب فردي"):
+        if st.button("📄 طباعة فردي", key="print_btn"):
             row = hall_teachers[hall_teachers['name']==single].iloc[0]
 
             doc = Document("doc.docx")
@@ -165,10 +192,9 @@ if not halls.empty:
             doc.save(path)
 
             with open(path, "rb") as f:
-                st.download_button("تحميل", f)
+                st.download_button("تحميل", f, key="download_single")
 
-        # طباعة جماعي
-        if st.button("طباعة كل القاعة"):
+        if st.button("📦 طباعة جماعي", key="print_all"):
             os.makedirs("out", exist_ok=True)
             files = []
 
@@ -190,4 +216,4 @@ if not halls.empty:
                     z.write(f, os.path.basename(f))
 
             with open(zip_path, "rb") as f:
-                st.download_button("تحميل الكل", f)
+                st.download_button("تحميل الكل", f, key="download_all")
