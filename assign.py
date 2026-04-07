@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from docx import Document
@@ -173,4 +172,32 @@ if st.button("توليد كتب التكليف لهذه القاعة", key="gene
 
 # --- توليد جميع الكتب دفعة واحدة ---
 if st.button("توليد جميع كتب التكليف", key="generate_all"):
-    os.makedirs("تكليفات
+    os.makedirs("تكليفات", exist_ok=True)
+    word_files = []
+    for _, row in teachers.dropna(subset=['قاعة مختارة']).iterrows():
+        hall_info = halls[halls['قاعة'] == row['قاعة مختارة']].iloc[0]
+        doc = Document(empty_doc)
+        for p in doc.paragraphs:
+            for run in p.runs:
+                run.text = run.text.replace("<NAME>", row['اسم'])\
+                                   .replace("<ID>", str(row['هوية']))\
+                                   .replace("<CITY>", row['سكن'])\
+                                   .replace("<WORKPLACE>", row['مدرسة'])\
+                                   .replace("<HALL_NAME>", hall_info['قاعة'])\
+                                   .replace("<HALL_LOCATION>", hall_info['بلد'])
+        word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
+        doc.save(word_path)
+        word_files.append(word_path)
+
+    zip_path = "تكليفات/جميع_التكليفات.zip"
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        for word_file in word_files:
+            zipf.write(word_file, os.path.basename(word_file))
+
+    with open(zip_path, "rb") as f:
+        st.download_button(
+            label="⬇️ تنزيل جميع كتب التكليف كـ ZIP",
+            data=f,
+            file_name="جميع_التكليفات.zip",
+            mime="application/zip"
+        )
