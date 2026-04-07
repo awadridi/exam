@@ -8,6 +8,18 @@ import platform
 # استدعاء pythoncom فقط إذا كنت على Windows
 if platform.system() == "Windows":
     import pythoncom
+import streamlit as st
+
+# كلمة المرور اللي انت بتحددها
+PASSWORD = "654321"
+
+# واجهة إدخال كلمة المرور
+st.title("تطبيق التكليف")
+password_input = st.text_input("أدخل كلمة المرور:", type="password")
+
+if password_input != PASSWORD:
+    st.error("كلمة المرور غير صحيحة أو فارغة")
+    st.stop()  # يوقف تشغيل باقي التطبيق
 
 
 # --- قراءة الملفات ---
