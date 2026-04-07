@@ -8,21 +8,21 @@ import io
 import zipfile
 
 # =====================================
-# 1. إعدادات الصفحة والتنسيق
+# 1. إعدادات الصفحة والتنسيق العربي
 # =====================================
-st.set_page_config(page_title="نظام إدارة التكليفات", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="نظام إدارة التكليفات الرقمي", page_icon="🎓", layout="wide")
 
-# تنسيق الواجهة لتدعم اللغة العربية (RTL)
 st.markdown("""
     <style>
     .stApp { direction: rtl; text-align: right; }
-    div[data-testid="stExpander"] div[role="button"] p { font-size: 1.2rem; font-weight: bold; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    th, td { text-align: right !important; }
+    .stButton>button { width: 100%; border-radius: 8px; background-color: #007bff; color: white; height: 3em; }
+    div[data-testid="stExpander"] p { font-size: 1.1rem; }
     </style>
     """, unsafe_allow_html=True)
 
 # =====================================
-# 2. قاعدة البيانات SQLite
+# 2. إدارة قاعدة البيانات
 # =====================================
 @st.cache_resource
 def get_db_connection():
@@ -32,7 +32,7 @@ def get_db_connection():
 conn = get_db_connection()
 c = conn.cursor()
 
-# إنشاء الجداول (مطابق لأعمدة ملف الاكسل الخاص بك)
+# إنشاء الجدول بالأعمدة الأساسية
 c.execute('''
 CREATE TABLE IF NOT EXISTS teachers (
     id TEXT PRIMARY KEY,
@@ -48,42 +48,36 @@ CREATE TABLE IF NOT EXISTS teachers (
 conn.commit()
 
 # =====================================
-# 3. وظائف النظام (Word & Logic)
+# 3. دالة توليد ملف الـ Word
 # =====================================
-
 def create_docx(row):
-    """توليد ملف Word احترافي لكل معلم"""
     doc = Document()
     
-    # ترويسة الكتاب
-    header = doc.add_paragraph("دولة فلسطين\nوزارة التربية والتعليم\nمديرية التربية والتعليم")
+    # ترويسة افتراضية - يمكنك تعديل النص بين الاقتباسات
+    header = doc.add_paragraph("دولة فلسطين\nوزارة التربية والتعليم")
     header.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    doc.add_heading('كتاب تكليف رسمي', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title = doc.add_heading('بطاقة تكليف لمهمة امتحان', level=1)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     content = f"""
-    التاريخ: 2026/04/07م
+    بناءً على مقتضيات المصلحة العامة، فقد تقرر تكليفكم بالمهمة المذكورة أدناه:
     
-    إلى الزميل/ة: {row['name']} المحترم/ة
-    رقم الهوية: {row['id']}
-    المدرسة الأصلية: {row['school']}
-    
-    نحييكم أطيب تحية، ونعلمكم بأنه قد تقرر تكليفكم بالعمل في امتحانات الثانوية العامة وفق البيانات التالية:
-    
-    • المهمة الموكلة إليكم: {row['role']}
-    • مكان التكليف (القاعة): {row['hall']}
+    • الاسم الكامل: {row['name']}
+    • رقم الهوية: {row['id']}
+    • المدرسة الأصلية: {row['school']}
+    • المهمة الموكلة: {row['role']}
+    • مكان العمل (القاعة): {row['hall']}
     • المدينة/المنطقة: {row['city']}
     
-    يرجى التواجد في القاعة المذكورة أعلاه في تمام الساعة الثامنة صباحاً.
-    
-    نتمنى لكم التوفيق في مهمتكم.
+    نتمنى لكم التوفيق والسداد في أداء الأمانة.
     """
     run = p.add_run(content)
     run.font.size = Pt(13)
     
-    doc.add_paragraph("\nتوقيع مدير التربية والتعليم\n...........................").alignment = WD_ALIGN_PARAGRAPH.LEFT
+    doc.add_paragraph("\nتوقيع جهة الاختصاص\n...........................").alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     bio = io.BytesIO()
     doc.save(bio)
@@ -91,106 +85,56 @@ def create_docx(row):
     return bio
 
 # =====================================
-# 4. نظام تسجيل الدخول
+# 4. نظام الدخول
 # =====================================
 if "logged" not in st.session_state:
     st.session_state.logged = False
 
 if not st.session_state.logged:
-    st.title("🔐 تسجيل الدخول للنظام")
-    pwd = st.text_input("أدخل كلمة المرور", type="password")
-    if st.button("دخول"):
-        if pwd == "1234": # يمكنك تغييرها لاحقاً
-            st.session_state.logged = True
-            st.rerun()
+    st.title("🔐 تسجيل الدخول")
+    col_l, col_r = st.columns([1, 2])
+    with col_l:
+        pwd = st.text_input("أدخل كلمة المرور", type="password")
+        if st.button("دخول"):
+            if pwd == "1234": # غيرها لاحقاً
+                st.session_state.logged = True
+                st.rerun()
     st.stop()
 
 # =====================================
-# 5. واجهة المستخدم الرئيسية (Tabs)
+# 5. الواجهة الرئيسية
 # =====================================
-tab_search, tab_upload, tab_reports = st.tabs(["🔍 البحث والطباعة", "📥 رفع بيانات Excel", "📊 تقارير وتحميل جماعي"])
+tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والطباعة", "📥 استيراد من إكسل", "⚙️ الإدارة"])
 
-# --- التبويب الأول: البحث والتعيين ---
+# --- التبويب الأول: البحث ---
 with tab_search:
-    st.subheader("البحث عن المعلمين المكلفين")
-    search_q = st.text_input("أدخل الاسم أو رقم الهوية للبحث...")
+    st.subheader("قائمة المعلمين والتكليفات")
+    search_q = st.text_input("ابحث عن اسم، هوية، أو مدرسة...")
     
-    # جلب البيانات الحالية
-    df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
+    df_data = pd.read_sql("SELECT * FROM teachers", conn)
     
-    if search_q:
-        results = df_teachers[
-            df_teachers['name'].str.contains(search_q, na=False) | 
-            df_teachers['id'].astype(str).str.contains(search_q)
-        ]
-        
-        if not results.empty:
-            for i, row in results.iterrows():
-                with st.expander(f"👤 {row['name']} - {row['role']}"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**رقم الهوية:** {row['id']}")
-                        st.write(f"**المدرسة:** {row['school']}")
-                        st.write(f"**القاعة:** {row['hall'] if row['hall'] else '❌ غير محددة'}")
-                    
-                    with col2:
-                        if row['hall'] and row['hall'] != "":
-                            doc_bytes = create_docx(row)
-                            st.download_button(
-                                label="📄 تحميل كتاب التكليف (Word)",
-                                data=doc_bytes,
-                                file_name=f"تكليف_{row['name']}.docx",
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"btn_{row['id']}"
-                            )
-                        else:
-                            st.warning("يجب تحديد قاعة للمعلم لتتمكن من طباعة الكتاب.")
-        else:
-            st.info("لا توجد نتائج مطابقة للبحث.")
+    if not df_data.empty:
+        if search_q:
+            df_data = df_data[
+                df_data['name'].str.contains(search_q, na=False) | 
+                df_data['id'].astype(str).str.contains(search_q) |
+                df_data['school'].str.contains(search_q, na=False)
+            ]
 
-# --- التبويب الثاني: استيراد البيانات ---
-with tab_upload:
-    st.subheader("استيراد البيانات من ملف Excel")
-    st.info("تأكد أن ملف الاكسل يحتوي على الأعمدة التالية بنفس المسميات: id, name, school, city, phone, role, hall, accept or r")
-    
-    up_file = st.file_uploader("اختر ملف XLSX", type="xlsx")
-    
-    if up_file:
-        try:
-            df_excel = pd.read_excel(up_file)
-            st.dataframe(df_excel.head(10))
-            
-            if st.button("🚀 اعتماد البيانات وحفظها في النظام"):
-                with st.spinner("جاري الحفظ..."):
-                    for _, row in df_excel.iterrows():
-                        c.execute('''
-                        INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, accept)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', (
-                            str(row['id']), 
-                            row['name'], 
-                            row['school'], 
-                            row['city'], 
-                            str(row['phone']), 
-                            row['role'], 
-                            row['hall'], 
-                            row['accept or r']
-                        ))
-                    conn.commit()
-                st.success(f"تم بنجاح! تم استيراد {len(df_excel)} سجل.")
-                st.rerun()
-        except Exception as e:
-            st.error(f"حدث خطأ في قراءة الملف: {e}")
-
-# --- التبويب الثالث: التحميل الجماعي ---
-with tab_reports:
-    st.subheader("أدوات الإدارة الجماعية")
-    
-    # تصفية المعلمين الذين لديهم قاعات فقط
-    ready_teachers = pd.read_sql("SELECT * FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
-    
-    st.write(f"عدد المعلمين الجاهزين للطباعة (لديهم قاعات): {len(ready_teachers)}")
-    
-    if st.button("📦 تحميل كافة الكتب في ملف ZIP"):
-        if not ready_teachers.empty:
-            zip_buffer
+        for i, row in df_data.iterrows():
+            with st.expander(f"👤 {row['name']} - {row['role']} (قاعة: {row['hall'] if row['hall'] else 'لم تُعين'})"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write(f"**رقم الهوية:** {row['id']}")
+                    st.write(f"**المدينة:** {row['city']}")
+                with c2:
+                    if row['hall']:
+                        doc_file = create_docx(row)
+                        st.download_button(
+                            label=f"📄 تحميل كتاب {row['name']}",
+                            data=doc_file,
+                            file_name=f"تكليف_{row['id']}.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            key=f"dl_{row['id']}"
+                        )
+                    else:
