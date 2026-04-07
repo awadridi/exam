@@ -1,29 +1,15 @@
 import streamlit as st
 import pandas as pd
 from docx import Document
-from fpdf import FPDF
-import sqlite3
 import os
 import zipfile
 
 # ================== إعدادات ==================
 exam_file = st.secrets["EXAM_FILE"]
 halls_file = st.secrets["HALLS_FILE"]
+assignments_file = "assignments.xlsx"  # حفظ التعيينات هنا
 PASSWORD = st.secrets["PASSWORD"]
-empty_doc = "doc.docx"
-
-# ================== قاعدة البيانات ==================
-conn = sqlite3.connect("data.db", check_same_thread=False)
-c = conn.cursor()
-
-c.execute("""
-CREATE TABLE IF NOT EXISTS assignments (
-    id TEXT PRIMARY KEY,
-    hall TEXT,
-    role TEXT
-)
-""")
-conn.commit()
+empty_doc = "doc.docx"  # قالب Word
 
 # ================== واجهة ==================
 st.title("🎓 نظام إدارة التكليف")
@@ -37,11 +23,13 @@ body { direction: RTL; text-align: right; font-family: Arial; }
 password_input = st.text_input("كلمة المرور", type="password")
 if password_input != PASSWORD:
     st.stop()
+st.success("تم تسجيل الدخول ✅")
 
 # ================== تحميل البيانات ==================
 teachers = pd.read_excel(exam_file)
 halls = pd.read_excel(halls_file)
 
+# إعادة تسمية الأعمدة لتوافق الكود
 teachers = teachers.rename(columns={
     'هوية': 'هوية',
     'اسم المعلم': 'اسم',
@@ -55,35 +43,25 @@ halls = halls.rename(columns={
     'البلد': 'بلد'
 })
 
-# ================== تحويل أرقام الوظائف إلى نصوص ==================
-role_map = {
-    1: "رئيس قاعة",
-    2: "سكرتير",
-    3: "آذن",
-    4: "مراقب"
-}
+# تحويل أرقام الوظائف إلى نصوص
+role_map = {1: "رئيس قاعة", 2: "سكرتير", 3: "آذن", 4: "مراقب"}
 teachers['وظيفة'] = teachers['وظيفة'].map(role_map).fillna("مراقب")
 
-# ================== تحميل التعيينات ==================
-c.execute("SELECT * FROM assignments")
-rows = c.fetchall()
-
-assign_dict = {}
-for r in rows:
-    if len(r) == 3:
-        assign_dict[r[0]] = (r[1], r[2])
-
-teachers['قاعة مختارة'] = teachers['هوية'].astype(str).map(lambda x: assign_dict.get(x, ("",""))[0])
-teachers['مهمة'] = teachers['هوية'].astype(str).map(lambda x: assign_dict.get(x, ("",""))[1])
+# ================== تحميل التعيينات السابقة ==================
+if os.path.exists(assignments_file):
+    assignments = pd.read_excel(assignments_file)
+    teachers = teachers.merge(assignments, on="هوية", how="left")
+    if 'قاعة مختارة' not in teachers.columns:
+        teachers['قاعة مختارة'] = None
+    if 'مهمة' not in teachers.columns:
+        teachers['مهمة'] = teachers['وظيفة']
+else:
+    teachers['قاعة مختارة'] = None
+    teachers['مهمة'] = teachers['وظيفة']
 
 # ================== دوال ==================
-def assign_teacher(id, hall, role):
-    c.execute("REPLACE INTO assignments VALUES (?, ?, ?)", (id, hall, role))
-    conn.commit()
-
-def remove_teacher(id):
-    c.execute("DELETE FROM assignments WHERE id=?", (id,))
-    conn.commit()
+def save_assignments():
+    teachers[['هوية','قاعة مختارة','مهمة']].to_excel(assignments_file, index=False)
 
 def generate_doc(row):
     hall_info = halls[halls['قاعة'] == row['قاعة مختارة']].iloc[0]
@@ -99,115 +77,90 @@ def generate_doc(row):
                                .replace("<ROLE>", str(row['مهمة']))
     return doc
 
-def generate_pdf(all_teachers):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    for _, row in all_teachers.iterrows():
-        pdf.multi_cell(0, 8, txt=f"الاسم: {row['اسم']}\n"
-                                  f"الهوية: {row['هوية']}\n"
-                                  f"المدرسة: {row['مدرسة']}\n"
-                                  f"السكن: {row['سكن']}\n"
-                                  f"الوظيفة: {row['وظيفة']}\n"
-                                  f"قاعة: {row['قاعة مختارة']}\n"
-                                  f"المهمة: {row['مهمة']}\n\n")
-    os.makedirs("تكليفات", exist_ok=True)
-    pdf_path = "تكليفات/جميع_المعلمين.pdf"
-    pdf.output(pdf_path)
-    return pdf_path
-
-# ================== إضافة معلم ==================
-st.subheader("➕ إضافة معلم جديد")
-with st.expander("إضافة"):
-    name = st.text_input("الاسم")
-    id = st.text_input("الهوية")
-    school = st.text_input("المدرسة")
-    city = st.text_input("السكن")
-    role = st.selectbox("الوظيفة", ["مراقب","رئيس قاعة","آذن","سكرتير"])
-
-    if st.button("إضافة المعلم"):
-        new_row = pd.DataFrame([{
-            'هوية': id,
-            'اسم': name,
-            'مدرسة': school,
-            'سكن': city,
-            'وظيفة': role
-        }])
-        teachers = pd.concat([teachers, new_row], ignore_index=True)
-        st.success("تمت الإضافة")
-
-# ================== توزيع تلقائي ==================
-st.subheader("⚡ توزيع تلقائي")
-max_per_hall = st.number_input("عدد المعلمين لكل قاعة", 1, 50, 5)
-
-if st.button("توزيع تلقائي"):
-    halls_list = list(halls['قاعة'])
-    i = 0
-    for _, row in teachers.iterrows():
-        teacher_id = str(row['هوية'])
-        if teacher_id not in assign_dict:
-            hall = halls_list[i % len(halls_list)]
-            assign_teacher(teacher_id, hall, row['وظيفة'])
-            i += 1
-    st.success("تم التوزيع")
-    st.experimental_rerun()
-
-# ================== البحث ==================
-st.subheader("🔍 بحث")
-search = st.text_input("اسم أو هوية")
-if search:
-    results = teachers[
-        teachers['اسم'].astype(str).str.contains(search, case=False) |
-        teachers['هوية'].astype(str).str.contains(search)
-    ]
+# ================== البحث والتعيين ==================
+st.subheader("🔍 البحث والتعيين")
+search_name = st.text_input("ابحث عن المعلم بالاسم:")
+if search_name:
+    results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
     if not results.empty:
-        name = st.selectbox("اختر", results['اسم'])
-        row = teachers[teachers['اسم'] == name].iloc[0]
-        teacher_id = str(row['هوية'])
-        hall = st.selectbox("قاعة", [""] + list(halls['قاعة']))
-        role = st.selectbox("المهمة", ["مراقب","رئيس قاعة","آذن","سكرتير"])
+        selected_teacher = st.selectbox("اختر المعلم:", results['اسم'])
+        row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
+
+        hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+        hall = st.selectbox("اختر القاعة:", hall_options)
+        role = st.selectbox("اختر المهمة:", ["مراقب","رئيس قاعة","آذن","سكرتير"], index=["مراقب","رئيس قاعة","آذن","سكرتير"].index(row['مهمة']))
+
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("تعيين"):
-                assign_teacher(teacher_id, hall, role)
-                st.experimental_rerun()
+                if hall != "اختر القاعة..." and role != "":
+                    teachers.loc[teachers['اسم']==selected_teacher, ['قاعة مختارة','مهمة']] = [hall, role]
+                    save_assignments()
+                    st.success(f"تم تعيين {selected_teacher} في {hall} كمهمة {role}")
+                    st.experimental_rerun()
+                else:
+                    st.warning("اختر القاعة والمهمة قبل التعيين!")
+
         with col2:
-            if st.button("توليد Word"):
-                doc = generate_doc(row)
-                os.makedirs("تكليفات", exist_ok=True)
-                path = f"تكليفات/{row['اسم']}.docx"
-                doc.save(path)
-                with open(path, "rb") as f:
-                    st.download_button("تحميل Word", f, file_name=row['اسم'] + ".docx")
+            if st.button("توليد كتاب Word"):
+                if row['قاعة مختارة']:
+                    doc = generate_doc(row)
+                    os.makedirs("تكليفات", exist_ok=True)
+                    path = f"تكليفات/{row['اسم']}.docx"
+                    doc.save(path)
+                    with open(path, "rb") as f:
+                        st.download_button("تحميل Word", f, file_name=f"{row['اسم']}.docx")
+                else:
+                    st.warning("المعلم غير معين في أي قاعة بعد!")
+
         with col3:
-            if st.button("حذف"):
-                remove_teacher(teacher_id)
+            if st.button("إلغاء التعيين"):
+                teachers.loc[teachers['اسم']==selected_teacher, ['قاعة مختارة','مهمة']] = [None,row['وظيفة']]
+                save_assignments()
+                st.warning(f"تم إلغاء التعيين للمعلم {selected_teacher}")
                 st.experimental_rerun()
 
-# ================== القاعات ==================
-st.subheader("🏫 القاعات")
-hall = st.selectbox("اختر القاعة", [""] + list(halls['قاعة']))
-if hall:
-    selected = teachers[teachers['قاعة مختارة'] == hall]
-    st.write(f"عدد: {len(selected)}")
-    if st.button("توليد القاعة Word + ZIP"):
+# ================== إدارة القاعات ==================
+st.subheader("🏫 إدارة القاعات")
+hall_filter = st.selectbox("اختر القاعة:", [""] + list(halls['قاعة']))
+if hall_filter:
+    assigned = teachers[teachers['قاعة مختارة'] == hall_filter]
+    st.write(f"عدد المعلمين في القاعة: {len(assigned)}")
+    if not assigned.empty:
+        teacher_to_remove = st.selectbox("اختر معلم لإلغاء تكليفه:", assigned['اسم'])
+        if st.button("إلغاء تكليف هذا المعلم"):
+            teachers.loc[teachers['اسم']==teacher_to_remove, ['قاعة مختارة','مهمة']] = [None, assigned.loc[assigned['اسم']==teacher_to_remove, 'وظيفة'].values[0]]
+            save_assignments()
+            st.warning(f"تم إلغاء تكليف {teacher_to_remove} من القاعة {hall_filter}")
+            st.experimental_rerun()
+
+    if st.button("توليد كتب Word + ZIP لهذه القاعة"):
         os.makedirs("تكليفات", exist_ok=True)
         files = []
-        for _, row in selected.iterrows():
+        for _, row in assigned.iterrows():
             doc = generate_doc(row)
             path = f"تكليفات/{row['اسم']}.docx"
             doc.save(path)
             files.append(path)
-        zip_path = f"تكليفات/{hall}.zip"
+        zip_path = f"تكليفات/{hall_filter}.zip"
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for f in files:
                 zipf.write(f, os.path.basename(f))
         with open(zip_path, "rb") as f:
-            st.download_button("تحميل ZIP", f, file_name=hall + ".zip")
+            st.download_button("تحميل ZIP", f, file_name=f"{hall_filter}.zip")
 
-# ================== توليد PDF لجميع المعلمين ==================
-st.subheader("📄 توليد PDF لجميع المعلمين")
-if st.button("توليد PDF"):
-    pdf_path = generate_pdf(teachers)
-    with open(pdf_path, "rb") as f:
-        st.download_button("تحميل PDF لجميع المعلمين", f, file_name="جميع_المعلمين.pdf")
+# ================== توليد جميع الكتب دفعة واحدة ==================
+if st.button("توليد جميع كتب التكليف دفعة واحدة"):
+    os.makedirs("تكليفات", exist_ok=True)
+    files = []
+    for _, row in teachers.dropna(subset=['قاعة مختارة']).iterrows():
+        doc = generate_doc(row)
+        path = f"تكليفات/{row['اسم']}.docx"
+        doc.save(path)
+        files.append(path)
+    zip_path = "تكليفات/جميع_التكليفات.zip"
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        for f in files:
+            zipf.write(f, os.path.basename(f))
+    with open(zip_path, "rb") as f:
+        st.download_button("تحميل جميع التكليفات", f, file_name="جميع_التكليفات.zip")
