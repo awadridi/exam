@@ -6,11 +6,12 @@ import os
 import zipfile
 
 # =====================================
-# قاعدة البيانات
+# قاعدة البيانات SQLite
 # =====================================
 conn = sqlite3.connect("data.db", check_same_thread=False)
 c = conn.cursor()
 
+# إنشاء جدول المعلمين مع العمود الجديد accept
 c.execute('''
 CREATE TABLE IF NOT EXISTS teachers (
     id TEXT PRIMARY KEY,
@@ -19,37 +20,35 @@ CREATE TABLE IF NOT EXISTS teachers (
     city TEXT,
     phone TEXT,
     role TEXT,
-    hall TEXT
+    hall TEXT,
+    accept TEXT
 )
 ''')
 
+# جدول القاعات
 c.execute('''
 CREATE TABLE IF NOT EXISTS halls (
-    hall TEXT,
     number TEXT,
+    hall TEXT,
     city TEXT
 )
 ''')
-
 conn.commit()
 
 # =====================================
 # تسجيل الدخول
 # =====================================
 st.title("🎓 نظام إدارة التكليف")
-
 if "logged" not in st.session_state:
     st.session_state.logged = False
 
 password = st.text_input("كلمة المرور", type="password", key="login_pass")
-
-if st.button("دخول", key="login_btn"):
-    if password == "1234":  # غيّر كلمة المرور هنا حسب حاجتك
+if st.button("دخول"):
+    if password == "1234":  # غيّر كلمة المرور هنا
         st.session_state.logged = True
         st.success("تم الدخول ✅")
     else:
         st.error("كلمة المرور غلط")
-
 if not st.session_state.logged:
     st.stop()
 
@@ -57,7 +56,7 @@ if not st.session_state.logged:
 # دوال تحميل البيانات
 # =====================================
 def get_teachers():
-    return pd.read_sql("SELECT * FROM teachers", conn)
+    return pd.read_sql("SELECT * FROM teachers WHERE accept='نعم'", conn)
 
 def get_halls():
     return pd.read_sql("SELECT * FROM halls", conn)
@@ -66,18 +65,23 @@ teachers = get_teachers()
 halls = get_halls()
 
 # =====================================
-# ➕ إضافة قاعة
+# قائمة المهام الجديدة
+# =====================================
+role_options = ["مراقب", "رئيس قاعة", "آذن", "مساعد رئيس قاعة"]
+
+# =====================================
+# إضافة قاعة
 # =====================================
 st.subheader("➕ إضافة قاعة")
 with st.form("add_hall_form"):
-    hall_name = st.text_input("اسم القاعة", key="hall_name")
-    hall_number = st.text_input("رقم القاعة", key="hall_number")
-    hall_city = st.text_input("البلد", key="hall_city")
+    hall_name = st.text_input("اسم القاعة")
+    hall_number = st.text_input("رقم القاعة")
+    hall_city = st.text_input("البلد")
     if st.form_submit_button("إضافة القاعة"):
         if hall_name:
             try:
                 c.execute("INSERT INTO halls VALUES (?,?,?)",
-                          (hall_name, hall_number, hall_city))
+                          (hall_number, hall_name, hall_city))
                 conn.commit()
                 st.success("تمت إضافة القاعة ✅")
             except:
@@ -87,7 +91,7 @@ with st.form("add_hall_form"):
     halls = get_halls()  # إعادة تحميل القاعات
 
 # =====================================
-# ➕ إضافة معلم
+# إضافة معلم جديد
 # =====================================
 with st.expander("➕ إضافة معلم جديد", expanded=True):
     with st.form("add_teacher_form"):
@@ -96,19 +100,18 @@ with st.expander("➕ إضافة معلم جديد", expanded=True):
         school = st.text_input("المدرسة", key="add_school")
         city = st.text_input("السكن", key="add_city")
         phone = st.text_input("الجوال", key="add_phone")
-        role = st.selectbox("المهمة", ["مراقب","رئيس قاعة","آذن","سكرتير"], key="add_role")
+        role = st.selectbox("المهمة", role_options, key="add_role")
+        accept = st.selectbox("هل يرغب بالعمل؟", ["نعم", "لا"], key="add_accept")
         if st.form_submit_button("💾 حفظ المعلم"):
             if not idd or not name:
                 st.warning("⚠️ لازم تعبّي الاسم والهوية")
-            elif not idd.isdigit():
-                st.error("رقم الهوية يجب أن يكون أرقام فقط")
             else:
                 try:
-                    c.execute("INSERT INTO teachers VALUES (?,?,?,?,?,?,?)",
-                              (idd, name, school, city, phone, role, ""))
+                    c.execute("INSERT INTO teachers VALUES (?,?,?,?,?,?,?,?)",
+                              (idd, name, school, city, phone, role, "", accept))
                     conn.commit()
                     st.success("تم الحفظ ✅")
-                    # تفريغ الحقول
+                    # تفريغ الحقول بعد الحفظ
                     for k in ["add_name","add_id","add_school","add_city","add_phone"]:
                         st.session_state[k] = ""
                 except:
@@ -120,16 +123,15 @@ with st.expander("➕ إضافة معلم جديد", expanded=True):
 # =====================================
 school_filter = st.selectbox(
     "فلترة حسب المدرسة",
-    ["الكل"] + sorted(teachers['school'].dropna().unique().tolist()),
-    key="school_filter"
+    ["الكل"] + sorted(teachers['school'].dropna().unique().tolist())
 )
 
 filtered_teachers = teachers.copy()
 if school_filter != "الكل":
-    filtered_teachers = filtered_teachers[filtered_teachers['school'] == school_filter]
+    filtered_teachers = filtered_teachers[filtered_teachers['school']==school_filter]
 
 # =====================================
-# ✏️ تعديل / حذف
+# تعديل أو حذف معلم
 # =====================================
 st.subheader("✏️ تعديل أو حذف معلم")
 if not filtered_teachers.empty:
@@ -143,16 +145,16 @@ if not filtered_teachers.empty:
                   (new_name, new_phone, row['id']))
         conn.commit()
         st.success("تم التعديل")
-        teachers = get_teachers()  # إعادة تحميل المعلمين
+        teachers = get_teachers()
 
     if st.button("حذف", key="delete_btn"):
         c.execute("DELETE FROM teachers WHERE id=?", (row['id'],))
         conn.commit()
         st.warning("تم الحذف")
-        teachers = get_teachers()  # إعادة تحميل المعلمين
+        teachers = get_teachers()
 
 # =====================================
-# 🔍 البحث والتعيين
+# البحث والتعيين
 # =====================================
 st.subheader("🔍 البحث والتعيين")
 search = st.text_input("ابحث", key="search_box")
@@ -167,12 +169,11 @@ if search:
 if not result.empty:
     r = result.iloc[0]
     st.write(r)
-    # إصلاح TypeError في القاعات
     halls['number'] = halls['number'].fillna("").astype(str)
     halls['hall'] = halls['hall'].fillna("").astype(str)
     hall_options = [""] + [f"{n} - {h}" for n,h in zip(halls['number'], halls['hall'])]
     selected_hall = st.selectbox("اختر القاعة", hall_options, key="assign_hall")
-    role_assign = st.selectbox("المهمة", ["مراقب","رئيس قاعة","آذن","سكرتير"], key="assign_role")
+    role_assign = st.selectbox("المهمة", role_options, key="assign_role")
 
     if st.button("تعيين", key="assign_btn"):
         hall_name = selected_hall.split(" - ")[1] if selected_hall else ""
@@ -180,16 +181,16 @@ if not result.empty:
                   (hall_name, role_assign, r['id']))
         conn.commit()
         st.success("تم التعيين")
-        teachers = get_teachers()  # إعادة تحميل المعلمين
+        teachers = get_teachers()
 
     if st.button("إلغاء", key="cancel_btn"):
         c.execute("UPDATE teachers SET hall='' WHERE id=?", (r['id'],))
         conn.commit()
         st.warning("تم الإلغاء")
-        teachers = get_teachers()  # إعادة تحميل المعلمين
+        teachers = get_teachers()
 
 # =====================================
-# 🏛️ إدارة القاعات + الطباعة
+# إدارة القاعات + طباعة
 # =====================================
 st.subheader("🏛️ القاعات")
 if not halls.empty:
