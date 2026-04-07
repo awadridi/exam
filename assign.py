@@ -8,204 +8,189 @@ import io
 import zipfile
 
 # =====================================
-# إعدادات الصفحة والستايل
+# 1. إعدادات الصفحة والتنسيق
 # =====================================
-st.set_page_config(page_title="نظام إدارة التكليف المتكامل", page_icon="📄", layout="centered")
+st.set_page_config(page_title="نظام إدارة التكليفات", page_icon="🎓", layout="wide")
 
-# جعل النصوص من اليمين لليسار في الواجهة
+# تنسيق الواجهة لتدعم اللغة العربية (RTL)
 st.markdown("""
     <style>
     .stApp { direction: rtl; text-align: right; }
+    div[data-testid="stExpander"] div[role="button"] p { font-size: 1.2rem; font-weight: bold; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
     </style>
     """, unsafe_allow_html=True)
 
 # =====================================
-# قاعدة البيانات
+# 2. قاعدة البيانات SQLite
 # =====================================
 @st.cache_resource
 def get_db_connection():
-    return sqlite3.connect("data.db", check_same_thread=False)
+    conn = sqlite3.connect("data.db", check_same_thread=False)
+    return conn
 
 conn = get_db_connection()
 c = conn.cursor()
 
+# إنشاء الجداول (مطابق لأعمدة ملف الاكسل الخاص بك)
 c.execute('''
 CREATE TABLE IF NOT EXISTS teachers (
-    id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, 
-    phone TEXT, role TEXT, hall TEXT, accept TEXT DEFAULT 'نعم'
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    school TEXT,
+    city TEXT,
+    phone TEXT,
+    role TEXT,
+    hall TEXT,
+    accept TEXT
 )
 ''')
-c.execute('CREATE TABLE IF NOT EXISTS halls (number TEXT PRIMARY KEY, hall TEXT, city TEXT)')
 conn.commit()
 
 # =====================================
-# وظائف توليد الملفات (Word & ZIP)
+# 3. وظائف النظام (Word & Logic)
 # =====================================
 
-def create_docx(teacher_row):
-    """إنشاء ملف Word لكتاب التكليف"""
+def create_docx(row):
+    """توليد ملف Word احترافي لكل معلم"""
     doc = Document()
     
-    # إعدادات الصفحة (اختياري: إضافة ترويسة)
-    header = doc.add_heading('وزارة التربية والتعليم', 0)
+    # ترويسة الكتاب
+    header = doc.add_paragraph("دولة فلسطين\nوزارة التربية والتعليم\nمديرية التربية والتعليم")
     header.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    title = doc.add_paragraph('كتاب تكليف رسمي')
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title.runs[0].font.size = Pt(20)
-    title.runs[0].bold = True
-
-    doc.add_paragraph(f"\nالتاريخ: 2024/05/20م") # يمكنك تغيير التاريخ تلقائياً
+    doc.add_heading('كتاب تكليف رسمي', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    run = p.add_run(f"\nإلى الزميل/ة: {teacher_row['name']}")
-    run.font.size = Pt(14)
-    run.bold = True
-    
     content = f"""
-نحييكم أطيب تحية، ونعلمكم بأنه قد تقرر تكليفكم بالعمل في امتحانات الثانوية العامة وفق البيانات التالية:
-
-• رقم الهوية: {teacher_row['id']}
-• المدرسة الأصلية: {teacher_row['school']}
-• المهمة الموكلة إليكم: {teacher_row['role']}
-• مكان التكليف (القاعة): {teacher_row['hall']}
-• المدينة/المنطقة: {teacher_row['city']}
-
-يرجى التواجد في القاعة المذكورة أعلاه في تمام الساعة الثامنة صباحاً، مع الالتزام بكافة التعليمات الصادرة عن رئيس القاعة.
-
-نتمنى لكم التوفيق في مهمتكم.
+    التاريخ: 2026/04/07م
+    
+    إلى الزميل/ة: {row['name']} المحترم/ة
+    رقم الهوية: {row['id']}
+    المدرسة الأصلية: {row['school']}
+    
+    نحييكم أطيب تحية، ونعلمكم بأنه قد تقرر تكليفكم بالعمل في امتحانات الثانوية العامة وفق البيانات التالية:
+    
+    • المهمة الموكلة إليكم: {row['role']}
+    • مكان التكليف (القاعة): {row['hall']}
+    • المدينة/المنطقة: {row['city']}
+    
+    يرجى التواجد في القاعة المذكورة أعلاه في تمام الساعة الثامنة صباحاً.
+    
+    نتمنى لكم التوفيق في مهمتكم.
     """
-    para_content = doc.add_paragraph(content)
-    para_content.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-
-    # التوقيع
-    sign = doc.add_paragraph("\n\nتوقيع مدير التربية والتعليم\n...........................")
-    sign.alignment = WD_ALIGN_PARAGRAPH.LEFT
-
-    # حفظ الملف في ذاكرة مؤقتة
+    run = p.add_run(content)
+    run.font.size = Pt(13)
+    
+    doc.add_paragraph("\nتوقيع مدير التربية والتعليم\n...........................").alignment = WD_ALIGN_PARAGRAPH.LEFT
+    
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
     return bio
 
 # =====================================
-# تسجيل الدخول (مبسط حسب طلبك)
+# 4. نظام تسجيل الدخول
 # =====================================
 if "logged" not in st.session_state:
     st.session_state.logged = False
 
 if not st.session_state.logged:
-    st.title("🔐 تسجيل الدخول")
-    password = st.text_input("كلمة المرور", type="password")
+    st.title("🔐 تسجيل الدخول للنظام")
+    pwd = st.text_input("أدخل كلمة المرور", type="password")
     if st.button("دخول"):
-        if password == "1234": # سيتم تغييرها لاحقاً
+        if pwd == "1234": # يمكنك تغييرها لاحقاً
             st.session_state.logged = True
             st.rerun()
     st.stop()
 
 # =====================================
-# الواجهة الرئيسية
+# 5. واجهة المستخدم الرئيسية (Tabs)
 # =====================================
-st.title("🎓 نظام إدارة التكليفات وطباعة الكتب")
+tab_search, tab_upload, tab_reports = st.tabs(["🔍 البحث والطباعة", "📥 رفع بيانات Excel", "📊 تقارير وتحميل جماعي"])
 
-def get_teachers():
-    return pd.read_sql("SELECT * FROM teachers WHERE accept='نعم'", conn)
-
-def get_halls():
-    return pd.read_sql("SELECT * FROM halls", conn)
-
-teachers = get_teachers()
-halls = get_halls()
-
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 التكليف والطباعة", "👨‍🏫 إضافة معلم", "🏢 القاعات", "📊 التقارير العامة"])
-
-# --- تبويب البحث والتكليف ---
-with tab1:
-    search = st.text_input("🔍 ابحث عن معلم (اسم، هوية، مدرسة)")
-    if search:
-        result = teachers[
-            teachers['name'].str.contains(search, na=False) | 
-            teachers['id'].str.contains(search, na=False)
+# --- التبويب الأول: البحث والتعيين ---
+with tab_search:
+    st.subheader("البحث عن المعلمين المكلفين")
+    search_q = st.text_input("أدخل الاسم أو رقم الهوية للبحث...")
+    
+    # جلب البيانات الحالية
+    df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
+    
+    if search_q:
+        results = df_teachers[
+            df_teachers['name'].str.contains(search_q, na=False) | 
+            df_teachers['id'].astype(str).str.contains(search_q)
         ]
         
-        if not result.empty:
-            for i, row in result.iterrows():
-                with st.container():
-                    col1, col2 = st.columns([3, 1])
+        if not results.empty:
+            for i, row in results.iterrows():
+                with st.expander(f"👤 {row['name']} - {row['role']}"):
+                    col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**{row['name']}** - {row['role']} (قاعة: {row['hall'] if row['hall'] else 'غير معين'})")
+                        st.write(f"**رقم الهوية:** {row['id']}")
+                        st.write(f"**المدرسة:** {row['school']}")
+                        st.write(f"**القاعة:** {row['hall'] if row['hall'] else '❌ غير محددة'}")
+                    
                     with col2:
-                        if row['hall']:
-                            # زر توليد الكتاب وتحميله
-                            doc_file = create_docx(row)
+                        if row['hall'] and row['hall'] != "":
+                            doc_bytes = create_docx(row)
                             st.download_button(
-                                label="📄 تحميل الكتاب",
-                                data=doc_file,
+                                label="📄 تحميل كتاب التكليف (Word)",
+                                data=doc_bytes,
                                 file_name=f"تكليف_{row['name']}.docx",
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"dl_{row['id']}"
+                                key=f"btn_{row['id']}"
                             )
-                    
-                    # نموذج التعيين
-                    with st.expander("تعديل التكليف"):
-                        h_options = [""] + [f"{r['number']} - {r['hall']}" for _, r in halls.iterrows()]
-                        new_hall = st.selectbox("اختر القاعة", h_options, key=f"h_{row['id']}")
-                        new_role = st.selectbox("المهمة", ["مراقب", "رئيس قاعة", "آذن", "مساعد"], key=f"r_{row['id']}")
-                        if st.button("تحديث البيانات", key=f"b_{row['id']}"):
-                            h_name = new_hall.split(" - ")[1] if new_hall else ""
-                            c.execute("UPDATE teachers SET hall=?, role=? WHERE id=?", (h_name, new_role, row['id']))
-                            conn.commit()
-                            st.success("تم التحديث!")
-                            st.rerun()
-                    st.divider()
-
-# --- تبويب التقارير والتحميل الجماعي ---
-with tab4:
-    st.subheader("تحميل جميع كتب التكليف")
-    assigned_teachers = teachers[teachers['hall'] != ""]
-    
-    st.write(f"عدد المعلمين المعينين حالياً: {len(assigned_teachers)}")
-    
-    if st.button("📦 توليد وتحميل جميع الكتب (ZIP)"):
-        if not assigned_teachers.empty:
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                for _, row in assigned_teachers.iterrows():
-                    doc_bytes = create_docx(row)
-                    zip_file.writestr(f"تكليف_{row['name']}.docx", doc_bytes.getvalue())
-            
-            zip_buffer.seek(0)
-            st.download_button(
-                label="📥 تحميل الملف المضغوط الآن",
-                data=zip_buffer,
-                file_name="جميع_كتب_التكليف.zip",
-                mime="application/zip"
-            )
+                        else:
+                            st.warning("يجب تحديد قاعة للمعلم لتتمكن من طباعة الكتاب.")
         else:
-            st.error("لا يوجد معلمين معينين لتحميل كتبهم!")
+            st.info("لا توجد نتائج مطابقة للبحث.")
 
-# --- باقي التبويبات (إضافة معلم وقاعات) تُترك كما كانت في الكود السابق لتوفير المساحة ---
-with tab2:
-    # (كود إضافة معلم كما في السابق)
-    st.subheader("إضافة معلم جديد")
-    with st.form("add_teacher"):
-        c1, c2 = st.columns(2)
-        name = c1.text_input("الاسم")
-        idd = c2.text_input("الهوية")
-        school = c1.text_input("المدرسة")
-        phone = c2.text_input("الجوال")
-        if st.form_submit_button("حفظ"):
-            c.execute("INSERT INTO teachers (id, name, school, phone) VALUES (?,?,?,?)", (idd, name, school, phone))
-            conn.commit()
-            st.rerun()
+# --- التبويب الثاني: استيراد البيانات ---
+with tab_upload:
+    st.subheader("استيراد البيانات من ملف Excel")
+    st.info("تأكد أن ملف الاكسل يحتوي على الأعمدة التالية بنفس المسميات: id, name, school, city, phone, role, hall, accept or r")
+    
+    up_file = st.file_uploader("اختر ملف XLSX", type="xlsx")
+    
+    if up_file:
+        try:
+            df_excel = pd.read_excel(up_file)
+            st.dataframe(df_excel.head(10))
+            
+            if st.button("🚀 اعتماد البيانات وحفظها في النظام"):
+                with st.spinner("جاري الحفظ..."):
+                    for _, row in df_excel.iterrows():
+                        c.execute('''
+                        INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, accept)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            str(row['id']), 
+                            row['name'], 
+                            row['school'], 
+                            row['city'], 
+                            str(row['phone']), 
+                            row['role'], 
+                            row['hall'], 
+                            row['accept or r']
+                        ))
+                    conn.commit()
+                st.success(f"تم بنجاح! تم استيراد {len(df_excel)} سجل.")
+                st.rerun()
+        except Exception as e:
+            st.error(f"حدث خطأ في قراءة الملف: {e}")
 
-with tab3:
-    st.subheader("إضافة قاعة")
-    with st.form("add_hall"):
-        h_n = st.text_input("رقم القاعة")
-        h_m = st.text_input("اسم القاعة")
-        if st.form_submit_button("إضافة"):
-            c.execute("INSERT INTO halls VALUES (?,?,?)", (h_n, h_m, ""))
-            conn.commit()
-            st.rerun()
+# --- التبويب الثالث: التحميل الجماعي ---
+with tab_reports:
+    st.subheader("أدوات الإدارة الجماعية")
+    
+    # تصفية المعلمين الذين لديهم قاعات فقط
+    ready_teachers = pd.read_sql("SELECT * FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
+    
+    st.write(f"عدد المعلمين الجاهزين للطباعة (لديهم قاعات): {len(ready_teachers)}")
+    
+    if st.button("📦 تحميل كافة الكتب في ملف ZIP"):
+        if not ready_teachers.empty:
+            zip_buffer
