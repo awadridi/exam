@@ -248,7 +248,6 @@ with tab_manage:
                 # تعريف الكائنات
                 workbook  = writer.book
                 worksheet = writer.sheets['العاملين']
-
                 # 2. إعدادات الصفحة (أفقي، يمين لليسار، احتواء صفحة)
                 worksheet.right_to_left()
                 worksheet.set_landscape()
@@ -269,31 +268,7 @@ with tab_manage:
                     worksheet.write(0, col_num, value, header_format)
                     worksheet.set_column(col_num, col_num, 25, cell_format)
                 
-                worksheet.set_column(1, 1, 45, cell_format) # عمود الاسم أعرض
-                # تنسيق العناوين (كبرنا الخط لـ 16)
-                header_format = workbook.add_format({
-                    'bold': True, 'align': 'center', 'valign': 'vcenter',
-                    'fg_color': '#D7E4BC', 'border': 1, 'font_size': 16
-                })
-
-                # تنسيق الخلايا (كبرنا الخط لـ 14 وخلينا المحاذاة يمين)
-                cell_format = workbook.add_format({
-                    'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 14
-                })
-
-                # تطبيق التنسيق وتوسيع الأعمدة أكثر لتناسب الخط الكبير
-                for col_num, value in enumerate(df_hall_export.columns.values):
-                    worksheet.write(0, col_num, value, header_format)
-                    worksheet.set_column(col_num, col_num, 25, cell_format) # زدنا العرض لـ 25
                 
-                worksheet.set_column(1, 1, 45, cell_format) # الاسم خليناه عريض جداً (45)
-
-                for col_num, value in enumerate(df_hall_export.columns.values):
-                    worksheet.write(0, col_num, value, header_format)
-                    worksheet.set_column(col_num, col_num, 20, cell_format)
-                
-                worksheet.set_column(1, 1, 35, cell_format) # توسيع عمود الاسم
-
             st.download_button(
                 label=f"📥 تحميل كشف {selected_h_export} منسق (Excel)",
                 data=buffer.getvalue(),
@@ -328,7 +303,7 @@ with tab_manage:
                         st.write(f"🏷️ {row['role']}")
                     with col3:
                         # زر الحذف لكل موظف بشكل مستقل
-                        if st.button("حذف", key=f"del_{row['id']}"):
+                        if st.button("حذف", key=f"del_{hall_to_manage}_{row['id']}_{index}"):
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
                             conn.commit()
                             st.success(f"تم حذف تكليف {row['name']}")
