@@ -75,7 +75,14 @@ if search_name:
     results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
     if not results.empty:
         selected_teacher = st.selectbox("اختر المراقب:", results['اسم'])
-        hall_choice = st.selectbox("اختر القاعة:", halls['قاعة'], key="hall_by_name")
+       hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select")
+
+if hall_filter != "اختر القاعة...":
+    # هنا تكتب الكود اللي يعتمد على القاعة المختارة
+    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
+    # باقي الكود الخاص بالتوليد أو الإلغاء
+
 
         if st.button("تعيين القاعة بالاسم", key="assign_by_name"):
             teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_choice
@@ -117,7 +124,14 @@ if search_id:
     result = teachers[teachers['هوية'].astype(str) == search_id]
     if not result.empty:
         row = result.iloc[0]
-        hall_choice = st.selectbox("اختر أو غيّر القاعة:", halls['قاعة'], key="hall_by_id")
+        hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select")
+
+if hall_filter != "اختر القاعة...":
+    # هنا تكتب الكود اللي يعتمد على القاعة المختارة
+    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
+    # باقي الكود الخاص بالتوليد أو الإلغاء
+
 
         if st.button("تعيين القاعة بالهوية", key="assign_by_id"):
             teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_choice
@@ -153,7 +167,14 @@ if search_id:
             st.warning(f"تم إلغاء تكليف المعلم {row['اسم']}")
 
 # --- إدارة القاعة ---
-hall_filter = st.selectbox("اختر قاعة:", halls['قاعة'], key="hall_select")
+hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select")
+
+if hall_filter != "اختر القاعة...":
+    # هنا تكتب الكود اللي يعتمد على القاعة المختارة
+    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
+    # باقي الكود الخاص بالتوليد أو الإلغاء
+
 
 teacher_in_hall = teachers[teachers['قاعة مختارة'] == hall_filter]
 if not teacher_in_hall.empty:
