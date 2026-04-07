@@ -33,26 +33,38 @@ if password_input != PASSWORD:
 # إذا كلمة المرور صحيحة، يكمل التطبيق
 st.success("تم تسجيل الدخول بنجاح ✅")
 
-# مثال: جدول التوزيع الحالي
+import streamlit as st
+import pandas as pd
+
+# تحميل ملف التوزيعات من Secrets
+assignments_file = st.secrets["ASSIGNMENTS_FILE"]
+df_assignments = pd.read_excel(assignments_file)
 
 st.title("إدارة التوزيع")
 
-# عرض الجدول الحالي
-st.write("📋 التوزيع الحالي:")
-st.dataframe(df_assignments)
+# البحث عن معلم
+teacher_name = st.text_input("ابحث عن اسم المعلم:")
 
-# زر لإلغاء معلم واحد
-teacher_to_remove = st.text_input("أدخل اسم المعلم لإلغاء توزيعه:")
-if st.button("إلغاء معلم واحد"):
-    df_assignments = df_assignments[df_assignments["Teacher"] != teacher_to_remove]
-    st.success(f"تم إلغاء توزيع {teacher_to_remove}")
-    st.dataframe(df_assignments)
+if teacher_name:
+    result = df_assignments[df_assignments["Teacher"].str.contains(teacher_name)]
+    if not result.empty:
+        st.write("📋 بيانات المعلم:")
+        st.dataframe(result)
 
-# زر لإلغاء الجميع
+        # زر لإلغاء معلم واحد بعد البحث
+        if st.button("إلغاء هذا المعلم"):
+            df_assignments = df_assignments[df_assignments["Teacher"] != teacher_name]
+            st.success(f"تم إلغاء توزيع {teacher_name}")
+            st.dataframe(df_assignments)
+    else:
+        st.warning("المعلم غير موجود في التوزيع")
+
+# زر مستقل لإلغاء جميع التوزيعات
 if st.button("إلغاء جميع التوزيعات"):
     df_assignments = pd.DataFrame(columns=["Teacher", "Hall"])  # جدول فارغ
     st.success("تم إلغاء جميع التوزيعات")
     st.dataframe(df_assignments)
+
 # --- قراءة الملفات ---
 teachers = pd.read_excel("exam.xlsx").rename(columns={
     'هوية': 'هوية',
