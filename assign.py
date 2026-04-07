@@ -197,7 +197,7 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
         for word_file in word_files:
             pdf_file = word_file.replace(".docx", ".pdf")
             zipf.write(pdf_file, os.path.basename
-```python
+                       
 import streamlit as st
 import pandas as pd
 from docx import Document
