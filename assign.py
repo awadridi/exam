@@ -409,17 +409,17 @@ with tab_manage:
                 
                             # --- الآن زر التحميل (بمحاذاة كلمة def أعلاه) ---
             st.write("---")
-                            try:
-                                word_file = generate_word_assignments(df_members, hall_to_manage)
-                                st.download_button(
-                                    label="📄 إصدار كتب التكليف الرسمية (Word)",
-                                    data=word_file,
-                                    file_name=f"تكليفات_{hall_to_manage}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    use_container_width=True
-                                )
-                            except Exception as e:
-                                st.error(f"حدث خطأ: {e}")
+                try:
+                    word_file = generate_word_assignments(df_members, hall_to_manage)
+                    st.download_button(
+                        label="📄 إصدار كتب التكليف الرسمية (Word)",
+                        data=word_file,
+                        file_name=f"تكليفات_{hall_to_manage}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"حدث خطأ: {e}")
 
                 # --- 2. إضافة الأزرار (تأكد أنها تحت الـ for تماماً) ---
                 st.write("---")
