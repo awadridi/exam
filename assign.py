@@ -33,7 +33,30 @@ if password_input != PASSWORD:
 # إذا كلمة المرور صحيحة، يكمل التطبيق
 st.success("تم تسجيل الدخول بنجاح ✅")
 
+# مثال: جدول التوزيع الحالي
+df_assignments = pd.DataFrame({
+    "Teacher": ["أحمد", "سعاد", "محمود"],
+    "Hall": ["قاعة 1", "قاعة 2", "قاعة 3"]
+})
 
+st.title("إدارة التوزيع")
+
+# عرض الجدول الحالي
+st.write("📋 التوزيع الحالي:")
+st.dataframe(df_assignments)
+
+# زر لإلغاء معلم واحد
+teacher_to_remove = st.text_input("أدخل اسم المعلم لإلغاء توزيعه:")
+if st.button("إلغاء معلم واحد"):
+    df_assignments = df_assignments[df_assignments["Teacher"] != teacher_to_remove]
+    st.success(f"تم إلغاء توزيع {teacher_to_remove}")
+    st.dataframe(df_assignments)
+
+# زر لإلغاء الجميع
+if st.button("إلغاء جميع التوزيعات"):
+    df_assignments = pd.DataFrame(columns=["Teacher", "Hall"])  # جدول فارغ
+    st.success("تم إلغاء جميع التوزيعات")
+    st.dataframe(df_assignments)
 # --- قراءة الملفات ---
 teachers = pd.read_excel("exam.xlsx").rename(columns={
     'هوية': 'هوية',
