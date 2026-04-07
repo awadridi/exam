@@ -7,65 +7,48 @@ import os
 import re
 
 # =====================================
-# 1. إعدادات الواجهة وتنسيق الألوان النهائي
+# 1. إعدادات الواجهة وتثبيت الألوان (CSS)
 # =====================================
-st.set_page_config(page_title="نظام التكليفات الذكي 2026", layout="wide")
+st.set_page_config(page_title="نظام التكليفات 2026", layout="wide")
 
 st.markdown("""
     <style>
+    /* تنسيق التطبيق العام */
     .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
     
     /* تنسيق مستطيل الاسم (Expander) */
-    div[data-testid="stExpander"] {
-        border: 1px solid #4a4a4a !important;
-        border-radius: 10px !important;
-        background-color: #1a1c23 !important; /* خلفية داكنة */
-        margin-bottom: 10px;
-    }
-    
-    /* إجبار لون خط العنوان باللون الأبيض */
-    div[data-testid="stExpander"] summary p {
-        color: #ffffff !important;
-        font-weight: bold !important;
-        font-size: 18px !important;
-    }
+    .st-emotion-cache-p4m61c { background-color: #1a1c23 !important; border: 1px solid #3d3d3d !important; }
+    div[data-testid="stExpander"] { border: 1px solid #444 !important; background-color: #1a1c23 !important; }
+    div[data-testid="stExpander"] summary p { color: #ffffff !important; font-weight: bold !important; font-size: 1.1rem !important; }
 
-    /* جعل محتوى الـ Expander (البيانات الداخلية) بيضاء */
-    div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] p {
-        color: #ffffff !important;
-    }
-
-    /* زر حفظ البيانات - أخضر */
-    button[kind="secondary"]:has(div:contains("حفظ")) {
+    /* الحل الوسط: استهداف الأزرار من خلال النوع والمحتوى */
+    /* زر الحفظ - أخضر */
+    div.stButton > button:has(div:contains("حفظ")) {
         background-color: #28a745 !important;
         color: white !important;
-        border: 1px solid #1e7e34 !important;
-        width: 100% !important;
+        border: none !important;
     }
-
-    /* زر إلغاء التكليف - أحمر */
-    button[kind="secondary"]:has(div:contains("إلغاء")) {
+    /* زر الإلغاء - أحمر */
+    div.stButton > button:has(div:contains("إلغاء")) {
         background-color: #dc3545 !important;
         color: white !important;
-        border: 1px solid #bd2130 !important;
-        width: 100% !important;
+        border: none !important;
     }
-
-    /* زر تحميل التكليف - أزرق */
-    button[kind="primary"] {
+    /* زر التحميل - أزرق */
+    div.stDownloadButton > button {
         background-color: #007bff !important;
         color: white !important;
-        border: 1px solid #0069d9 !important;
+        border: none !important;
         width: 100% !important;
     }
     
-    /* تنسيق نصوص الاختيارات (Selectbox) */
-    label { color: #ffffff !important; }
+    /* إجبار لون النصوص الداخلية لتكون بيضاء */
+    .stMarkdown p, label { color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # قاعدة البيانات
-db_path = os.path.join(os.getcwd(), "final_v14_fixed.db")
+db_path = os.path.join(os.getcwd(), "final_stable_v15.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
@@ -75,7 +58,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS halls
 conn.commit()
 
 # =====================================
-# 2. وظيفة الاستبدال (Bold للمتغيرات فقط)
+# 2. وظيفة الاستبدال (البولد الذكي)
 # =====================================
 def generate_from_template(row):
     try:
@@ -93,8 +76,7 @@ def generate_from_template(row):
         def apply_smart_bold_replace(paragraph, data_map):
             text = paragraph.text
             if any(key in text for key in data_map):
-                for run in paragraph.runs:
-                    run.text = ""
+                for run in paragraph.runs: run.text = ""
                 parts = re.split(r'(<[^>]+>)', text)
                 for part in parts:
                     if part in data_map:
@@ -103,93 +85,66 @@ def generate_from_template(row):
                     else:
                         paragraph.add_run(part)
 
-        for p in doc.paragraphs:
-            apply_smart_bold_replace(p, replacements)
+        for p in doc.paragraphs: apply_smart_bold_replace(p, replacements)
         for table in doc.tables:
             for r in table.rows:
                 for cell in r.cells:
-                    for p in cell.paragraphs:
-                        apply_smart_bold_replace(p, replacements)
+                    for p in cell.paragraphs: apply_smart_bold_replace(p, replacements)
 
         bio = io.BytesIO()
         doc.save(bio)
         bio.seek(0)
         return bio
-    except Exception:
-        return None
+    except: return None
 
 # =====================================
 # 3. الواجهة الرئيسية
 # =====================================
-tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين", "📥 رفع الملفات", "⚙️ الإدارة"])
+tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث", "📥 الرفع", "⚙️ الإدارة"])
 
 with tab_search:
-    st.subheader("إدارة التكليفات")
-    df_halls = pd.read_sql("SELECT * FROM halls", conn)
-    hall_map = {str(r['hall_name']): str(r['city']) for _, r in df_halls.iterrows()}
-    hall_list = [""] + list(hall_map.keys())
-    role_list = ["", "رئيس قاعة", "مراقب", "مساعد رئيس قاعة", "آذن", "عضو لجنة"]
-
     q = st.text_input("ابحث عن الاسم أو الهوية")
     df_t = pd.read_sql("SELECT * FROM teachers", conn)
     
     if q and not df_t.empty:
         results = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].astype(str).str.contains(q)]
         for i, row in results.iterrows():
-            title_label = f"👤 {row['name']}"
-            if row['role']: title_label += f" | {row['role']}"
-            if row['hall']: title_label += f" | {row['hall']}"
-            
-            with st.expander(title_label):
+            title = f"👤 {row['name']} | {row['role'] if row['role'] else 'لم يعين'} | {row['hall'] if row['hall'] else '-'}"
+            with st.expander(title):
                 c1, c2 = st.columns(2)
                 with c1:
-                    sel_hall = st.selectbox(f"القاعة لـ {row['id']}", hall_list, index=hall_list.index(row['hall']) if row['hall'] in hall_list else 0, key=f"h_{row['id']}")
-                    sel_role = st.selectbox(f"الوظيفة لـ {row['id']}", role_list, index=role_list.index(row['role']) if row['role'] in role_list else 0, key=f"r_{row['id']}")
+                    sel_hall = st.selectbox(f"القاعة {row['id']}", [""] + list(pd.read_sql("SELECT hall_name FROM halls", conn)['hall_name']), 
+                                          index=0, key=f"h_{row['id']}")
+                    sel_role = st.selectbox(f"الوظيفة {row['id']}", ["", "رئيس قاعة", "مراقب", "مساعد رئيس قاعة", "آذن", "عضو لجنة"], 
+                                          index=0, key=f"r_{row['id']}")
                 with c2:
-                    st.write(f"المدرسة: {row['school']}")
-                    b1, b2 = st.columns(2)
-                    with b1:
-                        if st.button("💾 حفظ البيانات", key=f"btn_{row['id']}"):
-                            h_city = hall_map.get(sel_hall, "")
-                            c.execute("UPDATE teachers SET hall=?, role=?, hall_city=? WHERE id=?", (sel_hall, sel_role, h_city, row['id']))
-                            conn.commit()
-                            st.success("تم الحفظ!")
-                            st.rerun()
-                    with b2:
-                        if row['role'] or row['hall']:
-                            if st.button(f"❌ إلغاء التكليف", key=f"del_{row['id']}"):
-                                c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
-                                conn.commit()
-                                st.warning("تم الحذف")
-                                st.rerun()
+                    st.write(f"المدرسة الأصلية: {row['school']}")
+                    if st.button("💾 حفظ البيانات", key=f"btn_{row['id']}"):
+                        h_info = pd.read_sql(f"SELECT city FROM halls WHERE hall_name='{sel_hall}'", conn)
+                        h_city = h_info.iloc[0]['city'] if not h_info.empty else ""
+                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=? WHERE id=?", (sel_hall, sel_role, h_city, row['id']))
+                        conn.commit(); st.success("تم الحفظ!"); st.rerun()
+                    
+                    if row['role'] or row['hall']:
+                        if st.button(f"❌ إلغاء التكليف لـ {row['name']}", key=f"del_{row['id']}"):
+                            c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
+                            conn.commit(); st.warning("تم الحذف"); st.rerun()
                     
                     if row['hall'] and row['role']:
                         file_data = generate_from_template(row)
                         if file_data:
-                            st.download_button(f"📥 تحميل التكليف", data=file_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
+                            st.download_button(f"📥 تحميل الكتاب الرسمي", data=file_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
-# التبويبات الأخرى
+# التبويبات الأخرى مختصرة للحفاظ على استقرار الكود
 with tab_upload:
-    cu1, cu2 = st.columns(2)
-    with cu1:
-        f_t = st.file_uploader("ملف الموظفين", type="xlsx")
-        if f_t and st.button("تأكيد الرفع", key="up_t"):
-            df = pd.read_excel(f_t)
-            for _, r in df.iterrows():
-                c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
-                          (str(r.get('id','')), str(r.get('name','')), str(r.get('school','')), str(r.get('city','')), str(r.get('phone','')), "", "", ""))
-            conn.commit()
-            st.success("تم الرفع")
-    with cu2:
-        f_h = st.file_uploader("ملف القاعات", type="xlsx")
-        if f_h and st.button("رفع القاعات", key="up_h"):
-            dfh = pd.read_excel(f_h)
-            c.execute("DELETE FROM halls")
-            for _, r in dfh.iterrows():
-                c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r.iloc[0]), str(r.iloc[1]), str(r.iloc[2])))
-            conn.commit()
-            st.success("تم الرفع")
+    f_t = st.file_uploader("ملف الموظفين", type="xlsx")
+    if f_t and st.button("تثبيت الموظفين"):
+        df = pd.read_excel(f_t)
+        for _, r in df.iterrows():
+            c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
+                      (str(r.get('id','')), str(r.get('name','')), str(r.get('school','')), str(r.get('city','')), str(r.get('phone','')), "", "", ""))
+        conn.commit(); st.success("تم")
 
 with tab_manage:
-    if st.button("🗑️ مسح شامل للبيانات", key="wipe"):
+    if st.button("🗑️ مسح البيانات"):
         c.execute("DELETE FROM teachers"); c.execute("DELETE FROM halls"); conn.commit(); st.rerun()
