@@ -338,65 +338,74 @@ with tab_manage:
                                 conn.commit()
                                 st.rerun()
                               # --- 1. تعريف الدالة (يجب أن تبدأ من نفس مستوى الـ for) ---
-                               def generate_word_assignments(df, hall_name):
-                                from docx import Document
-                                import io
-                                import copy
-                            
-                                template_path = "template.docx"
-                                final_doc = Document()
-                                
-                                # قائمة البيانات المراد استبدالها
-                                # تأكد من أن الأسماء بين القوسين < > تطابق تماماً ما في ملف الورد
-                                for index, row in df.iterrows():
-                                    # فتح نسخة نظيفة من القالب لكل موظف
-                                    doc = Document(template_path)
-                                    
-                                    replacements = {
-                                        '<NAME>': str(row.get('name', '')),
-                                        '<ID>': str(row.get('id_number', '')),
-                                        '<JOB>': str(row.get('role', '')),
-                                        '<HALL_NAME>': str(hall_name),
-                                        '<HALL_LOCATION>': str(row.get('hall_city', '')),
-                                        '<WORKPLACE>': str(row.get('school', '')),
-                                        '<CITY>': str(row.get('city', ''))
-                                    }
-                            
-                                    # دالة الاستبدال الذكي للحفاظ على التنسيق
-                                    def smart_replace(paragraphs):
-                                        for paragraph in paragraphs:
-                                            for key, value in replacements.items():
-                                                if key in paragraph.text:
-                                                    for run in paragraph.runs:
-                                                        if key in run.text:
-                                                            run.text = run.text.replace(key, value)
-                            
-                                    # 1. الاستبدال في الفقرات
-                                    smart_replace(doc.paragraphs)
-                                    
-                                    # 2. الاستبدال داخل الجداول
-                                    for table in doc.tables:
-                                        for table_row in table.rows:
-                                            for cell in table_row.cells:
-                                                smart_replace(cell.paragraphs)
-                            
-                                    # 3. دمج المحتوى بدون إضافة مسافات زائدة
-                                    if index == 0:
-                                        # أول موظف: ننسخ المحتوى بالكامل بما فيه إعدادات الصفحة
-                                        final_doc = doc
-                                    else:
-                                        # الموظفين التاليين: إضافة فاصل صفحات ثم المحتوى
-                                        final_doc.add_page_break()
-                                        for element in doc.element.body:
-                                            # نتجنب نسخ خصائص القسم (SectPr) لكي لا تخرب الهوامش
-                                            if element.tag.endswith('sectPr'):
-                                                continue
-                                            final_doc.element.body.append(element)
-                            
-                                target = io.BytesIO()
-                                final_doc.save(target)
-                                target.seek(0)
-                                return target
+                            def generate_word_assignments(df, hall_name):
+                    from docx import Document
+                    import io
+                    import copy
+
+                    template_path = "template.docx"
+                    # نفتح القالب كمرجع أساسي للمستند النهائي لضمان الهوامش والتنسيق
+                    final_doc = Document(template_path)
+                    # نمسح محتوى الصفحة الأولى لنبدأ بملف فارغ بنفس الإعدادات
+                    for p in final_doc.paragraphs:
+                        p._element.getparent().remove(p._element)
+                    for t in final_doc.tables:
+                        t._element.getparent().remove(t._element)
+
+                    for index, row in df.iterrows():
+                        doc = Document(template_path)
+                        
+                        replacements = {
+                            '<NAME>': str(row.get('name', '')),
+                            '<ID>': str(row.get('id_number', '')),
+                            '<JOB>': str(row.get('role', '')),
+                            '<HALL_NAME>': str(hall_name),
+                            '<HALL_LOCATION>': str(row.get('hall_city', '')),
+                            '<WORKPLACE>': str(row.get('school', '')),
+                            '<CITY>': str(row.get('city', ''))
+                        }
+
+                        def smart_replace(paragraphs):
+                            for paragraph in paragraphs:
+                                for key, value in replacements.items():
+                                    if key in paragraph.text:
+                                        for run in paragraph.runs:
+                                            if key in run.text:
+                                                run.text = run.text.replace(key, value)
+
+                        smart_replace(doc.paragraphs)
+                        for table in doc.tables:
+                            for table_row in table.rows:
+                                for cell in table_row.cells:
+                                    smart_replace(cell.paragraphs)
+
+                        # دمج المحتوى مع الحفاظ على التنسيق
+                        if index > 0:
+                            final_doc.add_page_break()
+                        
+                        for element in doc.element.body:
+                            # نتجنب نسخ خصائص القسم لكي لا تتراكم الهوامش وتخرب الصفحة
+                            if not element.tag.endswith('sectPr'):
+                                final_doc.element.body.append(element)
+
+                    target = io.BytesIO()
+                    final_doc.save(target)
+                    target.seek(0)
+                    return target
+
+                # --- منطقة عرض الزر (تأكد أنها بمحاذاة def) ---
+                st.write("---")
+                try:
+                    word_file = generate_word_assignments(df_members, hall_to_manage)
+                    st.download_button(
+                        label="📄 إصدار كتب التكليف الرسمية (Word)",
+                        data=word_file,
+                        file_name=f"تكليفات_{hall_to_manage}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"حدث خطأ أثناء معالجة القالب: {e}")
                 
                             # --- الآن زر التحميل (بمحاذاة كلمة def أعلاه) ---
                             st.write("---")
