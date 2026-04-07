@@ -31,13 +31,14 @@ def get_db_connection():
 conn = get_db_connection()
 c = conn.cursor()
 
+# إعادة إنشاء الجداول لضمان مطابقتها للكود
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, phone TEXT, role TEXT, hall TEXT, accept TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS halls 
              (number TEXT PRIMARY KEY, hall_name TEXT, city TEXT)''')
 conn.commit()
 
-# دالة ذكية لإيجاد اسم العمود الصحيح في ملف الإكسل
+# دالة ذكية للبحث عن الأعمدة
 def find_column(df, keywords):
     for col in df.columns:
         if any(key in str(col).lower() for key in keywords):
@@ -50,8 +51,7 @@ def find_column(df, keywords):
 def create_docx(row):
     doc = Document()
     doc.add_paragraph("دولة فلسطين\nوزارة التربية والتعليم").alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title = doc.add_heading('بطاقة تكليف رسمي', level=1)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_heading('بطاقة تكليف رسمي', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -61,8 +61,6 @@ def create_docx(row):
     المهمة: {row['role']}
     مكان العمل (القاعة): {row['hall']}
     المنطقة/المدينة: {row['city']}
-    
-    نتمنى لكم التوفيق في مهمتكم.
     """
     run = p.add_run(content)
     run.font.size = Pt(13)
@@ -96,7 +94,6 @@ with tab_search:
     st.subheader("إدارة التعيينات")
     
     df_halls = pd.read_sql("SELECT * FROM halls", conn)
-    # استخدام hall_name كما هو مخزن في قاعدة البيانات
     hall_list = [""] + (df_halls['hall_name'].tolist() if not df_halls.empty else [])
     role_list = ["مراقب", "رئيس قاعة", "مساعد رئيس قاعة", "آذن", "عضو"]
 
@@ -107,10 +104,9 @@ with tab_search:
         results = df_teachers[df_teachers['name'].str.contains(search_q, na=False) | df_teachers['id'].astype(str).str.contains(search_q)]
         
         for i, row in results.iterrows():
-            with st.expander(f"👤 {row['name']} (القاعة: {row['hall'] if row['hall'] else 'غير معين'})"):
+            with st.expander(f"👤 {row['name']} (القاعة الحالية: {row['hall'] if row['hall'] else 'غير معين'})"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    # اختيار القاعة من القائمة المرفوعة
                     new_hall = st.selectbox(f"اختر القاعة", hall_list, 
                                           index=hall_list.index(row['hall']) if row['hall'] in hall_list else 0, 
                                           key=f"h_{row['id']}")
@@ -123,7 +119,7 @@ with tab_search:
                     if st.button("💾 حفظ التعديلات", key=f"sv_{row['id']}"):
                         c.execute("UPDATE teachers SET hall=?, role=? WHERE id=?", (new_hall, new_role, row['id']))
                         conn.commit()
-                        st.success("تم الحفظ بنجاح")
+                        st.success("تم الحفظ")
                         st.rerun()
                     
                     if row['hall']:
@@ -136,38 +132,49 @@ with tab_upload:
     
     with col_u1:
         st.subheader("1. ملف المعلمين")
-        file_t = st.file_uploader("ارفع ملف الموظفين (xlsx)", type="xlsx")
+        file_t = st.file_uploader("ارفع ملف الموظفين (xlsx)", type="xlsx", key="t_file")
         if file_t and st.button("تثبيت الموظفين"):
             df = pd.read_excel(file_t)
-            # بحث ذكي عن الأعمدة
             c_id = find_column(df, ['id', 'هوية'])
             c_name = find_column(df, ['name', 'اسم'])
             c_school = find_column(df, ['school', 'مدرسة'])
             
-            for _, r in df.iterrows():
-                c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, accept) VALUES (?,?,?,?,?,?,?,?)",
-                          (str(r[c_id]), str(r[c_name]), str(r[c_school]), str(r.get('city','')), str(r.get('phone','')), str(r.get('role','')), str(r.get('hall','')), 'نعم'))
-            conn.commit()
-            st.success("✅ تم تحديث بيانات المعلمين")
+            if c_id and c_name:
+                for _, r in df.iterrows():
+                    c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, accept) VALUES (?,?,?,?,?,?,?,?)",
+                              (str(r[c_id]), str(r[c_name]), str(r.get(c_school, '')), str(r.get('city','')), str(r.get('phone','')), str(r.get('role','')), str(r.get('hall','')), 'نعم'))
+                conn.commit()
+                st.success("✅ تم تحديث المعلمين")
+            else:
+                st.error("تأكد من وجود عمود 'id' و 'name' في الملف")
 
     with col_u2:
         st.subheader("2. ملف القاعات")
-        file_h = st.file_uploader("ارفع ملف القاعات (xlsx)", type="xlsx")
+        file_h = st.file_uploader("ارفع ملف القاعات (xlsx)", type="xlsx", key="h_file")
         if file_h and st.button("تثبيت القاعات"):
             dfh = pd.read_excel(file_h)
-            # بحث ذكي عن أعمدة القاعات
             c_num = find_column(dfh, ['number', 'رقم'])
             c_hall = find_column(dfh, ['hall', 'قاعة', 'اسم'])
+            c_city = find_column(dfh, ['city', 'بلد', 'سكن'])
             
-            for _, r in dfh.iterrows():
-                c.execute("INSERT OR REPLACE INTO halls (number, hall_name, city) VALUES (?,?,?)",
-                          (str(r[c_num]), str(r[c_hall]), str(r.get('city',''))))
-            conn.commit()
-            st.success("✅ تم تحديث قائمة القاعات")
+            if c_num and c_hall:
+                for _, r in dfh.iterrows():
+                    # تأكد من تحويل القيم لنصوص لتفادي أخطاء SQLite
+                    val_num = str(r[c_num])
+                    val_name = str(r[c_hall])
+                    val_city = str(r[c_city]) if c_city else ""
+                    
+                    c.execute("INSERT OR REPLACE INTO halls (number, hall_name, city) VALUES (?,?,?)",
+                              (val_num, val_name, val_city))
+                conn.commit()
+                st.success("✅ تم تحديث القاعات")
+                st.rerun()
+            else:
+                st.error("تأكد من وجود عمود 'number' و 'hall' في الملف")
 
 # --- التبويب الثالث: الإدارة ---
 with tab_manage:
-    if st.button("🗑️ مسح النظام بالكامل (تفريغ الجداول)"):
+    if st.button("🗑️ مسح النظام بالكامل"):
         c.execute("DELETE FROM teachers")
         c.execute("DELETE FROM halls")
         conn.commit()
