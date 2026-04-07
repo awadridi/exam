@@ -70,12 +70,19 @@ conn.commit()
 def generate_from_template(row):
     try:
         doc = Document("template.docx")
+        # قائمة الاستبدالات مع التأكد من جلب الوظيفة بشكل صحيح
         replacements = {
-            '<NAME>': str(row['name']), '<ID>': str(row['id']),
-            '<JOB>': str(row['role']), '<HALL_NAME>': str(row['hall']),
-            '<HALL_LOCATION>': str(row['hall_city']), '<WORKPLACE>': str(row['school']),
-            '<CITY>': str(row['city'])
-        }
+            '<NAME>': str(row.get('name', '')),
+            '<ID>': str(row.get('id_number', '')),
+            
+            # يحاول جلب 'role' وإذا لم يجدها يبحث عن 'job'
+            '<JOB>': str(row.get('role', row.get('job', ''))), 
+            
+            '<HALL_NAME>': str(hall_name),
+            '<HALL_LOCATION>': str(row.get('hall_city', '')),
+            '<WORKPLACE>': str(row.get('school', '')),
+            '<CITY>': str(row.get('city', ''))
+                        }
         def apply_smart_bold_replace(paragraph, data_map):
             text = paragraph.text
             if any(key in text for key in data_map):
