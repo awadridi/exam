@@ -14,7 +14,7 @@ empty_doc = "doc.docx"
 # ================== واجهة ==================
 st.title("📋 تطبيق التكليف")
 
-# دعم العربية RTL
+# RTL دعم العربية
 st.markdown("""
 <style>
 body { direction: RTL; text-align: right; }
@@ -44,11 +44,10 @@ halls = pd.read_excel(halls_file).rename(columns={
     'البلد': 'بلد'
 })
 
-# ================== إصلاح المشكلة الأساسية ==================
+# ================== إصلاح عمود القاعة ==================
 if 'قاعة مختارة' not in teachers.columns:
     teachers['قاعة مختارة'] = ""
 
-# إجبار العمود أن يكون نص (حل الخطأ)
 teachers['قاعة مختارة'] = teachers['قاعة مختارة'].astype("object")
 
 # تحميل التعيينات
@@ -95,29 +94,27 @@ if search:
     ]
 
     if not results.empty:
-        selected_name = st.selectbox("اختر المعلم", results['اسم'])
+        selected_name = st.selectbox("اختر المعلم", results['اسم'], key="teacher_select")
 
         row = teachers[teachers['اسم'] == selected_name].iloc[0]
         teacher_id = row['هوية']
 
         hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-        hall = st.selectbox("اختر القاعة", hall_options)
+        hall = st.selectbox("اختر القاعة", hall_options, key="hall_select_search")
 
         if hall != "اختر القاعة...":
             hall_info = get_hall_info(hall)
 
             col1, col2, col3 = st.columns(3)
 
-            # تعيين
             with col1:
-                if st.button("✅ تعيين"):
+                if st.button("✅ تعيين", key="assign_btn"):
                     teachers.loc[teachers['هوية'] == teacher_id, 'قاعة مختارة'] = hall
                     save_assignments()
                     st.success("تم التعيين")
 
-            # توليد كتاب
             with col2:
-                if st.button("📄 توليد"):
+                if st.button("📄 توليد", key="gen_btn"):
                     doc = generate_doc(row, hall_info)
                     os.makedirs("تكليفات", exist_ok=True)
 
@@ -125,11 +122,10 @@ if search:
                     doc.save(path)
 
                     with open(path, "rb") as f:
-                        st.download_button("⬇️ تحميل", f, file_name=row['اسم'] + ".docx")
+                        st.download_button("⬇️ تحميل", f, file_name=row['اسم'] + ".docx", key="download_btn")
 
-            # إلغاء
             with col3:
-                if st.button("❌ إلغاء"):
+                if st.button("❌ إلغاء", key="cancel_btn"):
                     teachers.loc[teachers['هوية'] == teacher_id, 'قاعة مختارة'] = ""
                     save_assignments()
                     st.warning("تم الإلغاء")
@@ -138,7 +134,7 @@ if search:
 st.subheader("🏫 إدارة القاعات")
 
 hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-hall = st.selectbox("اختر القاعة")
+hall = st.selectbox("اختر القاعة", hall_options, key="hall_main")
 
 if hall != "اختر القاعة...":
     selected_teachers = teachers[teachers['قاعة مختارة'] == hall]
@@ -146,15 +142,15 @@ if hall != "اختر القاعة...":
     st.write(f"عدد المعلمين: {len(selected_teachers)}")
 
     if not selected_teachers.empty:
-        t_remove = st.selectbox("اختر للحذف", selected_teachers['اسم'])
+        t_remove = st.selectbox("اختر للحذف", selected_teachers['اسم'], key="remove_select")
 
-        if st.button("❌ حذف من القاعة"):
+        if st.button("❌ حذف من القاعة", key="remove_btn"):
             teacher_id = teachers[teachers['اسم'] == t_remove]['هوية'].iloc[0]
             teachers.loc[teachers['هوية'] == teacher_id, 'قاعة مختارة'] = ""
             save_assignments()
             st.warning("تم الحذف")
 
-    if st.button("📦 توليد ملفات القاعة"):
+    if st.button("📦 توليد ملفات القاعة", key="gen_hall_btn"):
         os.makedirs("تكليفات", exist_ok=True)
         files = []
 
@@ -172,12 +168,12 @@ if hall != "اختر القاعة...":
                 zipf.write(f, os.path.basename(f))
 
         with open(zip_path, "rb") as f:
-            st.download_button("⬇️ تحميل ZIP", f, file_name=hall + ".zip")
+            st.download_button("⬇️ تحميل ZIP", f, file_name=hall + ".zip", key="zip_btn")
 
 # ================== توليد الكل ==================
 st.subheader("📦 كل التكليفات")
 
-if st.button("توليد الكل"):
+if st.button("توليد الكل", key="gen_all"):
     os.makedirs("تكليفات", exist_ok=True)
     files = []
 
@@ -197,4 +193,4 @@ if st.button("توليد الكل"):
             zipf.write(f, os.path.basename(f))
 
     with open(zip_path, "rb") as f:
-        st.download_button("⬇️ تحميل الكل", f, file_name="all.zip")
+        st.download_button("⬇️ تحميل الكل", f, file_name="all.zip", key="zip_all")
