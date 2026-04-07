@@ -422,9 +422,9 @@ with tab_manage:
                     st.error(f"حدث خطأ: {e}")
 
                 # --- 2. إضافة الأزرار (تأكد أنها تحت الـ for تماماً) ---
-                st.write("---")
+            st.write("---")
                 # توليد الملف باستخدام الدالة الجديدة والقالب الرسمي
-                try:
+             try:
                     word_file = generate_word_assignments(df_members, hall_to_manage)
                     
                     st.download_button(
@@ -434,7 +434,7 @@ with tab_manage:
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         use_container_width=True
                     )
-                except Exception as e:
+            except Exception as e:
                     st.error(f"تأكد من وجود ملف template.docx في المجلد: {e}")
                 
                
