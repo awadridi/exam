@@ -304,6 +304,41 @@ with tab_manage:
         st.info("ℹ️ لا توجد تكليفات حالياً لتصديرها.")
 
     st.divider()
+    st.subheader("🗑️ إدارة وحذف تكليفات القاعات")
+    
+    # 1. جلب قائمة القاعات التي بها تكليفات حالياً
+    df_active_halls = pd.read_sql("SELECT DISTINCT hall FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
+    
+    if not df_active_halls.empty:
+        hall_to_manage = st.selectbox("اختر قاعة لعرض المكلفين بها وحذفهم:", [""] + sorted(df_active_halls['hall'].tolist()))
+        
+        if hall_to_manage:
+            # جلب الموظفين في هذه القاعة فقط
+            df_members = pd.read_sql("SELECT id, name, role FROM teachers WHERE hall = ?", conn, params=(hall_to_manage,))
+            
+            if not df_members.empty:
+                st.write(f"👥 عدد المكلفين في {hall_to_manage}: **{len(df_members)}**")
+                
+                # عرض جدول مع زر حذف لكل موظف
+                for index, row in df_members.iterrows():
+                    col1, col2, col3 = st.columns([3, 2, 1])
+                    with col1:
+                        st.write(f"👤 {row['name']}")
+                    with col2:
+                        st.write(f"🏷️ {row['role']}")
+                    with col3:
+                        # زر الحذف لكل موظف بشكل مستقل
+                        if st.button("حذف", key=f"del_{row['id']}"):
+                            c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
+                            conn.commit()
+                            st.success(f"تم حذف تكليف {row['name']}")
+                            st.rerun() # لإعادة تحديث القائمة فوراً
+            else:
+                st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
+    else:
+        st.info("لا توجد قاعات تحتوي على تكليفات حالياً.")
+
+    st.divider()
     st.subheader("⚠️ منطقة الخطر")
     if st.button("⚠️ مسح شامل للتكليفات"):
         c.execute("UPDATE teachers SET hall='', role='', hall_city=''")
