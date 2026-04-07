@@ -110,6 +110,15 @@ if search_id:
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 
+# زر إلغاء تكليف معلم من القاعة
+teacher_in_hall = teachers[teachers['قاعة مختارة'] == hall_filter]
+if not teacher_in_hall.empty:
+    teacher_to_remove = st.selectbox("اختر معلم لإلغاء تكليفه من هذه القاعة:", teacher_in_hall['اسم'], key="remove_teacher_select")
+    if st.button("إلغاء تكليف هذا المعلم", key="remove_teacher_button"):
+        teachers.loc[teachers['اسم'] == teacher_to_remove, 'قاعة مختارة'] = None
+        teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
+        st.warning(f"تم إلغاء تكليف المعلم {teacher_to_remove} من القاعة {hall_filter}")
+
 # --- توليد كتب لكل المراقبين في قاعة معينة ---
 hall_filter = st.selectbox("اختر قاعة لتوليد كتب التكليف لكل المراقبين فيها:", halls['قاعة'])
 if st.button("توليد كتب التكليف لهذه القاعة", key="generate_by_hall"):
