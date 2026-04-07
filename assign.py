@@ -298,7 +298,7 @@ with tab_manage:
                 all_halls_df = pd.read_sql("SELECT DISTINCT hall_name FROM schools", conn)
                 halls_list = sorted(all_halls_df['hall_name'].tolist())
 
-                # حلقة التكرار المطورة (لوحة تحكم كاملة)
+             # حلقة التكرار المطورة (لوحة تحكم كاملة)
                 for index, row in df_members.iterrows():
                     with st.expander(f"👤 {row['name']}"):
                         c1, c2, c3 = st.columns([2, 2, 1])
@@ -316,21 +316,21 @@ with tab_manage:
                         
                         with c3:
                             # 3. أزرار الأكشن
-                            st.write("") # للموازنة
+                            st.write("")  # للموازنة البصرية
                             if st.button("✅ تحديث", key=f"upd_{row['id']}_{index}"):
                                 c.execute("UPDATE teachers SET hall=?, role=? WHERE id=?", (new_hall, new_role, row['id']))
                                 conn.commit()
                                 st.success("تم التحديث")
                                 st.rerun()
-                           # زر الحذف (مرة واحدة فقط وبمسافة بادئة صحيحة)
+                            
                             if st.button("🗑️ حذف", key=f"del_m_{row['id']}_{index}"):
                                 c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
                                 conn.commit()
-                               st.rerun()
+                                st.rerun()
 
-                # --- يجب أن تكون الـ else التالية على نفس مستوى الـ for في السطر 302 ---
-                else:
-                    st.info("⚠️ لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
+            # لاحظ أن الـ else هنا تعود لمستوى الـ for تماماً
+            else:
+                st.info("⚠️ لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
     st.divider()
     st.subheader("⚠️ منطقة الخطر")
     if st.button("⚠️ مسح شامل للتكليفات"):
