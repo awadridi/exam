@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from docx import Document
+from fpdf import FPDF
 import sqlite3
 import os
 import zipfile
@@ -26,10 +27,9 @@ conn.commit()
 
 # ================== واجهة ==================
 st.title("🎓 نظام إدارة التكليف")
-
 st.markdown("""
 <style>
-body { direction: RTL; text-align: right; }
+body { direction: RTL; text-align: right; font-family: Arial; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -42,7 +42,6 @@ if password_input != PASSWORD:
 teachers = pd.read_excel(exam_file)
 halls = pd.read_excel(halls_file)
 
-# ================== تحويل الأعمدة ==================
 teachers = teachers.rename(columns={
     'هوية': 'هوية',
     'اسم المعلم': 'اسم',
@@ -63,14 +62,16 @@ role_map = {
     3: "آذن",
     4: "مراقب"
 }
-
 teachers['وظيفة'] = teachers['وظيفة'].map(role_map).fillna("مراقب")
 
 # ================== تحميل التعيينات ==================
 c.execute("SELECT * FROM assignments")
 rows = c.fetchall()
 
-assign_dict = {r[0]: (r[1], r[2]) for r in rows}
+assign_dict = {}
+for r in rows:
+    if len(r) == 3:
+        assign_dict[r[0]] = (r[1], r[2])
 
 teachers['قاعة مختارة'] = teachers['هوية'].astype(str).map(lambda x: assign_dict.get(x, ("",""))[0])
 teachers['مهمة'] = teachers['هوية'].astype(str).map(lambda x: assign_dict.get(x, ("",""))[1])
@@ -97,6 +98,23 @@ def generate_doc(row):
                                .replace("<HALL_LOCATION>", str(hall_info['بلد']))\
                                .replace("<ROLE>", str(row['مهمة']))
     return doc
+
+def generate_pdf(all_teachers):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    for _, row in all_teachers.iterrows():
+        pdf.multi_cell(0, 8, txt=f"الاسم: {row['اسم']}\n"
+                                  f"الهوية: {row['هوية']}\n"
+                                  f"المدرسة: {row['مدرسة']}\n"
+                                  f"السكن: {row['سكن']}\n"
+                                  f"الوظيفة: {row['وظيفة']}\n"
+                                  f"قاعة: {row['قاعة مختارة']}\n"
+                                  f"المهمة: {row['مهمة']}\n\n")
+    os.makedirs("تكليفات", exist_ok=True)
+    pdf_path = "تكليفات/جميع_المعلمين.pdf"
+    pdf.output(pdf_path)
+    return pdf_path
 
 # ================== إضافة معلم ==================
 st.subheader("➕ إضافة معلم جديد")
@@ -154,13 +172,13 @@ if search:
                 assign_teacher(teacher_id, hall, role)
                 st.experimental_rerun()
         with col2:
-            if st.button("توليد"):
+            if st.button("توليد Word"):
                 doc = generate_doc(row)
                 os.makedirs("تكليفات", exist_ok=True)
                 path = f"تكليفات/{row['اسم']}.docx"
                 doc.save(path)
                 with open(path, "rb") as f:
-                    st.download_button("تحميل", f, file_name=row['اسم'] + ".docx")
+                    st.download_button("تحميل Word", f, file_name=row['اسم'] + ".docx")
         with col3:
             if st.button("حذف"):
                 remove_teacher(teacher_id)
@@ -172,7 +190,7 @@ hall = st.selectbox("اختر القاعة", [""] + list(halls['قاعة']))
 if hall:
     selected = teachers[teachers['قاعة مختارة'] == hall]
     st.write(f"عدد: {len(selected)}")
-    if st.button("توليد القاعة"):
+    if st.button("توليد القاعة Word + ZIP"):
         os.makedirs("تكليفات", exist_ok=True)
         files = []
         for _, row in selected.iterrows():
@@ -187,7 +205,9 @@ if hall:
         with open(zip_path, "rb") as f:
             st.download_button("تحميل ZIP", f, file_name=hall + ".zip")
 
-# ================== تقارير ==================
-st.subheader("📊 التقارير")
-st.write("عدد المعلمين لكل قاعة:")
-st.write(teachers['قاعة مختارة'].value_counts())
+# ================== توليد PDF لجميع المعلمين ==================
+st.subheader("📄 توليد PDF لجميع المعلمين")
+if st.button("توليد PDF"):
+    pdf_path = generate_pdf(teachers)
+    with open(pdf_path, "rb") as f:
+        st.download_button("تحميل PDF لجميع المعلمين", f, file_name="جميع_المعلمين.pdf")
