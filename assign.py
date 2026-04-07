@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from docx import Document
@@ -60,36 +61,27 @@ if search_name:
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
             st.success(f"تم تعيين القاعة {hall_choice} للمعلم {selected_teacher}")
 
-       if st.button("توليد كتاب التكليف بالاسم", key="generate_by_name"):
-    row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
-    hall_info = halls[halls['قاعة'] == hall_choice].iloc[0]
-    doc = Document(empty_doc)
-    for p in doc.paragraphs:
-        for run in p.runs:
-            run.text = run.text.replace("<NAME>", row['اسم'])\
-                               .replace("<ID>", str(row['هوية']))\
-                               .replace("<CITY>", row['سكن'])\
-                               .replace("<WORKPLACE>", row['مدرسة'])\
-                               .replace("<HALL_NAME>", hall_info['قاعة'])\
-                               .replace("<HALL_LOCATION>", hall_info['بلد'])
-    os.makedirs("تكليفات", exist_ok=True)
-    word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-    doc.save(word_path)
-
-    with open(word_path, "rb") as f:
-        st.download_button(
-            label="⬇️ تنزيل كتاب التكليف Word",
-            data=f,
-            file_name=f"تكليف_{row['اسم']}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
-
+        if st.button("توليد كتاب التكليف بالاسم", key="generate_by_name"):
+            row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
+            hall_info = halls[halls['قاعة'] == hall_choice].iloc[0]
+            doc = Document(empty_doc)
+            for p in doc.paragraphs:
+                for run in p.runs:
+                    run.text = run.text.replace("<NAME>", row['اسم'])\
+                                       .replace("<ID>", str(row['هوية']))\
+                                       .replace("<CITY>", row['سكن'])\
+                                       .replace("<WORKPLACE>", row['مدرسة'])\
+                                       .replace("<HALL_NAME>", hall_info['قاعة'])\
+                                       .replace("<HALL_LOCATION>", hall_info['بلد'])
+            os.makedirs("تكليفات", exist_ok=True)
+            word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
+            doc.save(word_path)
 
             with open(word_path, "rb") as f:
                 st.download_button(
                     label="⬇️ تنزيل كتاب التكليف Word",
                     data=f,
-                    file_name=f"تكليف_{selected_teacher}.docx",
+                    file_name=f"تكليف_{row['اسم']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 
