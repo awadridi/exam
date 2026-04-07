@@ -44,7 +44,7 @@ if "logged" not in st.session_state:
 password = st.text_input("كلمة المرور", type="password", key="login_pass")
 
 if st.button("دخول", key="login_btn"):
-    if password == "1234":
+    if password == "1234":  # غيّر كلمة المرور هنا حسب حاجتك
         st.session_state.logged = True
         st.success("تم الدخول ✅")
     else:
@@ -54,7 +54,7 @@ if not st.session_state.logged:
     st.stop()
 
 # =====================================
-# تحميل البيانات
+# دوال تحميل البيانات
 # =====================================
 def get_teachers():
     return pd.read_sql("SELECT * FROM teachers", conn)
@@ -73,16 +73,18 @@ with st.form("add_hall_form"):
     hall_name = st.text_input("اسم القاعة", key="hall_name")
     hall_number = st.text_input("رقم القاعة", key="hall_number")
     hall_city = st.text_input("البلد", key="hall_city")
-
     if st.form_submit_button("إضافة القاعة"):
         if hall_name:
-            c.execute("INSERT INTO halls VALUES (?,?,?)",
-                      (hall_name, hall_number, hall_city))
-            conn.commit()
-            st.success("تمت إضافة القاعة ✅")
-            st.experimental_rerun()
+            try:
+                c.execute("INSERT INTO halls VALUES (?,?,?)",
+                          (hall_name, hall_number, hall_city))
+                conn.commit()
+                st.success("تمت إضافة القاعة ✅")
+            except:
+                st.error("❌ القاعة موجودة مسبقًا")
         else:
             st.warning("أدخل اسم القاعة")
+    halls = get_halls()  # إعادة تحميل القاعات
 
 # =====================================
 # ➕ إضافة معلم
@@ -95,10 +97,7 @@ with st.expander("➕ إضافة معلم جديد", expanded=True):
         city = st.text_input("السكن", key="add_city")
         phone = st.text_input("الجوال", key="add_phone")
         role = st.selectbox("المهمة", ["مراقب","رئيس قاعة","آذن","سكرتير"], key="add_role")
-
-        submitted = st.form_submit_button("💾 حفظ المعلم")
-
-        if submitted:
+        if st.form_submit_button("💾 حفظ المعلم"):
             if not idd or not name:
                 st.warning("⚠️ لازم تعبّي الاسم والهوية")
             elif not idd.isdigit():
@@ -112,12 +111,9 @@ with st.expander("➕ إضافة معلم جديد", expanded=True):
                     # تفريغ الحقول
                     for k in ["add_name","add_id","add_school","add_city","add_phone"]:
                         st.session_state[k] = ""
-                    st.experimental_rerun()
                 except:
                     st.error("❌ المعلم موجود مسبقًا")
-
-teachers = get_teachers()
-halls = get_halls()
+    teachers = get_teachers()  # إعادة تحميل المعلمين
 
 # =====================================
 # فلترة حسب المدرسة
@@ -139,7 +135,6 @@ st.subheader("✏️ تعديل أو حذف معلم")
 if not filtered_teachers.empty:
     selected = st.selectbox("اختر معلم", filtered_teachers['name'], key="edit_select")
     row = filtered_teachers[filtered_teachers['name']==selected].iloc[0]
-
     new_name = st.text_input("الاسم الجديد", row['name'], key="edit_name")
     new_phone = st.text_input("الجوال الجديد", row['phone'], key="edit_phone")
 
@@ -148,13 +143,13 @@ if not filtered_teachers.empty:
                   (new_name, new_phone, row['id']))
         conn.commit()
         st.success("تم التعديل")
-        st.experimental_rerun()
+        teachers = get_teachers()  # إعادة تحميل المعلمين
 
     if st.button("حذف", key="delete_btn"):
         c.execute("DELETE FROM teachers WHERE id=?", (row['id'],))
         conn.commit()
         st.warning("تم الحذف")
-        st.experimental_rerun()
+        teachers = get_teachers()  # إعادة تحميل المعلمين
 
 # =====================================
 # 🔍 البحث والتعيين
@@ -185,13 +180,13 @@ if not result.empty:
                   (hall_name, role_assign, r['id']))
         conn.commit()
         st.success("تم التعيين")
-        st.experimental_rerun()
+        teachers = get_teachers()  # إعادة تحميل المعلمين
 
     if st.button("إلغاء", key="cancel_btn"):
         c.execute("UPDATE teachers SET hall='' WHERE id=?", (r['id'],))
         conn.commit()
         st.warning("تم الإلغاء")
-        st.experimental_rerun()
+        teachers = get_teachers()  # إعادة تحميل المعلمين
 
 # =====================================
 # 🏛️ إدارة القاعات + الطباعة
