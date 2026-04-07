@@ -151,30 +151,50 @@ with tab_search:
                             st.download_button("📥 تحميل التكليف", data=f_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
 # تبويب الرفع (تم إرجاع زر القاعات)
-with tab_upload:
-    col_u1, col_u2 = st.columns(2)
-    
-    with col_u1:
-        f_teachers = st.file_uploader("رفع ملف الموظفين (Excel)", type="xlsx")
-        if f_teachers and st.button("تثبيت قائمة الموظفين"):
-            df = pd.read_excel(f_teachers)
-            for _, r in df.iterrows():
-                c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
-                          (str(r.get('id','')), str(r.get('name','')), str(r.get('school','')), str(r.get('city','')), str(r.get('phone','')), "", "", ""))
-            conn.commit()
-            st.success("تم رفع الموظفين بنجاح")
-            
-    with col_u2:
-        f_halls = st.file_uploader("رفع ملف القاعات (Excel)", type="xlsx")
-        if f_halls and st.button("تثبيت قائمة القاعات"):
-            dfh = pd.read_excel(f_halls)
-            c.execute("DELETE FROM halls")
-            for _, r in dfh.iterrows():
-                c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r.iloc[0]), str(r.iloc[1]), str(r.iloc[2])))
-            conn.commit()
-            st.success("تم رفع القاعات بنجاح")
+# =====================================
+# 3. الواجهة الرئيسية والمزامنة مع Google Sheets
+# =====================================
 
-    # تأكد أن هذه الأسطر تبدأ من نفس مستوى col_u1 (خارج الـ with col_u2)
+# --- إعدادات جوجل شيت (تأكد من وضع القيم الصحيحة هنا) ---
+SHEET_ID = "1ca9HOHZBwyxPlM51B_ek_zkvIZ8KP_2M"
+GID_HALLS = "1364805271"  # استبدل الرقم 0 برقم الورقة الثانية من الرابط
+
+TEACHERS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
+HALLS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID_HALLS}"
+
+def sync_data():
+    try:
+        # مزامنة المعلمين
+        df_t = pd.read_csv(TEACHERS_URL)
+        df_t.to_sql('teachers', conn, if_exists='replace', index=False)
+        
+        # مزامنة القاعات
+        df_h = pd.read_csv(HALLS_URL)
+        df_h.to_sql('halls', conn, if_exists='replace', index=False)
+        
+        st.success("✅ تم تحديث البيانات من Google Sheets بنجاح!")
+        st.rerun()
+    except Exception as e:
+        st.error(f"❌ فشل المزامنة: تأكد من إعدادات المشاركة ورابط الملف. (الخطأ: {e})")
+
+# التبويبات الجديدة
+tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين", "📥 مزامنة ورفع", "⚙️ الإدارة"])
+
+with tab_search:
+    # أضف زر التحديث السريع هنا أيضاً لراحتك
+    if st.button("🔄 تحديث الأسماء الآن"):
+        sync_data()
+        
+    st.subheader("إدارة الموظفين")
+    # ... (باقي كود البحث والتعيين كما هو عندك دون تغيير) ...
+
+with tab_upload:
+    st.header("🔄 المزامنة مع Google Sheets")
+    st.write("استخدم هذا الزر لسحب أحدث البيانات من ملف جوجل شيت الخاص بك.")
+    
+    if st.button("📥 سحب البيانات الجديدة", key="main_sync"):
+        sync_data()
+
     st.divider() 
     st.subheader("📄 رفع نموذج كتاب التكليف")
     f_template = st.file_uploader("ارفع ملف الوورد (template.docx)", type="docx", key="u_docx")
@@ -184,5 +204,9 @@ with tab_upload:
         st.success("✅ تم تحديث نموذج كتاب التكليف بنجاح!")
 
 with tab_manage:
-    if st.button("⚠️ مسح شامل لقاعدة البيانات"):
-        c.execute("DELETE FROM teachers"); c.execute("DELETE FROM halls"); conn.commit(); st.rerun()
+    st.warning("تحذير: سيتم مسح كافة التعيينات التي قمت بها يدوياً في البرنامج.")
+    if st.button("⚠️ مسح شامل للبيانات"):
+        c.execute("DELETE FROM teachers")
+        c.execute("DELETE FROM halls")
+        conn.commit()
+        st.rerun()
