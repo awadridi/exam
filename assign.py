@@ -114,8 +114,15 @@ tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين"
 
 with tab_search:
     st.subheader("إدارة الموظفين")
-    df_halls = pd.read_sql("SELECT * FROM halls", conn)
-    hall_map = {str(r['hall_name']): str(r['city']) for _, r in df_halls.iterrows()}
+   try:
+        df_halls = pd.read_sql("SELECT * FROM halls", conn)
+        df_halls.columns = df_halls.columns.str.strip().str.lower()
+        if 'hall_name' in df_halls.columns:
+            hall_map = {str(r['hall_name']): str(r['city']) for _, r in df_halls.iterrows()}
+        else:
+            hall_map = {}
+    except:
+        hall_map = {}
     hall_list = [""] + list(hall_map.keys())
     role_list = ["", "رئيس قاعة", "مراقب", "مساعد رئيس قاعة", "آذن", "عضو لجنة"]
 
