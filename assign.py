@@ -114,7 +114,7 @@ tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين"
 
 with tab_search:
     st.subheader("إدارة الموظفين")
-   try:
+    try:
         df_halls = pd.read_sql("SELECT * FROM halls", conn)
         df_halls.columns = df_halls.columns.str.strip().str.lower()
         if 'hall_name' in df_halls.columns:
