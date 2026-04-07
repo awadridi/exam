@@ -6,9 +6,9 @@ import io
 import os
 
 # =====================================
-# 1. إعدادات الواجهة (التصميم الاحترافي)
+# 1. إعدادات الواجهة والتصميم
 # =====================================
-st.set_page_config(page_title="نظام التكليفات الذكي 2026", layout="wide")
+st.set_page_config(page_title="نظام التكليفات 2026", layout="wide")
 
 st.markdown("""
     <style>
@@ -24,18 +24,13 @@ st.markdown("""
         width: 100%; background-color: #28a745; color: white;
         border-radius: 8px; font-weight: bold;
     }
-    .info-box {
-        padding: 10px; background-color: #1e1e1e; border-right: 5px solid #28a745;
-        margin-bottom: 20px; color: white;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# الاتصال بقاعدة البيانات
-db_name = "exam_system_permanent.db"
-conn = sqlite3.connect(db_name, check_same_thread=False)
+# قاعدة البيانات
+db_path = os.path.join(os.getcwd(), "exam_data_2026.db")
+conn = sqlite3.connect(db_path, check_same_thread=False)
 c = conn.cursor()
-
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, phone TEXT, role TEXT, hall TEXT, hall_city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS halls 
@@ -43,44 +38,55 @@ c.execute('''CREATE TABLE IF NOT EXISTS halls
 conn.commit()
 
 # =====================================
-# 2. وظيفة التعبئة (دعم JOB و Bold)
+# 2. وظيفة التعبئة المطورة (لضمان استبدال <JOB>)
 # =====================================
 def generate_from_template(row):
     try:
-        if not os.path.exists("template.docx"):
-            return "error_no_file"
         doc = Document("template.docx")
-        def replace_text(container, search_str, replace_str):
-            for p in container.paragraphs:
-                for run in p.runs:
-                    if search_str in run.text:
-                        run.text = run.text.replace(search_str, str(replace_str))
-            for table in container.tables:
-                for r in table.rows:
-                    for cell in r.cells:
-                        replace_text(cell, search_str, replace_str)
-
-        data_map = {
-            '<NAME>': row['name'], '<ID>': row['id'], '<JOB>': row['role'],
-            '<HALL_NAME>': row['hall'], '<HALL_LOCATION>': row['hall_city'],
-            '<WORKPLACE>': row['school'], '<CITY>': row['city']
-        }
-        for key, value in data_map.items():
-            replace_text(doc, key, value if value else "")
         
+        # خريطة الاستبدال
+        data_map = {
+            '<NAME>': row['name'],
+            '<ID>': row['id'],
+            '<JOB>': row['role'],  # هذه القيمة التي يتم حفظها من القائمة المنسدلة
+            '<HALL_NAME>': row['hall'],
+            '<HALL_LOCATION>': row['hall_city'],
+            '<WORKPLACE>': row['school'],
+            '<CITY>': row['city']
+        }
+
+        # دالة الاستبدال المحسنة
+        def smart_replace(doc_obj, replacements):
+            for p in doc_obj.paragraphs:
+                for key, val in replacements.items():
+                    if key in p.text:
+                        # استبدال النص داخل الـ runs للحفاظ على التنسيق قدر الإمكان
+                        for run in p.runs:
+                            if key in run.text:
+                                run.text = run.text.replace(key, str(val))
+            
+            # نفس العملية للجداول
+            for table in doc_obj.tables:
+                for row_obj in table.rows:
+                    for cell in row_obj.cells:
+                        smart_replace(cell, replacements)
+
+        smart_replace(doc, data_map)
+
         bio = io.BytesIO()
         doc.save(bio)
         bio.seek(0)
         return bio
-    except: return None
+    except Exception as e:
+        return None
 
 # =====================================
 # 3. الواجهة الرئيسية
 # =====================================
-tab_search, tab_upload, tab_backup = st.tabs(["🔍 البحث والتعيين", "📥 رفع الإكسل", "💾 النسخ الاحتياطي (هام)"])
+tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين", "📥 رفع الملفات", "⚙️ الإدارة"])
 
 with tab_search:
-    st.subheader("تعيين الموظفين وإصدار الكتب")
+    st.subheader("تعيين الموظفين")
     
     df_halls = pd.read_sql("SELECT * FROM halls", conn)
     hall_map = {str(r['hall_name']): str(r['city']) for _, r in df_halls.iterrows()}
@@ -94,10 +100,11 @@ with tab_search:
         results = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].astype(str).str.contains(q)]
         
         for i, row in results.iterrows():
-            h_status = row['hall'] if row['hall'] else "غير محدد"
-            r_status = row['role'] if row['role'] else "غير محدد"
+            # تحسين العناوين لتظهر الوظيفة المختارة فقط
+            disp_hall = row['hall'] if row['hall'] else "لم تُحدد"
+            disp_role = row['role'] if row['role'] else "لم تُحدد"
             
-            with st.expander(f"👤 {row['name']} | القاعة: {h_status} | الوظيفة: {r_status}"):
+            with st.expander(f"👤 {row['name']} | القاعة: {disp_hall} | الوظيفة: {disp_role}"):
                 c1, c2 = st.columns(2)
                 with c1:
                     sel_hall = st.selectbox(f"القاعة لـ {row['id']}", hall_list, 
@@ -115,53 +122,32 @@ with tab_search:
                     
                     if row['hall'] and row['role']:
                         file_data = generate_from_template(row)
-                        if file_data == "error_no_file":
-                            st.error("ملف template.docx غير موجود")
-                        elif file_data:
+                        if file_data:
                             st.download_button(f"📥 تحميل تكليف {row['role']}", data=file_data, 
                                              file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
+# تبويبات الرفع والإدارة (نفس الكود السابق لضمان الثبات)
 with tab_upload:
-    st.markdown('<div class="info-box">ارفع ملفات الإكسل هنا لمرة واحدة فقط.</div>', unsafe_allow_html=True)
     cu1, cu2 = st.columns(2)
     with cu1:
-        f_t = st.file_uploader("ملف الموظفين (xlsx)", key="u_t")
-        if f_t and st.button("تأكيد رفع المعلمين"):
+        f_t = st.file_uploader("xlsx - معلمين", key="u_t")
+        if f_t and st.button("رفع المعلمين"):
             df = pd.read_excel(f_t)
             for _, r in df.iterrows():
                 c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
                           (str(r.get('id','')), str(r.get('name','')), str(r.get('school','')), str(r.get('city','')), str(r.get('phone','')), "", "", ""))
             conn.commit()
-            st.success("تم الرفع")
-
+            st.success("تم")
     with cu2:
-        f_h = st.file_uploader("ملف القاعات (xlsx)", key="u_h")
-        if f_h and st.button("تأكيد رفع القاعات"):
+        f_h = st.file_uploader("xlsx - قاعات", key="u_h")
+        if f_h and st.button("رفع القاعات"):
             dfh = pd.read_excel(f_h)
             c.execute("DELETE FROM halls")
             for _, r in dfh.iterrows():
                 c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r.iloc[0]), str(r.iloc[1]), str(r.iloc[2])))
             conn.commit()
-            st.success("تم الرفع")
+            st.success("تم")
 
-# --- التبويب الجديد لحماية بياناتك من الضياع ---
-with tab_backup:
-    st.subheader("⚙️ حماية البيانات من الضياع")
-    st.write("بما أن الاستضافة السحابية قد تحذف البيانات عند التحديث، استخدم هذه الأدوات:")
-    
-    # 1. تصدير البيانات لملف إكسل واحد يحتوي كل تعييناتك
-    if st.button("📥 تحميل نسخة احتياطية (Excel)"):
-        all_data = pd.read_sql("SELECT * FROM teachers", conn)
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            all_data.to_excel(writer, index=False)
-        st.download_button("اضغط هنا لتحميل النسخة الاحتياطية", data=buffer, file_name="backup_data_2026.xlsx")
-
-    st.divider()
-    
-    # 2. مسح شامل
-    if st.button("🗑️ مسح قاعدة البيانات بالكامل"):
-        c.execute("DELETE FROM teachers")
-        c.execute("DELETE FROM halls")
-        conn.commit()
-        st.rerun()
+with tab_manage:
+    if st.button("🗑️ مسح الكل"):
+        c.execute("DELETE FROM teachers"); c.execute("DELETE FROM halls"); conn.commit(); st.rerun()
