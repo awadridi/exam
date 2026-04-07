@@ -14,7 +14,7 @@ if platform.system() == "Windows":
 exam_file = st.secrets["EXAM_FILE"]
 halls_file = st.secrets["HALLS_FILE"]
 assignments_file = st.secrets["ASSIGNMENTS_FILE"]
-empty_doc = "doc.docx"   # ← اسم الملف الجديد
+empty_doc = "doc.docx"   # اسم ملف القالب الجديد
 
 # قراءة كلمة السر من Secrets
 PASSWORD = st.secrets["PASSWORD"]
@@ -94,7 +94,7 @@ if search_id:
             selected_hall = teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة']
             if not selected_hall.empty:
                 hall_info = halls[halls['قاعة'] == selected_hall.iloc[0]].iloc[0]
-                doc = Document(empty_doc)   # ← التعديل هنا
+                doc = Document(empty_doc)
                 for p in doc.paragraphs:
                     for run in p.runs:
                         run.text = run.text.replace("<NAME>", row['اسم'])\
@@ -133,7 +133,7 @@ if st.button("توليد كتب التكليف لهذه القاعة (PDF)"):
         word_files = []
         for _, row in selected_teachers.iterrows():
             hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
-            doc = Document(empty_doc)   # ← التعديل هنا
+            doc = Document(empty_doc)
             for p in doc.paragraphs:
                 for run in p.runs:
                     run.text = run.text.replace("<NAME>", row['اسم'])\
@@ -174,7 +174,7 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     word_files = []
     for _, row in teachers.dropna(subset=['قاعة مختارة']).iterrows():
         hall_info = halls[halls['قاعة'] == row['قاعة مختارة']].iloc[0]
-        doc = Document(empty_doc)   # ← التعديل هنا
+        doc = Document(empty_doc)
         for p in doc.paragraphs:
             for run in p.runs:
                 run.text = run.text.replace("<NAME>", row['اسم'])\
@@ -196,7 +196,7 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for word_file in word_files:
             pdf_file = word_file.replace(".docx", ".pdf")
-            zipfيا عوّاد 🌟، هذا الكود كامل بعد التعديل بحيث يقرأ القالب الجديد باسم **`doc.docx`** بدل الاسم القديم، وكل الاستدعاءات تم تحديثها:
+            zipf.write(pdf_file, os.path.basenameيا عوّاد 🌟، خليني أعطيك نسخة كاملة ونظيفة من الكود بدون أي رموز أو نصوص إضافية تسبب أخطاء. هذا الكود جاهز للنسخ واللصق في ملفك `assign.py`:
 
 ```python
 import streamlit as st
@@ -215,7 +215,7 @@ if platform.system() == "Windows":
 exam_file = st.secrets["EXAM_FILE"]
 halls_file = st.secrets["HALLS_FILE"]
 assignments_file = st.secrets["ASSIGNMENTS_FILE"]
-empty_doc = "doc.docx"   # ← اسم الملف الجديد
+empty_doc = "doc.docx"   # اسم ملف القالب الجديد
 
 # قراءة كلمة السر من Secrets
 PASSWORD = st.secrets["PASSWORD"]
@@ -295,7 +295,7 @@ if search_id:
             selected_hall = teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة']
             if not selected_hall.empty:
                 hall_info = halls[halls['قاعة'] == selected_hall.iloc[0]].iloc[0]
-                doc = Document(empty_doc)   # ← التعديل هنا
+                doc = Document(empty_doc)
                 for p in doc.paragraphs:
                     for run in p.runs:
                         run.text = run.text.replace("<NAME>", row['اسم'])\
@@ -334,7 +334,7 @@ if st.button("توليد كتب التكليف لهذه القاعة (PDF)"):
         word_files = []
         for _, row in selected_teachers.iterrows():
             hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
-            doc = Document(empty_doc)   # ← التعديل هنا
+            doc = Document(empty_doc)
             for p in doc.paragraphs:
                 for run in p.runs:
                     run.text = run.text.replace("<NAME>", row['اسم'])\
@@ -375,7 +375,7 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     word_files = []
     for _, row in teachers.dropna(subset=['قاعة مختارة']).iterrows():
         hall_info = halls[halls['قاعة'] == row['قاعة مختارة']].iloc[0]
-        doc = Document(empty_doc)   # ← التعديل هنا
+        doc = Document(empty_doc)
         for p in doc.paragraphs:
             for run in p.runs:
                 run.text = run.text.replace("<NAME>", row['اسم'])\
@@ -397,4 +397,4 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for word_file in word_files:
             pdf_file = word_file.replace(".docx", ".pdf")
-            zipf
+            zipf.write(pdf_file, os.path.basename
