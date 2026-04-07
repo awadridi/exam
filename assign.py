@@ -338,58 +338,74 @@ with tab_manage:
                                 conn.commit()
                                 st.rerun()
                               # --- 1. تعريف الدالة (يجب أن تبدأ من نفس مستوى الـ for) ---
-                def generate_word_assignments(df, hall):
-                    doc = Document()
-                    for index, row in df.iterrows():
-                        p = doc.add_paragraph()
-                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        run = p.add_run("كتاب تكليف بمهمة امتحان")
-                        run.bold = True
-                        run.font.size = Pt(18)
-                        doc.add_paragraph("\n")
-                        p_text = doc.add_paragraph()
-                        p_text.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                        content = (
-                            f"بناءً على الصلاحيات المخولة لنا، تقرر تكليف السيد/ة: {row['name']}\n"
-                            f"بمهمة: {row['role']}\n"
-                            f"في قاعة: {hall}\n"
-                            f"وذلك اعتباراً من تاريخه. نرجو منكم الالتزام بالتعليمات الرسمية."
-                        )
-                        run_content = p_text.add_run(content)
-                        run_content.font.size = Pt(14)
-                        doc.add_paragraph("\n\n")
-                        p_sig = doc.add_paragraph("ختم وتوقيع مدير المركز: .........................")
-                        p_sig.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                        if index < len(df) - 1:
-                            doc.add_page_break()
-                    
-                    target = io.BytesIO()
-                    doc.save(target)
-                    target.seek(0)
-                    return target
+                def generate_word_assignments(df, hall_name):
+    from docx import Document
+    import io
+    
+    # تحميل القالب الرسمي الذي رفعته
+    template_path = "template.docx"
+    final_doc = Document()
+    
+    for index, row in df.iterrows():
+        # فتح نسخة جديدة من القالب لكل موظف
+        doc = Document(template_path)
+        
+        # قائمة الاستبدالات بناءً على الأوسمة في قالبك
+        replacements = {
+            '<NAME>': str(row.get('name', '')),
+            '<ID>': str(row.get('id_number', '')),
+            '<JOB>': str(row.get('role', '')),
+            '<HALL_NAME>': str(hall_name),
+            '<HALL_LOCATION>': str(row.get('hall_city', '')),
+            '<WORKPLACE>': str(row.get('school', '')),
+            '<CITY>': str(row.get('city', ''))
+        }
+        
+        # تنفيذ عملية الاستبدال داخل الفقرات
+        for paragraph in doc.paragraphs:
+            for key, value in replacements.items():
+                if key in paragraph.text:
+                    paragraph.text = paragraph.text.replace(key, value)
+        
+        # تنفيذ عملية الاستبدال داخل الجداول (إذا وجدت أوسمة داخل الجدول)
+        for table in doc.tables:
+            for table_row in table.rows:
+                for cell in table_row.cells:
+                    for paragraph in cell.paragraphs:
+                        for key, value in replacements.items():
+                            if key in paragraph.text:
+                                paragraph.text = paragraph.text.replace(key, value)
+        
+        # دمج محتوى القالب المعبأ في المستند النهائي
+        for element in doc.element.body:
+            final_doc.element.body.append(element)
+            
+        # إضافة فاصل صفحات بين كل مكلف والآخر
+        if index < len(df) - 1:
+            final_doc.add_page_break()
+            
+    target = io.BytesIO()
+    final_doc.save(target)
+    target.seek(0)
+    return target
 
                 # --- 2. إضافة الأزرار (تأكد أنها تحت الـ for تماماً) ---
                 st.write("---")
-                col_down1, col_down2 = st.columns(2)
-                
-                with col_down1:
+                # توليد الملف باستخدام الدالة الجديدة والقالب الرسمي
+                try:
                     word_file = generate_word_assignments(df_members, hall_to_manage)
+                    
                     st.download_button(
-                        label="📄 تحميل كتب التكليف (Word)",
+                        label="📄 إصدار كتب التكليف الرسمية لجميع موظفي القاعة (Word)",
                         data=word_file,
-                        file_name=f"تكليفات_{hall_to_manage}.docx",
+                        file_name=f"تكليفات_رسمية_{hall_to_manage}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         use_container_width=True
                     )
+                except Exception as e:
+                    st.error(f"تأكد من وجود ملف template.docx في المجلد: {e}")
                 
-                with col_down2:
-                    st.download_button(
-                        label="📊 تحميل قائمة القاعة (Excel)",
-                        data=df_members.to_csv(index=False).encode('utf-8-sig'),
-                        file_name=f"قاعة_{hall_to_manage}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )  
+               
                  
             # لاحظ أن الـ else هنا تعود لمستوى الـ for تماماً
             else:
