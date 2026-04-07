@@ -239,31 +239,22 @@ with tab_manage:
             df_hall_export.columns = ['الرقم الوطني/المنشأة', 'الاسم', 'المهمة', 'المدرسة الأصلية', 'السكن', 'رقم الهاتف']
             
             # إعداد ملف الإكسل المنسق
+            # 1. إنشاء الـ Buffer والكاتب
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # كتابة البيانات
                 df_hall_export.to_excel(writer, index=False, sheet_name='العاملين')
                 
+                # تعريف الكائنات
                 workbook  = writer.book
                 worksheet = writer.sheets['العاملين']
 
-                # --- السطر السحري لجعل الورقة من اليمين لليسار ---
-                worksheet.right_to_left() 
-                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df_hall_export.to_excel(writer, index=False, sheet_name='العاملين')
-                
-                workbook  = writer.book
-                worksheet = writer.sheets['العاملين']
-
-                # 1. اتجاه الصفحة من اليمين لليسار (عربي)
-                worksheet.right_to_left() 
-
-                # 2. جعل اتجاه الطباعة "أفقي" (Landscape)
+                # 2. إعدادات الصفحة (أفقي، يمين لليسار، احتواء صفحة)
+                worksheet.right_to_left()
                 worksheet.set_landscape()
+                worksheet.fit_to_pages(1, 0)
 
-                # 3. احتواء كافة الأعمدة في صفحة واحدة عند الطباعة
-                worksheet.fit_to_pages(1, 0) # (1) تعني صفحة واحدة عرضاً، (0) تعني عدد مفتوح من الصفحات طولاً
-
-                # --- باقي التنسيقات السابقة (حجم الخط والحدود) ---
+                # 3. تعريف التنسيقات (الخطوط والحدود)
                 header_format = workbook.add_format({
                     'bold': True, 'align': 'center', 'valign': 'vcenter',
                     'fg_color': '#D7E4BC', 'border': 1, 'font_size': 16
@@ -273,13 +264,12 @@ with tab_manage:
                     'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 14
                 })
 
-                # تطبيق التنسيق على الأعمدة
+                # 4. تطبيق التنسيق على الأعمدة
                 for col_num, value in enumerate(df_hall_export.columns.values):
                     worksheet.write(0, col_num, value, header_format)
-                    worksheet.set_column(col_num, col_num, 22, cell_format)
+                    worksheet.set_column(col_num, col_num, 25, cell_format)
                 
-                worksheet.set_column(1, 1, 40, cell_format) # عرض عمود الاسم
-
+                worksheet.set_column(1, 1, 45, cell_format) # عمود الاسم أعرض
                 # تنسيق العناوين (كبرنا الخط لـ 16)
                 header_format = workbook.add_format({
                     'bold': True, 'align': 'center', 'valign': 'vcenter',
