@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 from docx import Document
-import os
 from docx2pdf import convert
-import zipfile
-import pythoncom   # لإصلاح مشكلة CoInitialize
+import platform
+
+# استدعاء pythoncom فقط إذا كنت على Windows
+if platform.system() == "Windows":
+    import pythoncom
+
 
 # --- قراءة الملفات ---
 teachers = pd.read_excel("exam.xlsx").rename(columns={
