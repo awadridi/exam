@@ -217,45 +217,53 @@ with tab_upload:
             f.write(f_template.getbuffer())
         st.success("✅ تم تحديث نموذج كتاب التكليف بنجاح!")
 
-with tab_manage:
-    st.header("⚙️ أدوات الإدارة والاستخراج")
-    
-    # --- القسم الأول: استخراج بيانات القاعات ---
-    st.subheader("📊 استخراج كشوفات القاعات")
-    df_all = pd.read_sql("SELECT * FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
-    
-    if not df_all.empty:
-        # الحصول على قائمة القاعات التي بها تكليفات فعلياً
-        halls_with_assignments = sorted(df_all['hall'].unique())
-        selected_h_export = st.selectbox("اختر القاعة لتصدير كشف العاملين بها:", [""] + halls_with_assignments)
-        
-        if selected_h_export:
-            # تصفية البيانات للقاعة المختارة
+if selected_h_export:
+            # 1. تصفية البيانات للقاعة المختارة
             df_hall_export = df_all[df_all['hall'] == selected_h_export][['id', 'name', 'role', 'school', 'city', 'phone']]
             df_hall_export.columns = ['الرقم الوطني/المنشأة', 'الاسم', 'المهمة', 'المدرسة الأصلية', 'السكن', 'رقم الهاتف']
             
-            # زر التحميل كملف Excel
+            # 2. إعداد ملف الإكسل مع التنسيقات
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                 df_hall_export.to_excel(writer, index=False, sheet_name='العاملين')
-            
+                
+                # الوصول إلى كائن الـ workbook والـ worksheet لتطبيق التنسيق
+                workbook  = writer.book
+                worksheet = writer.sheets['العاملين']
+
+                # --- تعريف التنسيقات ---
+                # تنسيق العناوين (Header)
+                header_format = workbook.add_format({
+                    'bold': True,
+                    'text_wrap': True,
+                    'valign': 'vcenter',
+                    'align': 'center',
+                    'fg_color': '#D7E4BC', # لون خلفية أخضر فاتح
+                    'border': 1,            # حدود
+                    'font_size': 14        # حجم الخط
+                })
+
+                # تنسيق الخلايا العادية (Content)
+                cell_format = workbook.add_format({
+                    'valign': 'vcenter',
+                    'align': 'right',       # محاذاة لليمين للغة العربية
+                    'border': 1,            # حدود لكل خلية
+                    'font_size': 12        # حجم خط الخلايا
+                })
+
+                # 3. تطبيق التنسيقات على الأعمدة والصفوف
+                # تعيين عرض الأعمدة تلقائياً بشكل تقريبي وتطبيق تنسيق الخلايا
+                for col_num, value in enumerate(df_hall_export.columns.values):
+                    worksheet.write(0, col_num, value, header_format) # تطبيق تنسيق العنوان
+                    worksheet.set_column(col_num, col_num, 20, cell_format) # عرض العمود 20 وتنسيق الخلايا
+                
+                # إذا أردت جعل عمود الاسم أعرض من البقية:
+                worksheet.set_column(1, 1, 35, cell_format) 
+
+            # 4. زر التحميل
             st.download_button(
-                label=f"📥 تحميل كشف {selected_h_export} (Excel)",
+                label=f"📥 تحميل كشف {selected_h_export} منسق (Excel)",
                 data=buffer.getvalue(),
-                file_name=f"العاملين_في_{selected_h_export}.xlsx",
+                file_name=f"كشف_{selected_h_export}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-    else:
-        st.info("ℹ️ لا توجد تكليفات حالياً لتصديرها.")
-
-    st.divider()
-
-    # --- القسم الثاني: المسح الشامل (الكود القديم الخاص بك) ---
-    st.subheader("⚠️ منطقة الخطر")
-    st.warning("تحذير: سيتم مسح كافة التعيينات التي قمت بها يدوياً في البرنامج.")
-    if st.button("⚠️ مسح شامل للبيانات"):
-        c.execute("UPDATE teachers SET hall='', role='', hall_city=''")
-        # نستخدم UPDATE بدلاً من DELETE لكي لا نحذف الأسماء، فقط نحذف التكليفات
-        conn.commit()
-        st.success("تم مسح التكليفات مع الإبقاء على أسماء الموظفين.")
-        st.rerun()
