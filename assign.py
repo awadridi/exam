@@ -248,6 +248,37 @@ with tab_manage:
 
                 # --- السطر السحري لجعل الورقة من اليمين لليسار ---
                 worksheet.right_to_left() 
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                df_hall_export.to_excel(writer, index=False, sheet_name='العاملين')
+                
+                workbook  = writer.book
+                worksheet = writer.sheets['العاملين']
+
+                # 1. اتجاه الصفحة من اليمين لليسار (عربي)
+                worksheet.right_to_left() 
+
+                # 2. جعل اتجاه الطباعة "أفقي" (Landscape)
+                worksheet.set_landscape()
+
+                # 3. احتواء كافة الأعمدة في صفحة واحدة عند الطباعة
+                worksheet.fit_to_pages(1, 0) # (1) تعني صفحة واحدة عرضاً، (0) تعني عدد مفتوح من الصفحات طولاً
+
+                # --- باقي التنسيقات السابقة (حجم الخط والحدود) ---
+                header_format = workbook.add_format({
+                    'bold': True, 'align': 'center', 'valign': 'vcenter',
+                    'fg_color': '#D7E4BC', 'border': 1, 'font_size': 16
+                })
+
+                cell_format = workbook.add_format({
+                    'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 14
+                })
+
+                # تطبيق التنسيق على الأعمدة
+                for col_num, value in enumerate(df_hall_export.columns.values):
+                    worksheet.write(0, col_num, value, header_format)
+                    worksheet.set_column(col_num, col_num, 22, cell_format)
+                
+                worksheet.set_column(1, 1, 40, cell_format) # عرض عمود الاسم
 
                 # تنسيق العناوين (كبرنا الخط لـ 16)
                 header_format = workbook.add_format({
