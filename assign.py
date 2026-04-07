@@ -113,6 +113,82 @@ with st.expander("إضافة معلم"):
             save_assignments()
             st.success("تمت إضافة المعلم بنجاح ✅")
 
+# ================== البحث بالاسم ==================
+st.subheader("🔍 البحث بالاسم")
+search_name = st.text_input("ابحث عن المراقب بالاسم:")
+if search_name:
+    results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
+    if not results.empty:
+        row = results.iloc[0]
+        st.write(f"المعلم: {row['اسم']} - المدرسة: {row['مدرسة']} - المهمة: {row['مهمة']} - الجوال: {row['جوال']} - القاعة: {row['قاعة مختارة']}")
+        hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+        hall = st.selectbox("اختر القاعة:", hall_options, key="search_name_hall")
+        role = st.selectbox("اختر المهمة:", ["مراقب","رئيس قاعة","آذن","سكرتير"], index=["مراقب","رئيس قاعة","آذن","سكرتير"].index(row['مهمة']), key="search_name_role")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("تعيين", key="search_name_assign"):
+                if hall != "اختر القاعة...":
+                    teachers.loc[teachers['هوية']==row['هوية'], ['قاعة مختارة','مهمة']] = [hall, role]
+                    save_assignments()
+                    st.success(f"تم تعيين {row['اسم']} في {hall} كمهمة {role}")
+                else:
+                    st.warning("اختر القاعة قبل التعيين!")
+        with col2:
+            if st.button("توليد Word", key="search_name_word"):
+                doc = generate_doc(row)
+                if doc:
+                    os.makedirs("تكليفات", exist_ok=True)
+                    path = f"تكليفات/{row['اسم']}.docx"
+                    doc.save(path)
+                    with open(path, "rb") as f:
+                        st.download_button("تحميل Word", f, file_name=f"{row['اسم']}.docx")
+                else:
+                    st.warning("المعلم غير معين في أي قاعة!")
+        with col3:
+            if st.button("إلغاء التعيين", key="search_name_remove"):
+                teachers.loc[teachers['هوية']==row['هوية'], ['قاعة مختارة','مهمة']] = [None,row['وظيفة']]
+                save_assignments()
+                st.warning(f"تم إلغاء التعيين للمعلم {row['اسم']}")
+
+# ================== البحث برقم الهوية ==================
+st.subheader("🔍 البحث برقم الهوية")
+search_id = st.text_input("اكتب رقم هوية المعلم:")
+if search_id:
+    result = teachers[teachers['هوية'].astype(str) == search_id]
+    if not result.empty:
+        row = result.iloc[0]
+        st.write(f"المعلم: {row['اسم']} - المدرسة: {row['مدرسة']} - المهمة: {row['مهمة']} - الجوال: {row['جوال']} - القاعة: {row['قاعة مختارة']}")
+        hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+        hall = st.selectbox("اختر القاعة:", hall_options, key="search_id_hall")
+        role = st.selectbox("اختر المهمة:", ["مراقب","رئيس قاعة","آذن","سكرتير"], index=["مراقب","رئيس قاعة","آذن","سكرتير"].index(row['مهمة']), key="search_id_role")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("تعيين", key="search_id_assign"):
+                if hall != "اختر القاعة...":
+                    teachers.loc[teachers['هوية']==row['هوية'], ['قاعة مختارة','مهمة']] = [hall, role]
+                    save_assignments()
+                    st.success(f"تم تعيين {row['اسم']} في {hall} كمهمة {role}")
+                else:
+                    st.warning("اختر القاعة قبل التعيين!")
+        with col2:
+            if st.button("توليد Word", key="search_id_word"):
+                doc = generate_doc(row)
+                if doc:
+                    os.makedirs("تكليفات", exist_ok=True)
+                    path = f"تكليفات/{row['اسم']}.docx"
+                    doc.save(path)
+                    with open(path, "rb") as f:
+                        st.download_button("تحميل Word", f, file_name=f"{row['اسم']}.docx")
+                else:
+                    st.warning("المعلم غير معين في أي قاعة!")
+        with col3:
+            if st.button("إلغاء التعيين", key="search_id_remove"):
+                teachers.loc[teachers['هوية']==row['هوية'], ['قاعة مختارة','مهمة']] = [None,row['وظيفة']]
+                save_assignments()
+                st.warning(f"تم إلغاء التعيين للمعلم {row['اسم']}")
+
 # ================== إدارة القاعات ==================
 st.subheader("🏫 إدارة القاعات")
 hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
@@ -120,8 +196,6 @@ selected_hall = st.selectbox("اختر القاعة لإدارة المعلمي�
 
 if selected_hall != "اختر القاعة...":
     hall_teachers = teachers[teachers['قاعة مختارة']==selected_hall]
-    
-    # عرض المعلمين في القاعة
     if not hall_teachers.empty:
         teacher_to_remove = st.selectbox("اختر معلم لإلغاء تكليفه:", hall_teachers['اسم'], key="remove_teacher_select")
         if st.button("إلغاء تكليف هذا المعلم", key="remove_teacher_button"):
@@ -146,8 +220,7 @@ if selected_hall != "اختر القاعة...":
                 with open(zip_path, "rb") as f:
                     st.download_button("تحميل ZIP للقاعة", f, file_name=f"تكليفات_{selected_hall}.zip")
 
-    # إضافة معلم موجود إلى القاعة
-    st.write("➕ إضافة معلم موجود إلى هذه القاعة")
+    st.write("➕ إضافة معلم موجود لهذه القاعة")
     unassigned_teachers = teachers[teachers['قاعة مختارة'].isna()]
     if not unassigned_teachers.empty:
         teacher_to_assign = st.selectbox("اختر معلم للتعيين:", unassigned_teachers['اسم'], key="assign_teacher_select")
