@@ -341,8 +341,7 @@ with tab_manage:
             # لاحظ أن الـ else هنا تعود لمستوى الـ for تماماً
             else:
                 st.info("⚠️ لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
-
-    
+                
     # --- قسم تصدير كتب التكليف Word ---
                 def generate_word_assignments(df, hall):
                     doc = Document()
@@ -401,6 +400,8 @@ with tab_manage:
                         mime="text/csv",
                         use_container_width=True
                     )
+
+    
 
     st.divider()
     st.subheader("⚠️ منطقة الخطر")
