@@ -156,7 +156,7 @@ with tab_search:
 # =====================================
 
 # --- إعدادات جوجل شيت (تأكد من وضع القيم الصحيحة هنا) ---
-SHEET_ID = "1ca9HOHZBwyxPlM51B_ek_zkvIZ8KP_2M"
+SHEET_ID = "1kJtaMtltbAF1PeKbTq90kc8MfI_cUsPVAWW8i9YMzlc"
 GID_HALLS = "1364805271"  # استبدل الرقم 0 برقم الورقة الثانية من الرابط
 
 TEACHERS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
