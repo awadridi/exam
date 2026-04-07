@@ -346,55 +346,72 @@ with tab_manage:
                                 st.rerun()
                               # --- 1. تعريف الدالة (يجب أن تبدأ من نفس مستوى الـ for) ---
                             # تأكد أن هذا الجزء يقع خارج حلقة الـ for الخاصة بعرض أسماء الموظفين
-                def generate_word_assignments(df, hall_name):
-                    from docx import Document
-                    import io
-                    
-                    template_path = "template.docx"
-                    final_doc = None
-                    
-                    for index, row in df.iterrows():
-                        doc = Document(template_path)
+                # 1. تعريف الدالة المحدثة لسحب الوظيفة بشكل صحيح من القالب
+                        def generate_word_assignments(df, hall_name):
+                            from docx import Document
+                            import io
+                            
+                            template_path = "template.docx"
+                            final_doc = None
+                            
+                            for index, row in df.iterrows():
+                                doc = Document(template_path)
+                                
+                                # التأكد من جلب قيمة الوظيفة مهما كان مسمى العمود (role أو job)
+                                job_title = row.get('role') or row.get('job') or ""
+                                
+                                replacements = {
+                                    '<NAME>': str(row.get('name', '')),
+                                    '<ID>': str(row.get('id_number', '')),
+                                    '<JOB>': str(job_title), # هنا تم إصلاح مشكلة ظهور كلمة JOB
+                                    '<HALL_NAME>': str(hall_name),
+                                    '<HALL_LOCATION>': str(row.get('hall_city', '')),
+                                    '<WORKPLACE>': str(row.get('school', '')),
+                                    '<CITY>': str(row.get('city', ''))
+                                }
                         
-                        # جلب الوظيفة بأكثر من احتمال لضمان ظهورها
-                        job_value = row.get('role') or row.get('job') or row.get('المهمة') or ""
+                                def smart_replace(paragraphs):
+                                    for paragraph in paragraphs:
+                                        for key, value in replacements.items():
+                                            if key in paragraph.text:
+                                                for run in paragraph.runs:
+                                                    if key in run.text:
+                                                        run.text = run.text.replace(key, value)
                         
-                        replacements = {
-                            '<NAME>': str(row.get('name', '')),
-                            '<ID>': str(row.get('id_number', '')),
-                            '<JOB>': str(job_value), 
-                            '<HALL_NAME>': str(hall_name),
-                            '<HALL_LOCATION>': str(row.get('hall_city', '')),
-                            '<WORKPLACE>': str(row.get('school', '')),
-                            '<CITY>': str(row.get('city', ''))
-                        }
-
-                        def smart_replace(paragraphs):
-                            for paragraph in paragraphs:
-                                for key, value in replacements.items():
-                                    if key in paragraph.text:
-                                        for run in paragraph.runs:
-                                            if key in run.text:
-                                                run.text = run.text.replace(key, value)
-
-                        smart_replace(doc.paragraphs)
-                        for table in doc.tables:
-                            for table_row in table.rows:
-                                for cell in table_row.cells:
-                                    smart_replace(cell.paragraphs)
-
-                        if final_doc is None:
-                            final_doc = doc
-                        else:
-                            final_doc.add_page_break()
-                            for element in doc.element.body:
-                                if not element.tag.endswith('sectPr'):
-                                    final_doc.element.body.append(element)
-
-                    target = io.BytesIO()
-                    final_doc.save(target)
-                    target.seek(0)
-                    return target
+                                smart_replace(doc.paragraphs)
+                                for table in doc.tables:
+                                    for table_row in table.rows:
+                                        for cell in table_row.cells:
+                                            smart_replace(cell.paragraphs)
+                        
+                                if final_doc is None:
+                                    final_doc = doc
+                                else:
+                                    final_doc.add_page_break()
+                                    for element in doc.element.body:
+                                        if not element.tag.endswith('sectPr'):
+                                            final_doc.element.body.append(element)
+                        
+                            target = io.BytesIO()
+                            final_doc.save(target)
+                            target.seek(0)
+                            return target
+                        
+                        # 2. عرض الزر الوحيد (تأكد أن هذا الجزء ليس بداخل أي loop)
+                        st.write("---")
+                        try:
+                            # توليد الملف للقاعة كاملة
+                            word_file = generate_word_assignments(df_members, hall_to_manage)
+                            st.download_button(
+                                label="📄 إصدار كتب التكليف الرسمية لجميع موظفي القاعة (Word)",
+                                data=word_file,
+                                file_name=f"تكليفات_رسمية_{hall_to_manage}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                use_container_width=True,
+                                key=f"final_single_btn_{hall_to_manage}" # مفتاح فريد يمنع تكرار الأزرار
+                            )
+                        except Exception as e:
+                            st.error(f"حدث خطأ في النظام: {e}")
 
                 # --- منطقة عرض الزر الوحيد (يجب أن تكون خارج أي loop) ---
                 st.write("---")
