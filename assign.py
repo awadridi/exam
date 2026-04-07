@@ -294,21 +294,39 @@ with tab_manage:
             if not df_members.empty:
                 st.write(f"👥 عدد المكلفين في {hall_to_manage}: **{len(df_members)}**")
                 
-                # عرض جدول مع زر حذف لكل موظف
+# جلب قائمة بكل القاعات المتاحة في النظام لاستخدامها في النقل
+                all_halls_df = pd.read_sql("SELECT DISTINCT hall_name FROM schools", conn)
+                halls_list = sorted(all_halls_df['hall_name'].tolist())
+
+                # حلقة التكرار المطورة (لوحة تحكم كاملة)
                 for index, row in df_members.iterrows():
-                    col1, col2, col3 = st.columns([3, 2, 1])
-                    with col1:
-                        st.write(f"👤 {row['name']}")
-                    with col2:
-                        st.write(f"🏷️ {row['role']}")
-                    with col3:
-                        # زر الحذف لكل موظف بشكل مستقل
-                        if st.button("حذف", key=f"del_{hall_to_manage}_{row['id']}_{index}"):
-                            c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
-                            conn.commit()
-                            st.success(f"تم حذف تكليف {row['name']}")
-                            st.rerun() # لإعادة تحديث القائمة فوراً
-            else:
+                    with st.expander(f"👤 {row['name']}"):
+                        c1, c2, c3 = st.columns([2, 2, 1])
+                        
+                        with c1:
+                            # 1. قائمة المهام
+                            roles_list = ["رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"]
+                            curr_role_idx = roles_list.index(row['role']) if row['role'] in roles_list else 2
+                            new_role = st.selectbox(f"المهمة", roles_list, index=curr_role_idx, key=f"r_{row['id']}_{index}")
+                        
+                        with c2:
+                            # 2. قائمة القاعات للنقل
+                            curr_hall_idx = halls_list.index(hall_to_manage) if hall_to_manage in halls_list else 0
+                            new_hall = st.selectbox(f"نقل إلى", halls_list, index=curr_hall_idx, key=f"h_{row['id']}_{index}")
+                        
+                        with c3:
+                            # 3. أزرار الأكشن
+                            st.write("") # للموازنة
+                            if st.button("✅ تحديث", key=f"upd_{row['id']}_{index}"):
+                                c.execute("UPDATE teachers SET hall=?, role=? WHERE id=?", (new_hall, new_role, row['id']))
+                                conn.commit()
+                                st.success("تم التحديث")
+                                st.rerun()
+                                
+                            if st.button("🗑️ حذف", key=f"del_m_{row['id']}_{index}"):
+                                c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
+                                conn.commit()
+                                st.rerun()            else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
     else:
         st.info("لا توجد قاعات تحتوي على تكليفات حالياً.")
