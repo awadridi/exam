@@ -322,15 +322,15 @@ with tab_manage:
                                 conn.commit()
                                 st.success("تم التحديث")
                                 st.rerun()
-                                
+                           # زر الحذف (مرة واحدة فقط وبمسافة بادئة صحيحة)
                             if st.button("🗑️ حذف", key=f"del_m_{row['id']}_{index}"):
                                 c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE id=?", (row['id'],))
                                 conn.commit()
-                                st.rerun()            else:
-                st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
-    else:
-        st.info("لا توجد قاعات تحتوي على تكليفات حالياً.")
+                               st.rerun()
 
+                # --- يجب أن تكون الـ else التالية على نفس مستوى الـ for في السطر 302 ---
+                else:
+                    st.info("⚠️ لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
     st.divider()
     st.subheader("⚠️ منطقة الخطر")
     if st.button("⚠️ مسح شامل للتكليفات"):
