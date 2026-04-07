@@ -418,7 +418,7 @@ with tab_manage:
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         use_container_width=True
                     )
-                except Exception as e:
+            except Exception as e:
                     st.error(f"حدث خطأ: {e}")
 
                 # --- 2. إضافة الأزرار (تأكد أنها تحت الـ for تماماً) ---
