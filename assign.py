@@ -408,7 +408,7 @@ with tab_manage:
                     st.error(f"حدث خطأ أثناء معالجة القالب: {e}")
                 
                             # --- الآن زر التحميل (بمحاذاة كلمة def أعلاه) ---
-                     st.write("---")
+                         st.write("---")
                             try:
                                 word_file = generate_word_assignments(df_members, hall_to_manage)
                                 st.download_button(
