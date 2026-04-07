@@ -170,17 +170,28 @@ HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14
 
 def sync_data():
     try:
-        # قراءة البيانات مباشرة من روابط النشر
+        # 1. سحب بيانات المعلمين وتنظيف أسماء الأعمدة
         df_t = pd.read_csv(TEACHERS_URL)
+        df_t.columns = df_t.columns.str.strip().str.lower()
+        
+        # 2. إضافة أعمدة التكليف (hall, role, hall_city) إذا لم تكن موجودة في ملف جوجل
+        # هذه الخطوة تحل مشكلة sqlite3.OperationalError عند الحفظ
+        for col in ['hall', 'role', 'hall_city']:
+            if col not in df_t.columns:
+                df_t[col] = None
+        
+        # حفظ بيانات المعلمين في قاعدة البيانات
         df_t.to_sql('teachers', conn, if_exists='replace', index=False)
         
+        # 3. سحب بيانات القاعات وتنظيفها
         df_h = pd.read_csv(HALLS_URL)
+        df_h.columns = df_h.columns.str.strip().str.lower()
         df_h.to_sql('halls', conn, if_exists='replace', index=False)
         
-        st.success("✅ تم التحديث من جوجل بنجاح!")
+        st.success("✅ تم التحديث من جوجل وإعداد الجداول بنجاح!")
         st.rerun()
     except Exception as e:
-        st.error(f"❌ خطأ: تأكد من اختيار صيغة CSV عند النشر. (الخطأ: {e})")
+        st.error(f"❌ خطأ أثناء المزامنة: {e}")
 
 # التبويبات الجديدة
 tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين", "📥 مزامنة ورفع", "⚙️ الإدارة"])
