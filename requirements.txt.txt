@@ -1,4 +1,0 @@
-streamlit
-pandas
-python-docx
-docx2pdf
