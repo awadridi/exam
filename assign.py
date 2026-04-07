@@ -8,18 +8,30 @@ import platform
 # استدعاء pythoncom فقط إذا كنت على Windows
 if platform.system() == "Windows":
     import pythoncom
-import streamlit as st
-import streamlit as st
+
+# قراءة أسماء الملفات من Secrets
+exam_file = st.secrets["EXAM_FILE"]
+halls_file = st.secrets["HALLS_FILE"]
+assignments_file = st.secrets["ASSIGNMENTS_FILE"]
+empty_doc = st.secrets["EMPTY_DOC"]
+
+# مثال: استخدام الملفات
+df_exam = pd.read_excel(exam_file)
+df_halls = pd.read_excel(halls_file)
 
 # قراءة كلمة السر من Secrets
 PASSWORD = st.secrets["PASSWORD"]
 
+# واجهة التطبيق
 st.title("تطبيق التكليف")
 password_input = st.text_input("أدخل كلمة المرور:", type="password")
 
 if password_input != PASSWORD:
     st.error("كلمة المرور غير صحيحة")
     st.stop()
+
+# إذا كلمة المرور صحيحة، يكمل التطبيق
+st.success("تم تسجيل الدخول بنجاح ✅")
 
 
 # --- قراءة الملفات ---
