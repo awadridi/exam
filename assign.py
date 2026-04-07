@@ -339,59 +339,59 @@ with tab_manage:
                                 st.rerun()
                               # --- 1. تعريف الدالة (يجب أن تبدأ من نفس مستوى الـ for) ---
                             def generate_word_assignments(df, hall_name):
-                    from docx import Document
-                    import io
-                    import copy
-
-                    template_path = "template.docx"
-                    # نفتح القالب كمرجع أساسي للمستند النهائي لضمان الهوامش والتنسيق
-                    final_doc = Document(template_path)
-                    # نمسح محتوى الصفحة الأولى لنبدأ بملف فارغ بنفس الإعدادات
-                    for p in final_doc.paragraphs:
-                        p._element.getparent().remove(p._element)
-                    for t in final_doc.tables:
-                        t._element.getparent().remove(t._element)
-
-                    for index, row in df.iterrows():
-                        doc = Document(template_path)
-                        
-                        replacements = {
-                            '<NAME>': str(row.get('name', '')),
-                            '<ID>': str(row.get('id_number', '')),
-                            '<JOB>': str(row.get('role', '')),
-                            '<HALL_NAME>': str(hall_name),
-                            '<HALL_LOCATION>': str(row.get('hall_city', '')),
-                            '<WORKPLACE>': str(row.get('school', '')),
-                            '<CITY>': str(row.get('city', ''))
-                        }
-
-                        def smart_replace(paragraphs):
-                            for paragraph in paragraphs:
-                                for key, value in replacements.items():
-                                    if key in paragraph.text:
-                                        for run in paragraph.runs:
-                                            if key in run.text:
-                                                run.text = run.text.replace(key, value)
-
-                        smart_replace(doc.paragraphs)
-                        for table in doc.tables:
-                            for table_row in table.rows:
-                                for cell in table_row.cells:
-                                    smart_replace(cell.paragraphs)
-
-                        # دمج المحتوى مع الحفاظ على التنسيق
-                        if index > 0:
-                            final_doc.add_page_break()
-                        
-                        for element in doc.element.body:
-                            # نتجنب نسخ خصائص القسم لكي لا تتراكم الهوامش وتخرب الصفحة
-                            if not element.tag.endswith('sectPr'):
-                                final_doc.element.body.append(element)
-
-                    target = io.BytesIO()
-                    final_doc.save(target)
-                    target.seek(0)
-                    return target
+                                from docx import Document
+                                import io
+                                import copy
+            
+                                template_path = "template.docx"
+                                # نفتح القالب كمرجع أساسي للمستند النهائي لضمان الهوامش والتنسيق
+                                final_doc = Document(template_path)
+                                # نمسح محتوى الصفحة الأولى لنبدأ بملف فارغ بنفس الإعدادات
+                                for p in final_doc.paragraphs:
+                                    p._element.getparent().remove(p._element)
+                                for t in final_doc.tables:
+                                    t._element.getparent().remove(t._element)
+            
+                                for index, row in df.iterrows():
+                                    doc = Document(template_path)
+                                    
+                                    replacements = {
+                                        '<NAME>': str(row.get('name', '')),
+                                        '<ID>': str(row.get('id_number', '')),
+                                        '<JOB>': str(row.get('role', '')),
+                                        '<HALL_NAME>': str(hall_name),
+                                        '<HALL_LOCATION>': str(row.get('hall_city', '')),
+                                        '<WORKPLACE>': str(row.get('school', '')),
+                                        '<CITY>': str(row.get('city', ''))
+                                    }
+            
+                                    def smart_replace(paragraphs):
+                                        for paragraph in paragraphs:
+                                            for key, value in replacements.items():
+                                                if key in paragraph.text:
+                                                    for run in paragraph.runs:
+                                                        if key in run.text:
+                                                            run.text = run.text.replace(key, value)
+            
+                                    smart_replace(doc.paragraphs)
+                                    for table in doc.tables:
+                                        for table_row in table.rows:
+                                            for cell in table_row.cells:
+                                                smart_replace(cell.paragraphs)
+            
+                                    # دمج المحتوى مع الحفاظ على التنسيق
+                                    if index > 0:
+                                        final_doc.add_page_break()
+                                    
+                                    for element in doc.element.body:
+                                        # نتجنب نسخ خصائص القسم لكي لا تتراكم الهوامش وتخرب الصفحة
+                                        if not element.tag.endswith('sectPr'):
+                                            final_doc.element.body.append(element)
+            
+                                target = io.BytesIO()
+                                final_doc.save(target)
+                                target.seek(0)
+                                return target
 
                 # --- منطقة عرض الزر (تأكد أنها بمحاذاة def) ---
                 st.write("---")
