@@ -123,7 +123,7 @@ if search_id:
             st.warning(f"المعلم {row['اسم']} لم يتم تعيين قاعة له بعد")
 
         hall_choice = st.selectbox("اختر أو غيّر القاعة:", halls['قاعة'], key="hall_by_id")
-        if st.button("تحديث القاعة"):
+        if st.button("تعيين القاعة"):
             teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_choice
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assign_file, index=False)
             st.success(f"تم تعيين القاعة {hall_choice} للمعلم {row['اسم']}")
