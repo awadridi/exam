@@ -220,9 +220,44 @@ with tab_upload:
         st.success("✅ تم تحديث نموذج كتاب التكليف بنجاح!")
 
 with tab_manage:
+    st.header("⚙️ أدوات الإدارة والاستخراج")
+    
+    # --- القسم الأول: استخراج بيانات القاعات ---
+    st.subheader("📊 استخراج كشوفات القاعات")
+    df_all = pd.read_sql("SELECT * FROM teachers WHERE hall IS NOT NULL AND hall != ''", conn)
+    
+    if not df_all.empty:
+        # الحصول على قائمة القاعات التي بها تكليفات فعلياً
+        halls_with_assignments = sorted(df_all['hall'].unique())
+        selected_h_export = st.selectbox("اختر القاعة لتصدير كشف العاملين بها:", [""] + halls_with_assignments)
+        
+        if selected_h_export:
+            # تصفية البيانات للقاعة المختارة
+            df_hall_export = df_all[df_all['hall'] == selected_h_export][['id', 'name', 'role', 'school', 'city', 'phone']]
+            df_hall_export.columns = ['الرقم الوطني/المنشأة', 'الاسم', 'المهمة', 'المدرسة الأصلية', 'السكن', 'رقم الهاتف']
+            
+            # زر التحميل كملف Excel
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                df_hall_export.to_excel(writer, index=False, sheet_name='العاملين')
+            
+            st.download_button(
+                label=f"📥 تحميل كشف {selected_h_export} (Excel)",
+                data=buffer.getvalue(),
+                file_name=f"العاملين_في_{selected_h_export}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+    else:
+        st.info("ℹ️ لا توجد تكليفات حالياً لتصديرها.")
+
+    st.divider()
+
+    # --- القسم الثاني: المسح الشامل (الكود القديم الخاص بك) ---
+    st.subheader("⚠️ منطقة الخطر")
     st.warning("تحذير: سيتم مسح كافة التعيينات التي قمت بها يدوياً في البرنامج.")
     if st.button("⚠️ مسح شامل للبيانات"):
-        c.execute("DELETE FROM teachers")
-        c.execute("DELETE FROM halls")
+        c.execute("UPDATE teachers SET hall='', role='', hall_city=''")
+        # نستخدم UPDATE بدلاً من DELETE لكي لا نحذف الأسماء، فقط نحذف التكليفات
         conn.commit()
+        st.success("تم مسح التكليفات مع الإبقاء على أسماء الموظفين.")
         st.rerun()
