@@ -1,29 +1,35 @@
-
 import streamlit as st
 import pandas as pd
 from docx import Document
 import os
 import zipfile
 
-# قراءة أسماء الملفات من Secrets
+# ================== إعدادات ==================
 exam_file = st.secrets["EXAM_FILE"]
 halls_file = st.secrets["HALLS_FILE"]
 assignments_file = st.secrets["ASSIGNMENTS_FILE"]
-empty_doc = "doc.docx"   # اسم ملف القالب الجديد
-
-
-# كلمة السر
 PASSWORD = st.secrets["PASSWORD"]
+empty_doc = "doc.docx"
 
-# واجهة التطبيق
-st.title("تطبيق التكليف")
+# ================== واجهة ==================
+st.title("📋 تطبيق التكليف")
+
+# RTL دعم العربية
+st.markdown("""
+<style>
+body { direction: RTL; text-align: right; }
+.stTextInput, .stSelectbox, .stButton { direction: RTL; text-align: right; }
+</style>
+""", unsafe_allow_html=True)
+
+# تسجيل الدخول
 password_input = st.text_input("أدخل كلمة المرور:", type="password")
 if password_input != PASSWORD:
     st.error("كلمة المرور غير صحيحة")
     st.stop()
 st.success("تم تسجيل الدخول بنجاح ✅")
 
-# --- قراءة الملفات ---
+# ================== قراءة البيانات ==================
 teachers = pd.read_excel(exam_file).rename(columns={
     'هوية': 'هوية',
     'اسم المعلم': 'اسم',
@@ -31,208 +37,187 @@ teachers = pd.read_excel(exam_file).rename(columns={
     'سكن': 'سكن',
     'الوظيفة': 'وظيفة'
 })
+
 halls = pd.read_excel(halls_file).rename(columns={
     'رقم': 'رقم',
     'اسم القاعة': 'قاعة',
     'البلد': 'بلد'
 })
 
-if 'قاعة مختارة' not in teachers.columns:
-    teachers['قاعة مختارة'] = None
-
-# --- عرض جميع المعلمين الموزعين وإلغاء تكليفهم ---
-assigned_teachers = teachers.dropna(subset=['قاعة مختارة'])
-if not assigned_teachers.empty:
-    st.subheader("المعلمون الموزعون على قاعات")
-    teacher_to_remove = st.selectbox(
-        "اختر معلم لإلغاء تكليفه:",
-        assigned_teachers['اسم'],
-        key="remove_assigned_teacher"
-    )
-    if st.button("إلغاء تكليف هذا المعلم", key="remove_assigned_teacher_button"):
-        teachers.loc[teachers['اسم'] == teacher_to_remove, 'قاعة مختارة'] = None
-        teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
-        st.warning(f"تم إلغاء تكليف المعلم {teacher_to_remove}")
-else:
-    st.info("لا يوجد معلمين موزعين حالياً.")
-
-
+# تحميل التعيينات
 if os.path.exists(assignments_file):
     assignments = pd.read_excel(assignments_file)
     if 'هوية' in assignments.columns:
         teachers = teachers.merge(assignments, on="هوية", how="left")
-    else:
-        teachers['قاعة مختارة'] = None
 else:
     teachers['قاعة مختارة'] = None
 
 if 'قاعة مختارة' not in teachers.columns:
     teachers['قاعة مختارة'] = None
-# --- البحث بالاسم ---
-search_name = st.text_input("ابحث عن المراقب بالاسم:")
+
+# ================== دالة توليد الملف ==================
+def generate_doc(row, hall_info):
+    doc = Document(empty_doc)
+    for p in doc.paragraphs:
+        for run in p.runs:
+            run.text = run.text.replace("<NAME>", row['اسم'])\
+                               .replace("<ID>", str(row['هوية']))\
+                               .replace("<CITY>", row['سكن'])\
+                               .replace("<WORKPLACE>", row['مدرسة'])\
+                               .replace("<HALL_NAME>", hall_info['قاعة'])\
+                               .replace("<HALL_LOCATION>", hall_info['بلد'])
+    return doc
+
+# ================== عرض المعلمين الموزعين ==================
+assigned = teachers.dropna(subset=['قاعة مختارة'])
+
+if not assigned.empty:
+    st.subheader("📌 المعلمون الموزعون")
+    t_remove = st.selectbox("اختر معلم:", assigned['اسم'])
+    if st.button("❌ إلغاء التكليف"):
+        teachers.loc[teachers['اسم'] == t_remove, 'قاعة مختارة'] = None
+        teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
+        st.warning(f"تم إلغاء تكليف {t_remove}")
+
+# ================== البحث بالاسم ==================
+st.subheader("🔍 البحث بالاسم")
+search_name = st.text_input("اكتب اسم المعلم")
+
 if search_name:
-    results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
+    results = teachers[teachers['اسم'].str.contains(search_name, case=False, na=False)]
+
     if not results.empty:
-        selected_teacher = st.selectbox("اختر المراقب:", results['اسم'])
+        selected = st.selectbox("اختر المعلم:", results['اسم'])
         hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-        hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select_name")
+        hall = st.selectbox("اختر القاعة:", hall_options, key="name")
 
-        if hall_filter != "اختر القاعة...":
-            if st.button("تعيين القاعة بالاسم", key="assign_by_name"):
-                teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_filter
+        if hall != "اختر القاعة...":
+
+            hall_info = halls[halls['قاعة'] == hall]
+            if hall_info.empty:
+                st.error("خطأ في القاعة")
+                st.stop()
+            hall_info = hall_info.iloc[0]
+
+            if st.button("✅ تعيين"):
+                teachers.loc[teachers['اسم'] == selected, 'قاعة مختارة'] = hall
                 teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-                st.success(f"تم تعيين القاعة {hall_filter} للمعلم {selected_teacher}")
+                st.success("تم التعيين")
 
-            if st.button("توليد كتاب التكليف بالاسم", key="generate_by_name"):
-                row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
-                hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
-                doc = Document(empty_doc)
-                for p in doc.paragraphs:
-                    for run in p.runs:
-                        run.text = run.text.replace("<NAME>", row['اسم'])\
-                                           .replace("<ID>", str(row['هوية']))\
-                                           .replace("<CITY>", row['سكن'])\
-                                           .replace("<WORKPLACE>", row['مدرسة'])\
-                                           .replace("<HALL_NAME>", hall_info['قاعة'])\
-                                           .replace("<HALL_LOCATION>", hall_info['بلد'])
+            if st.button("📄 توليد الكتاب"):
+                row = teachers[teachers['اسم'] == selected].iloc[0]
+                doc = generate_doc(row, hall_info)
+
                 os.makedirs("تكليفات", exist_ok=True)
-                word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-                doc.save(word_path)
+                path = f"تكليفات/{row['اسم']}.docx"
+                doc.save(path)
 
-                with open(word_path, "rb") as f:
-                    st.download_button(
-                        label="⬇️ تنزيل كتاب التكليف Word",
-                        data=f,
-                        file_name=f"تكليف_{row['اسم']}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
+                with open(path, "rb") as f:
+                    st.download_button("⬇️ تحميل", f, file_name=row['اسم'] + ".docx")
 
-            if st.button("إلغاء التعيين بالاسم", key="remove_by_name"):
-                teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = None
+            if st.button("❌ إلغاء"):
+                teachers.loc[teachers['اسم'] == selected, 'قاعة مختارة'] = None
                 teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
-                st.warning(f"تم إلغاء تكليف المعلم {selected_teacher}")
-# --- البحث برقم الهوية ---
-search_id = st.text_input("اكتب رقم هوية المعلم:")
+                st.warning("تم الإلغاء")
+
+# ================== البحث بالهوية ==================
+st.subheader("🆔 البحث بالهوية")
+search_id = st.text_input("رقم الهوية")
+
 if search_id:
     result = teachers[teachers['هوية'].astype(str) == search_id]
+
     if not result.empty:
         row = result.iloc[0]
         hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-        hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select_id")
+        hall = st.selectbox("اختر القاعة:", hall_options, key="id")
 
-        if hall_filter != "اختر القاعة...":
-            if st.button("تعيين القاعة بالهوية", key="assign_by_id"):
-                teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_filter
+        if hall != "اختر القاعة...":
+
+            hall_info = halls[halls['قاعة'] == hall]
+            if hall_info.empty:
+                st.error("خطأ في القاعة")
+                st.stop()
+            hall_info = hall_info.iloc[0]
+
+            if st.button("✅ تعيين بالهوية"):
+                teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall
                 teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-                st.success(f"تم تعيين القاعة {hall_filter} للمعلم {row['اسم']}")
+                st.success("تم التعيين")
 
-            if st.button("توليد كتاب التكليف بالهوية", key="generate_by_id"):
-                hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
-                doc = Document(empty_doc)
-                for p in doc.paragraphs:
-                    for run in p.runs:
-                        run.text = run.text.replace("<NAME>", row['اسم'])\
-                                           .replace("<ID>", str(row['هوية']))\
-                                           .replace("<CITY>", row['سكن'])\
-                                           .replace("<WORKPLACE>", row['مدرسة'])\
-                                           .replace("<HALL_NAME>", hall_info['قاعة'])\
-                                           .replace("<HALL_LOCATION>", hall_info['بلد'])
+            if st.button("📄 توليد بالهوية"):
+                doc = generate_doc(row, hall_info)
+
                 os.makedirs("تكليفات", exist_ok=True)
-                word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-                doc.save(word_path)
+                path = f"تكليفات/{row['اسم']}.docx"
+                doc.save(path)
 
-                with open(word_path, "rb") as f:
-                    st.download_button(
-                        label="⬇️ تنزيل كتاب التكليف Word",
-                        data=f,
-                        file_name=f"تكليف_{row['اسم']}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
+                with open(path, "rb") as f:
+                    st.download_button("⬇️ تحميل", f, file_name=row['اسم'] + ".docx")
 
-            if st.button("إلغاء التعيين بالهوية", key="remove_by_id"):
+            if st.button("❌ إلغاء بالهوية"):
                 teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = None
                 teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
-                st.warning(f"تم إلغاء تكليف المعلم {row['اسم']}")
+                st.warning("تم الإلغاء")
 
-# --- إدارة القاعة ---
+# ================== حسب القاعة ==================
+st.subheader("🏫 إدارة القاعات")
+
 hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select")
+hall = st.selectbox("اختر القاعة", hall_options)
 
-if hall_filter != "اختر القاعة...":
-    # هنا تكتب الكود اللي يعتمد على القاعة المختارة
-    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
-    # باقي الكود الخاص بالتوليد أو الإلغاء
+if hall != "اختر القاعة...":
 
+    selected_teachers = teachers[teachers['قاعة مختارة'] == hall]
 
-teacher_in_hall = teachers[teachers['قاعة مختارة'] == hall_filter]
-if not teacher_in_hall.empty:
-    teacher_to_remove = st.selectbox("اختر معلم لإلغاء تكليفه:", teacher_in_hall['اسم'], key="remove_teacher_select")
-    if st.button("إلغاء تكليف هذا المعلم", key="remove_teacher_button"):
-        teachers.loc[teachers['اسم'] == teacher_to_remove, 'قاعة مختارة'] = None
-        teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
-        st.warning(f"تم إلغاء تكليف المعلم {teacher_to_remove} من القاعة {hall_filter}")
-
-if st.button("توليد كتب التكليف لهذه القاعة", key="generate_by_hall"):
-    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
     if not selected_teachers.empty:
-        os.makedirs("تكليفات", exist_ok=True)
-        word_files = []
-        for _, row in selected_teachers.iterrows():
-            hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
-            doc = Document(empty_doc)
-            for p in doc.paragraphs:
-                for run in p.runs:
-                    run.text = run.text.replace("<NAME>", row['اسم'])\
-                                       .replace("<ID>", str(row['هوية']))\
-                                       .replace("<CITY>", row['سكن'])\
-                                       .replace("<WORKPLACE>", row['مدرسة'])\
-                                       .replace("<HALL_NAME>", hall_info['قاعة'])\
-                                       .replace("<HALL_LOCATION>", hall_info['بلد'])
-            word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-            doc.save(word_path)
-            word_files.append(word_path)
+        st.write(f"عدد المعلمين: {len(selected_teachers)}")
 
-        zip_path = f"تكليفات/تكليفات_{hall_filter}.zip"
+        t_remove = st.selectbox("إلغاء من القاعة:", selected_teachers['اسم'])
+        if st.button("❌ حذف من القاعة"):
+            teachers.loc[teachers['اسم'] == t_remove, 'قاعة مختارة'] = None
+            teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
+            st.warning("تم الحذف")
+
+    if st.button("📦 توليد كل القاعة"):
+        os.makedirs("تكليفات", exist_ok=True)
+        files = []
+
+        for _, row in selected_teachers.iterrows():
+            hall_info = halls[halls['قاعة'] == hall].iloc[0]
+            doc = generate_doc(row, hall_info)
+
+            path = f"تكليفات/{row['اسم']}.docx"
+            doc.save(path)
+            files.append(path)
+
+        zip_path = f"تكليفات/{hall}.zip"
         with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for word_file in word_files:
-                zipf.write(word_file, os.path.basename(word_file))
+            for f in files:
+                zipf.write(f, os.path.basename(f))
 
         with open(zip_path, "rb") as f:
-            st.download_button(
-                label="⬇️ تنزيل جميع كتب القاعة كـ ZIP",
-                data=f,
-                file_name=f"تكليفات_{hall_filter}.zip",
-                mime="application/zip"
-            )
+            st.download_button("⬇️ تحميل ZIP", f, file_name=hall + ".zip")
 
-# --- توليد جميع الكتب دفعة واحدة ---
-if st.button("توليد جميع كتب التكليف", key="generate_all"):
+# ================== توليد الكل ==================
+st.subheader("📦 جميع التكليفات")
+
+if st.button("توليد الكل"):
     os.makedirs("تكليفات", exist_ok=True)
-    word_files = []
+    files = []
+
     for _, row in teachers.dropna(subset=['قاعة مختارة']).iterrows():
         hall_info = halls[halls['قاعة'] == row['قاعة مختارة']].iloc[0]
-        doc = Document(empty_doc)
-        for p in doc.paragraphs:
-            for run in p.runs:
-                run.text = run.text.replace("<NAME>", row['اسم'])\
-                                   .replace("<ID>", str(row['هوية']))\
-                                   .replace("<CITY>", row['سكن'])\
-                                   .replace("<WORKPLACE>", row['مدرسة'])\
-                                   .replace("<HALL_NAME>", hall_info['قاعة'])\
-                                   .replace("<HALL_LOCATION>", hall_info['بلد'])
-        word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-        doc.save(word_path)
-        word_files.append(word_path)
+        doc = generate_doc(row, hall_info)
 
-    zip_path = "تكليفات/جميع_التكليفات.zip"
+        path = f"تكليفات/{row['اسم']}.docx"
+        doc.save(path)
+        files.append(path)
+
+    zip_path = "تكليفات/all.zip"
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        for word_file in word_files:
-            zipf.write(word_file, os.path.basename(word_file))
+        for f in files:
+            zipf.write(f, os.path.basename(f))
 
     with open(zip_path, "rb") as f:
-        st.download_button(
-            label="⬇️ تنزيل جميع كتب التكليف كـ ZIP",
-            data=f,
-            file_name="جميع_التكليفات.zip",
-            mime="application/zip"
-        )
+        st.download_button("⬇️ تحميل الكل", f, file_name="all.zip")
