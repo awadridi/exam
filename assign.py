@@ -7,7 +7,7 @@ import os
 import re
 
 # =====================================
-# 1. إعدادات الواجهة
+# 1. إعدادات الواجهة وتنسيق الأزرار
 # =====================================
 st.set_page_config(page_title="نظام التكليفات الذكي 2026", layout="wide")
 
@@ -21,14 +21,38 @@ st.markdown("""
     div[data-testid="stExpander"] p, div[data-testid="stExpander"] label {
         color: #ffffff !important; font-weight: 500;
     }
-    .stButton>button {
-        width: 100%; border-radius: 8px; font-weight: bold;
+    
+    /* تنسيق زر حفظ البيانات (أخضر) */
+    div.stButton > button[key^="btn_"] {
+        background-color: #28a745 !initial;
+        color: white !important;
+        border: none;
+    }
+    
+    /* تنسيق زر إلغاء التكليف (أحمر) */
+    div.stButton > button[key^="del_"] {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border: none;
+    }
+    
+    /* تنسيق زر تحميل التكليف (أزرق) */
+    div.stDownloadButton > button {
+        background-color: #007bff !important;
+        color: white !important;
+        border: none;
+        width: 100%;
+    }
+
+    .stButton>button:hover, .stDownloadButton>button:hover {
+        opacity: 0.9;
+        border: 1px solid white;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # قاعدة البيانات
-db_path = os.path.join(os.getcwd(), "final_fix_v11.db")
+db_path = os.path.join(os.getcwd(), "final_fix_v12.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
@@ -38,12 +62,11 @@ c.execute('''CREATE TABLE IF NOT EXISTS halls
 conn.commit()
 
 # =====================================
-# 2. وظيفة الاستبدال (إصلاح الـ Bold و JOB)
+# 2. وظيفة الاستبدال (البولد الذكي)
 # =====================================
 def generate_from_template(row):
     try:
         doc = Document("template.docx")
-        
         replacements = {
             '<NAME>': str(row['name']),
             '<ID>': str(row['id']),
@@ -57,26 +80,18 @@ def generate_from_template(row):
         def apply_smart_bold_replace(paragraph, data_map):
             text = paragraph.text
             if any(key in text for key in data_map):
-                # تفريغ الـ runs الحالية
                 for run in paragraph.runs:
                     run.text = ""
-                
-                # تقسيم النص بناءً على الوسوم <...>
                 parts = re.split(r'(<[^>]+>)', text)
-                
                 for part in parts:
                     if part in data_map:
-                        # الجزء المتغير نجعله Bold
                         run = paragraph.add_run(data_map[part] if data_map[part] else "")
                         run.bold = True
                     else:
-                        # النص الثابت يبقى عادياً
                         paragraph.add_run(part)
 
-        # تنفيذ الاستبدال في الفقرات والجداول
         for p in doc.paragraphs:
             apply_smart_bold_replace(p, replacements)
-        
         for table in doc.tables:
             for r in table.rows:
                 for cell in r.cells:
@@ -97,7 +112,6 @@ tab_search, tab_upload, tab_manage = st.tabs(["🔍 البحث والتعيين"
 
 with tab_search:
     st.subheader("إدارة التكليفات")
-    
     df_halls = pd.read_sql("SELECT * FROM halls", conn)
     hall_map = {str(r['hall_name']): str(r['city']) for _, r in df_halls.iterrows()}
     hall_list = [""] + list(hall_map.keys())
@@ -108,7 +122,6 @@ with tab_search:
     
     if q and not df_t.empty:
         results = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].astype(str).str.contains(q)]
-        
         for i, row in results.iterrows():
             title = f"👤 {row['name']}"
             if row['role']: title += f" | {row['role']}"
@@ -121,7 +134,6 @@ with tab_search:
                     sel_role = st.selectbox(f"الوظيفة لـ {row['id']}", role_list, index=role_list.index(row['role']) if row['role'] in role_list else 0, key=f"r_{row['id']}")
                 with c2:
                     st.write(f"المدرسة: {row['school']}")
-                    
                     b1, b2 = st.columns(2)
                     with b1:
                         if st.button("💾 حفظ البيانات", key=f"btn_{row['id']}"):
@@ -143,7 +155,6 @@ with tab_search:
                         if file_data:
                             st.download_button(f"📥 تحميل التكليف", data=file_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
-# تبويب الرفع
 with tab_upload:
     cu1, cu2 = st.columns(2)
     with cu1:
