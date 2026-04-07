@@ -1,14 +1,8 @@
 import streamlit as st
 import pandas as pd
 from docx import Document
-from docx2pdf import convert
 import os
-import platform
 import zipfile
-
-# استدعاء pythoncom فقط إذا كنت على Windows
-if platform.system() == "Windows":
-    import pythoncom
 
 # قراءة أسماء الملفات من Secrets
 exam_file = st.secrets["EXAM_FILE"]
@@ -63,9 +57,6 @@ if search_name:
         if st.button("إضافة/تحديث التوزيع"):
             teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_choice
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-            st.success(f"تم تعيين {hall_choice} لـ {selected_teacher}")
-    else:
-        st.warning("لا يوجد نتائج مطابقة")
 
 # --- البحث برقم الهوية ---
 search_id = st.text_input("اكتب رقم هوية المعلم:")
@@ -73,20 +64,12 @@ if search_id:
     result = teachers[teachers['هوية'].astype(str) == search_id]
     if not result.empty:
         row = result.iloc[0]
-        current_hall = row['قاعة مختارة'] if pd.notna(row['قاعة مختارة']) else None
-
-        if current_hall:
-            st.info(f"المعلم {row['اسم']} معين في القاعة: {current_hall}")
-        else:
-            st.warning(f"المعلم {row['اسم']} لم يتم تعيين قاعة له بعد")
-
         hall_choice = st.selectbox("اختر أو غيّر القاعة:", halls['قاعة'], key="hall_by_id")
         if st.button("تعيين القاعة"):
             teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_choice
             teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-            st.success(f"تم تعيين القاعة {hall_choice} للمعلم {row['اسم']}")
 
-        if st.button("توليد كتاب التكليف لهذا المعلم (PDF)"):
+        if st.button("توليد كتاب التكليف لهذا المعلم (Word)"):
             selected_hall = teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة']
             if not selected_hall.empty:
                 hall_info = halls[halls['قاعة'] == selected_hall.iloc[0]].iloc[0]
@@ -101,28 +84,19 @@ if search_id:
                                            .replace("<HALL_LOCATION>", hall_info['بلد'])
                 os.makedirs("تكليفات", exist_ok=True)
                 word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-                pdf_path = f"تكليفات/تكليف_{row['اسم']}.pdf"
                 doc.save(word_path)
 
-                if platform.system() == "Windows":
-                    pythoncom.CoInitialize()
-                    convert(word_path, pdf_path)
-                    pythoncom.CoUninitialize()
-
-                with open(pdf_path, "rb") as f:
+                with open(word_path, "rb") as f:
                     st.download_button(
-                        label="⬇️ تنزيل كتاب التكليف PDF",
+                        label="⬇️ تنزيل كتاب التكليف Word",
                         data=f,
-                        file_name=f"تكليف_{row['اسم']}.pdf",
-                        mime="application/pdf"
+                        file_name=f"تكليف_{row['اسم']}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     )
-                st.success(f"تم توليد كتاب التكليف PDF للمعلم {row['اسم']}")
-    else:
-        st.error("لا يوجد معلم بهذا الرقم")
 
 # --- توليد كتب لكل المراقبين في قاعة معينة ---
 hall_filter = st.selectbox("اختر قاعة لتوليد كتب التكليف لكل المراقبين فيها:", halls['قاعة'])
-if st.button("توليد كتب التكليف لهذه القاعة (PDF)"):
+if st.button("توليد كتب التكليف لهذه القاعة (Word)"):
     selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
     if not selected_teachers.empty:
         os.makedirs("تكليفات", exist_ok=True)
@@ -142,16 +116,10 @@ if st.button("توليد كتب التكليف لهذه القاعة (PDF)"):
             doc.save(word_path)
             word_files.append(word_path)
 
-        if platform.system() == "Windows":
-            pythoncom.CoInitialize()
-            convert("تكليفات")
-            pythoncom.CoUninitialize()
-
         zip_path = f"تكليفات/تكليفات_{hall_filter}.zip"
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for word_file in word_files:
-                pdf_file = word_file.replace(".docx", ".pdf")
-                zipf.write(pdf_file, os.path.basename(pdf_file))
+                zipf.write(word_file, os.path.basename(word_file))
 
         with open(zip_path, "rb") as f:
             st.download_button(
@@ -160,12 +128,9 @@ if st.button("توليد كتب التكليف لهذه القاعة (PDF)"):
                 file_name=f"تكليفات_{hall_filter}.zip",
                 mime="application/zip"
             )
-        st.success(f"تم توليد كتب التكليف لجميع المراقبين في القاعة {hall_filter} بصيغة PDF")
-    else:
-        st.warning("لا يوجد مراقبين معينين لهذه القاعة")
 
 # --- توليد جميع الكتب دفعة واحدة ---
-if st.button("توليد جميع كتب التكليف (PDF)"):
+if st.button("توليد جميع كتب التكليف (Word)"):
     os.makedirs("تكليفات", exist_ok=True)
     word_files = []
     for _, row in teachers.dropna(subset=['قاعة مختارة']).iterrows():
@@ -183,14 +148,15 @@ if st.button("توليد جميع كتب التكليف (PDF)"):
         doc.save(word_path)
         word_files.append(word_path)
 
-    if platform.system() == "Windows":
-        pythoncom.CoInitialize()
-        convert("تكليفات")
-        pythoncom.CoUninitialize()
-
     zip_path = "تكليفات/جميع_التكليفات.zip"
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for word_file in word_files:
-            pdf_file = word_file.replace(".docx", ".pdf")
-            zipf.write(pdf_file, os.path.basename(pdf_file))
+            zipf.write(word_file, os.path.basename(word_file))
 
+    with open(zip_path, "rb") as f:
+        st.download_button(
+            label="⬇️ تنزيل جميع كتب التكليف كـ ZIP",
+            data=f,
+            file_name="جميع_التكليفات.zip",
+            mime="application/zip"
+        )
