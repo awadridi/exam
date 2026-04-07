@@ -143,6 +143,7 @@ with tab_search:
 # تبويب الرفع (تم إرجاع زر القاعات)
 with tab_upload:
     col_u1, col_u2 = st.columns(2)
+    
     with col_u1:
         f_teachers = st.file_uploader("رفع ملف الموظفين (Excel)", type="xlsx")
         if f_teachers and st.button("تثبيت قائمة الموظفين"):
@@ -150,7 +151,8 @@ with tab_upload:
             for _, r in df.iterrows():
                 c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
                           (str(r.get('id','')), str(r.get('name','')), str(r.get('school','')), str(r.get('city','')), str(r.get('phone','')), "", "", ""))
-            conn.commit(); st.success("تم رفع الموظفين بنجاح")
+            conn.commit()
+            st.success("تم رفع الموظفين بنجاح")
             
     with col_u2:
         f_halls = st.file_uploader("رفع ملف القاعات (Excel)", type="xlsx")
@@ -159,7 +161,17 @@ with tab_upload:
             c.execute("DELETE FROM halls")
             for _, r in dfh.iterrows():
                 c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r.iloc[0]), str(r.iloc[1]), str(r.iloc[2])))
-            conn.commit(); st.success("تم رفع القاعات بنجاح")
+            conn.commit()
+            st.success("تم رفع القاعات بنجاح")
+
+    # تأكد أن هذه الأسطر تبدأ من نفس مستوى col_u1 (خارج الـ with col_u2)
+    st.divider() 
+    st.subheader("📄 رفع نموذج كتاب التكليف")
+    f_template = st.file_uploader("ارفع ملف الوورد (template.docx)", type="docx", key="u_docx")
+    if f_template and st.button("تثبيت النموذج الجديد"):
+        with open("template.docx", "wb") as f:
+            f.write(f_template.getbuffer())
+        st.success("✅ تم تحديث نموذج كتاب التكليف بنجاح!")
 
 with tab_manage:
     if st.button("⚠️ مسح شامل لقاعدة البيانات"):
