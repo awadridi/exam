@@ -68,56 +68,49 @@ else:
 
 if 'قاعة مختارة' not in teachers.columns:
     teachers['قاعة مختارة'] = None
-
 # --- البحث بالاسم ---
 search_name = st.text_input("ابحث عن المراقب بالاسم:")
 if search_name:
     results = teachers[teachers['اسم'].str.contains(search_name, na=False)]
     if not results.empty:
         selected_teacher = st.selectbox("اختر المراقب:", results['اسم'])
-       hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select")
+        hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
+        hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select_name")
 
-if hall_filter != "اختر القاعة...":
-    # هنا تكتب الكود اللي يعتمد على القاعة المختارة
-    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
-    # باقي الكود الخاص بالتوليد أو الإلغاء
+        if hall_filter != "اختر القاعة...":
+            if st.button("تعيين القاعة بالاسم", key="assign_by_name"):
+                teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_filter
+                teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
+                st.success(f"تم تعيين القاعة {hall_filter} للمعلم {selected_teacher}")
 
+            if st.button("توليد كتاب التكليف بالاسم", key="generate_by_name"):
+                row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
+                hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
+                doc = Document(empty_doc)
+                for p in doc.paragraphs:
+                    for run in p.runs:
+                        run.text = run.text.replace("<NAME>", row['اسم'])\
+                                           .replace("<ID>", str(row['هوية']))\
+                                           .replace("<CITY>", row['سكن'])\
+                                           .replace("<WORKPLACE>", row['مدرسة'])\
+                                           .replace("<HALL_NAME>", hall_info['قاعة'])\
+                                           .replace("<HALL_LOCATION>", hall_info['بلد'])
+                os.makedirs("تكليفات", exist_ok=True)
+                word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
+                doc.save(word_path)
 
-        if st.button("تعيين القاعة بالاسم", key="assign_by_name"):
-            teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = hall_choice
-            teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-            st.success(f"تم تعيين القاعة {hall_choice} للمعلم {selected_teacher}")
+                with open(word_path, "rb") as f:
+                    st.download_button(
+                        label="⬇️ تنزيل كتاب التكليف Word",
+                        data=f,
+                        file_name=f"تكليف_{row['اسم']}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
 
-        if st.button("توليد كتاب التكليف بالاسم", key="generate_by_name"):
-            row = teachers[teachers['اسم'] == selected_teacher].iloc[0]
-            hall_info = halls[halls['قاعة'] == hall_choice].iloc[0]
-            doc = Document(empty_doc)
-            for p in doc.paragraphs:
-                for run in p.runs:
-                    run.text = run.text.replace("<NAME>", row['اسم'])\
-                                       .replace("<ID>", str(row['هوية']))\
-                                       .replace("<CITY>", row['سكن'])\
-                                       .replace("<WORKPLACE>", row['مدرسة'])\
-                                       .replace("<HALL_NAME>", hall_info['قاعة'])\
-                                       .replace("<HALL_LOCATION>", hall_info['بلد'])
-            os.makedirs("تكليفات", exist_ok=True)
-            word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-            doc.save(word_path)
-
-            with open(word_path, "rb") as f:
-                st.download_button(
-                    label="⬇️ تنزيل كتاب التكليف Word",
-                    data=f,
-                    file_name=f"تكليف_{row['اسم']}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-
-        if st.button("إلغاء التعيين بالاسم", key="remove_by_name"):
-            teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = None
-            teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
-            st.warning(f"تم إلغاء تكليف المعلم {selected_teacher}")
-
+            if st.button("إلغاء التعيين بالاسم", key="remove_by_name"):
+                teachers.loc[teachers['اسم'] == selected_teacher, 'قاعة مختارة'] = None
+                teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
+                st.warning(f"تم إلغاء تكليف المعلم {selected_teacher}")
 # --- البحث برقم الهوية ---
 search_id = st.text_input("اكتب رقم هوية المعلم:")
 if search_id:
@@ -125,46 +118,41 @@ if search_id:
     if not result.empty:
         row = result.iloc[0]
         hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
-hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select")
+        hall_filter = st.selectbox("اختر قاعة:", hall_options, key="hall_select_id")
 
-if hall_filter != "اختر القاعة...":
-    # هنا تكتب الكود اللي يعتمد على القاعة المختارة
-    selected_teachers = teachers[teachers['قاعة مختارة'] == hall_filter]
-    # باقي الكود الخاص بالتوليد أو الإلغاء
+        if hall_filter != "اختر القاعة...":
+            if st.button("تعيين القاعة بالهوية", key="assign_by_id"):
+                teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_filter
+                teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
+                st.success(f"تم تعيين القاعة {hall_filter} للمعلم {row['اسم']}")
 
+            if st.button("توليد كتاب التكليف بالهوية", key="generate_by_id"):
+                hall_info = halls[halls['قاعة'] == hall_filter].iloc[0]
+                doc = Document(empty_doc)
+                for p in doc.paragraphs:
+                    for run in p.runs:
+                        run.text = run.text.replace("<NAME>", row['اسم'])\
+                                           .replace("<ID>", str(row['هوية']))\
+                                           .replace("<CITY>", row['سكن'])\
+                                           .replace("<WORKPLACE>", row['مدرسة'])\
+                                           .replace("<HALL_NAME>", hall_info['قاعة'])\
+                                           .replace("<HALL_LOCATION>", hall_info['بلد'])
+                os.makedirs("تكليفات", exist_ok=True)
+                word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
+                doc.save(word_path)
 
-        if st.button("تعيين القاعة بالهوية", key="assign_by_id"):
-            teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = hall_choice
-            teachers[['هوية','قاعة مختارة']].dropna().to_excel(assignments_file, index=False)
-            st.success(f"تم تعيين القاعة {hall_choice} للمعلم {row['اسم']}")
+                with open(word_path, "rb") as f:
+                    st.download_button(
+                        label="⬇️ تنزيل كتاب التكليف Word",
+                        data=f,
+                        file_name=f"تكليف_{row['اسم']}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
 
-        if st.button("توليد كتاب التكليف بالهوية", key="generate_by_id"):
-            hall_info = halls[halls['قاعة'] == hall_choice].iloc[0]
-            doc = Document(empty_doc)
-            for p in doc.paragraphs:
-                for run in p.runs:
-                    run.text = run.text.replace("<NAME>", row['اسم'])\
-                                       .replace("<ID>", str(row['هوية']))\
-                                       .replace("<CITY>", row['سكن'])\
-                                       .replace("<WORKPLACE>", row['مدرسة'])\
-                                       .replace("<HALL_NAME>", hall_info['قاعة'])\
-                                       .replace("<HALL_LOCATION>", hall_info['بلد'])
-            os.makedirs("تكليفات", exist_ok=True)
-            word_path = f"تكليفات/تكليف_{row['اسم']}.docx"
-            doc.save(word_path)
-
-            with open(word_path, "rb") as f:
-                st.download_button(
-                    label="⬇️ تنزيل كتاب التكليف Word",
-                    data=f,
-                    file_name=f"تكليف_{row['اسم']}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-
-        if st.button("إلغاء التعيين بالهوية", key="remove_by_id"):
-            teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = None
-            teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
-            st.warning(f"تم إلغاء تكليف المعلم {row['اسم']}")
+            if st.button("إلغاء التعيين بالهوية", key="remove_by_id"):
+                teachers.loc[teachers['هوية'] == row['هوية'], 'قاعة مختارة'] = None
+                teachers[['هوية','قاعة مختارة']].to_excel(assignments_file, index=False)
+                st.warning(f"تم إلغاء تكليف المعلم {row['اسم']}")
 
 # --- إدارة القاعة ---
 hall_options = ["اختر القاعة..."] + list(halls['قاعة'])
