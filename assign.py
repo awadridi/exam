@@ -338,17 +338,20 @@ with tab_manage:
                                 conn.commit()
                                 st.rerun()
                               # --- 1. تعريف الدالة (يجب أن تبدأ من نفس مستوى الـ for) ---
-                            def generate_word_assignments(df, hall_name):
+                           def generate_word_assignments(df, hall_name):
                                 from docx import Document
                                 import io
-                                
+                                import copy
+                            
                                 template_path = "template.docx"
                                 final_doc = Document()
                                 
+                                # قائمة البيانات المراد استبدالها
+                                # تأكد من أن الأسماء بين القوسين < > تطابق تماماً ما في ملف الورد
                                 for index, row in df.iterrows():
+                                    # فتح نسخة نظيفة من القالب لكل موظف
                                     doc = Document(template_path)
                                     
-                                    # قاموس البيانات
                                     replacements = {
                                         '<NAME>': str(row.get('name', '')),
                                         '<ID>': str(row.get('id_number', '')),
@@ -358,33 +361,38 @@ with tab_manage:
                                         '<WORKPLACE>': str(row.get('school', '')),
                                         '<CITY>': str(row.get('city', ''))
                                     }
-                                    
-                                    # وظيفة داخلية للاستبدال مع الحفاظ على التنسيق
-                                    def replace_in_paragraphs(paragraphs):
+                            
+                                    # دالة الاستبدال الذكي للحفاظ على التنسيق
+                                    def smart_replace(paragraphs):
                                         for paragraph in paragraphs:
                                             for key, value in replacements.items():
                                                 if key in paragraph.text:
-                                                    # الاستبدال داخل الـ runs للحفاظ على التنسيق
                                                     for run in paragraph.runs:
                                                         if key in run.text:
                                                             run.text = run.text.replace(key, value)
                             
-                                    # 1. الاستبدال في الفقرات العادية
-                                    replace_in_paragraphs(doc.paragraphs)
+                                    # 1. الاستبدال في الفقرات
+                                    smart_replace(doc.paragraphs)
                                     
-                                    # 2. الاستبدال داخل الجداول (مهم جداً لقالبك)
+                                    # 2. الاستبدال داخل الجداول
                                     for table in doc.tables:
                                         for table_row in table.rows:
                                             for cell in table_row.cells:
-                                                replace_in_paragraphs(cell.paragraphs)
-                                    
-                                    # دمج الصفحات
-                                    for element in doc.element.body:
-                                        final_doc.element.body.append(element)
-                                        
-                                    if index < len(df) - 1:
+                                                smart_replace(cell.paragraphs)
+                            
+                                    # 3. دمج المحتوى بدون إضافة مسافات زائدة
+                                    if index == 0:
+                                        # أول موظف: ننسخ المحتوى بالكامل بما فيه إعدادات الصفحة
+                                        final_doc = doc
+                                    else:
+                                        # الموظفين التاليين: إضافة فاصل صفحات ثم المحتوى
                                         final_doc.add_page_break()
-                                        
+                                        for element in doc.element.body:
+                                            # نتجنب نسخ خصائص القسم (SectPr) لكي لا تخرب الهوامش
+                                            if element.tag.endswith('sectPr'):
+                                                continue
+                                            final_doc.element.body.append(element)
+                            
                                 target = io.BytesIO()
                                 final_doc.save(target)
                                 target.seek(0)
