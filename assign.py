@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from docx import Document
+from docx.shared import Pt
 import io
 import os
 import re
@@ -80,8 +81,10 @@ def generate_from_template(row):
                     if part in data_map:
                         run = paragraph.add_run(data_map[part] if data_map[part] else "")
                         run.bold = True
+                        run.font.size = Pt(14)
                     else:
                         paragraph.add_run(part)
+                        run.font.size = Pt(14)
 
         for p in doc.paragraphs: apply_smart_bold_replace(p, replacements)
         for table in doc.tables:
