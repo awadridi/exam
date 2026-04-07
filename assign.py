@@ -7,23 +7,40 @@ import os
 import re
 
 # =====================================
-# 1. إعدادات الواجهة وتنسيق الأزرار القوي
+# 1. إعدادات الواجهة وتنسيق الألوان النهائي
 # =====================================
 st.set_page_config(page_title="نظام التكليفات الذكي 2026", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { direction: rtl; text-align: right; }
+    .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
+    
+    /* تنسيق مستطيل الاسم (Expander) */
     div[data-testid="stExpander"] {
-        border: 1px solid #444; border-radius: 10px;
-        background-color: #262730; margin-bottom: 10px;
+        border: 1px solid #4a4a4a !important;
+        border-radius: 10px !important;
+        background-color: #1a1c23 !important; /* خلفية داكنة */
+        margin-bottom: 10px;
     }
     
+    /* إجبار لون خط العنوان باللون الأبيض */
+    div[data-testid="stExpander"] summary p {
+        color: #ffffff !important;
+        font-weight: bold !important;
+        font-size: 18px !important;
+    }
+
+    /* جعل محتوى الـ Expander (البيانات الداخلية) بيضاء */
+    div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] p {
+        color: #ffffff !important;
+    }
+
     /* زر حفظ البيانات - أخضر */
     button[kind="secondary"]:has(div:contains("حفظ")) {
         background-color: #28a745 !important;
         color: white !important;
         border: 1px solid #1e7e34 !important;
+        width: 100% !important;
     }
 
     /* زر إلغاء التكليف - أحمر */
@@ -31,6 +48,7 @@ st.markdown("""
         background-color: #dc3545 !important;
         color: white !important;
         border: 1px solid #bd2130 !important;
+        width: 100% !important;
     }
 
     /* زر تحميل التكليف - أزرق */
@@ -38,18 +56,16 @@ st.markdown("""
         background-color: #007bff !important;
         color: white !important;
         border: 1px solid #0069d9 !important;
+        width: 100% !important;
     }
     
-    /* تحسين شكل النصوص داخل الأزرار */
-    .stButton p, .stDownloadButton p {
-        font-weight: bold !important;
-        font-size: 16px !important;
-    }
+    /* تنسيق نصوص الاختيارات (Selectbox) */
+    label { color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # قاعدة البيانات
-db_path = os.path.join(os.getcwd(), "final_fix_v13.db")
+db_path = os.path.join(os.getcwd(), "final_v14_fixed.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
@@ -59,7 +75,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS halls
 conn.commit()
 
 # =====================================
-# 2. وظيفة الاستبدال (البولد الذكي)
+# 2. وظيفة الاستبدال (Bold للمتغيرات فقط)
 # =====================================
 def generate_from_template(row):
     try:
@@ -120,11 +136,11 @@ with tab_search:
     if q and not df_t.empty:
         results = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].astype(str).str.contains(q)]
         for i, row in results.iterrows():
-            title = f"👤 {row['name']}"
-            if row['role']: title += f" | {row['role']}"
-            if row['hall']: title += f" | {row['hall']}"
+            title_label = f"👤 {row['name']}"
+            if row['role']: title_label += f" | {row['role']}"
+            if row['hall']: title_label += f" | {row['hall']}"
             
-            with st.expander(title):
+            with st.expander(title_label):
                 c1, c2 = st.columns(2)
                 with c1:
                     sel_hall = st.selectbox(f"القاعة لـ {row['id']}", hall_list, index=hall_list.index(row['hall']) if row['hall'] in hall_list else 0, key=f"h_{row['id']}")
@@ -152,12 +168,12 @@ with tab_search:
                         if file_data:
                             st.download_button(f"📥 تحميل التكليف", data=file_data, file_name=f"تكليف_{row['name']}.docx", key=f"dl_{row['id']}")
 
-# التبويبات الأخرى كما هي
+# التبويبات الأخرى
 with tab_upload:
     cu1, cu2 = st.columns(2)
     with cu1:
         f_t = st.file_uploader("ملف الموظفين", type="xlsx")
-        if f_t and st.button("تأكيد الرفع", key="confirm_t"):
+        if f_t and st.button("تأكيد الرفع", key="up_t"):
             df = pd.read_excel(f_t)
             for _, r in df.iterrows():
                 c.execute("INSERT OR REPLACE INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
@@ -166,7 +182,7 @@ with tab_upload:
             st.success("تم الرفع")
     with cu2:
         f_h = st.file_uploader("ملف القاعات", type="xlsx")
-        if f_h and st.button("رفع القاعات", key="confirm_h"):
+        if f_h and st.button("رفع القاعات", key="up_h"):
             dfh = pd.read_excel(f_h)
             c.execute("DELETE FROM halls")
             for _, r in dfh.iterrows():
@@ -175,5 +191,5 @@ with tab_upload:
             st.success("تم الرفع")
 
 with tab_manage:
-    if st.button("🗑️ مسح شامل للبيانات", key="wipe_all"):
+    if st.button("🗑️ مسح شامل للبيانات", key="wipe"):
         c.execute("DELETE FROM teachers"); c.execute("DELETE FROM halls"); conn.commit(); st.rerun()
