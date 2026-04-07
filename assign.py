@@ -11,7 +11,7 @@ import zipfile
 conn = sqlite3.connect("data.db", check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء جدول المعلمين مع العمود الجديد accept
+# --- إنشاء جدول المعلمين إذا لم يكن موجود ---
 c.execute('''
 CREATE TABLE IF NOT EXISTS teachers (
     id TEXT PRIMARY KEY,
@@ -20,10 +20,17 @@ CREATE TABLE IF NOT EXISTS teachers (
     city TEXT,
     phone TEXT,
     role TEXT,
-    hall TEXT,
-    accept TEXT
+    hall TEXT
 )
 ''')
+conn.commit()
+
+# --- فحص العمود accept وإضافته إذا لم يكن موجود ---
+c.execute("PRAGMA table_info(teachers)")
+cols = [x[1] for x in c.fetchall()]
+if "accept" not in cols:
+    c.execute("ALTER TABLE teachers ADD COLUMN accept TEXT DEFAULT 'نعم'")
+    conn.commit()
 
 # جدول القاعات
 c.execute('''
@@ -111,7 +118,6 @@ with st.expander("➕ إضافة معلم جديد", expanded=True):
                               (idd, name, school, city, phone, role, "", accept))
                     conn.commit()
                     st.success("تم الحفظ ✅")
-                    # تفريغ الحقول بعد الحفظ
                     for k in ["add_name","add_id","add_school","add_city","add_phone"]:
                         st.session_state[k] = ""
                 except:
@@ -119,51 +125,16 @@ with st.expander("➕ إضافة معلم جديد", expanded=True):
     teachers = get_teachers()  # إعادة تحميل المعلمين
 
 # =====================================
-# فلترة حسب المدرسة
-# =====================================
-school_filter = st.selectbox(
-    "فلترة حسب المدرسة",
-    ["الكل"] + sorted(teachers['school'].dropna().unique().tolist())
-)
-
-filtered_teachers = teachers.copy()
-if school_filter != "الكل":
-    filtered_teachers = filtered_teachers[filtered_teachers['school']==school_filter]
-
-# =====================================
-# تعديل أو حذف معلم
-# =====================================
-st.subheader("✏️ تعديل أو حذف معلم")
-if not filtered_teachers.empty:
-    selected = st.selectbox("اختر معلم", filtered_teachers['name'], key="edit_select")
-    row = filtered_teachers[filtered_teachers['name']==selected].iloc[0]
-    new_name = st.text_input("الاسم الجديد", row['name'], key="edit_name")
-    new_phone = st.text_input("الجوال الجديد", row['phone'], key="edit_phone")
-
-    if st.button("تحديث", key="update_btn"):
-        c.execute("UPDATE teachers SET name=?, phone=? WHERE id=?",
-                  (new_name, new_phone, row['id']))
-        conn.commit()
-        st.success("تم التعديل")
-        teachers = get_teachers()
-
-    if st.button("حذف", key="delete_btn"):
-        c.execute("DELETE FROM teachers WHERE id=?", (row['id'],))
-        conn.commit()
-        st.warning("تم الحذف")
-        teachers = get_teachers()
-
-# =====================================
 # البحث والتعيين
 # =====================================
 st.subheader("🔍 البحث والتعيين")
 search = st.text_input("ابحث", key="search_box")
-result = filtered_teachers.copy()
+result = teachers.copy()
 if search:
-    result = filtered_teachers[
-        filtered_teachers['name'].str.contains(search, case=False, na=False) |
-        filtered_teachers['id'].astype(str).str.contains(search) |
-        filtered_teachers['school'].str.contains(search, case=False, na=False)
+    result = teachers[
+        teachers['name'].str.contains(search, case=False, na=False) |
+        teachers['id'].astype(str).str.contains(search) |
+        teachers['school'].str.contains(search, case=False, na=False)
     ]
 
 if not result.empty:
@@ -188,49 +159,3 @@ if not result.empty:
         conn.commit()
         st.warning("تم الإلغاء")
         teachers = get_teachers()
-
-# =====================================
-# إدارة القاعات + طباعة
-# =====================================
-st.subheader("🏛️ القاعات")
-if not halls.empty:
-    hall_select = st.selectbox("اختر قاعة", halls['hall'], key="hall_select")
-    hall_teachers = teachers[teachers['hall']==hall_select]
-    st.dataframe(hall_teachers)
-
-    if not hall_teachers.empty:
-        single = st.selectbox("طباعة لمعلم", hall_teachers['name'], key="print_single")
-
-        if st.button("📄 طباعة فردي", key="print_btn"):
-            row = hall_teachers[hall_teachers['name']==single].iloc[0]
-            doc = Document("doc.docx")
-            for p in doc.paragraphs:
-                for run in p.runs:
-                    run.text = run.text.replace("<NAME>", row['name'])\
-                                       .replace("<ID>", row['id'])\
-                                       .replace("<CITY>", row['city'])\
-                                       .replace("<WORKPLACE>", row['school'])\
-                                       .replace("<HALL_NAME>", hall_select)
-            path = f"{row['name']}.docx"
-            doc.save(path)
-            with open(path, "rb") as f:
-                st.download_button("تحميل", f, key="download_single")
-
-        if st.button("📦 طباعة جماعي", key="print_all"):
-            os.makedirs("out", exist_ok=True)
-            files = []
-            for _, row in hall_teachers.iterrows():
-                doc = Document("doc.docx")
-                for p in doc.paragraphs:
-                    for run in p.runs:
-                        run.text = run.text.replace("<NAME>", row['name'])\
-                                           .replace("<HALL_NAME>", hall_select)
-                path = f"out/{row['name']}.docx"
-                doc.save(path)
-                files.append(path)
-            zip_path = "out/all.zip"
-            with zipfile.ZipFile(zip_path, 'w') as z:
-                for f in files:
-                    z.write(f, os.path.basename(f))
-            with open(zip_path, "rb") as f:
-                st.download_button("تحميل الكل", f, key="download_all")
