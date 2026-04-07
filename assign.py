@@ -2,140 +2,116 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from docx import Document
-from docx.shared import Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 import io
-import zipfile
+import os
 
 # =====================================
-# 1. إعدادات الصفحة
+# 1. إعدادات قاعدة البيانات
 # =====================================
-st.set_page_config(page_title="نظام التكليفات", page_icon="🎓", layout="wide")
-
-st.markdown("""
-    <style>
-    .stApp { direction: rtl; text-align: right; }
-    .stButton>button { width: 100%; border-radius: 8px; background-color: #28a745; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# =====================================
-# 2. قاعدة البيانات
-# =====================================
-@st.cache_resource
-def get_db_connection():
-    # استخدام اسم قاعدة بيانات جديد لضمان التحديث
-    return sqlite3.connect("final_exam_data.db", check_same_thread=False)
-
-conn = get_db_connection()
+conn = sqlite3.connect("final_exam_2026.db", check_same_thread=False)
 c = conn.cursor()
 
-def init_db():
-    c.execute('''CREATE TABLE IF NOT EXISTS teachers 
-                 (id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, phone TEXT, role TEXT, hall TEXT, accept TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS halls 
-                 (number TEXT PRIMARY KEY, hall_name TEXT, city TEXT)''')
-    conn.commit()
-
-init_db()
-
-def find_col(df, keywords):
-    for col in df.columns:
-        if any(key in str(col).lower() for key in keywords):
-            return col
-    return None
+c.execute('''CREATE TABLE IF NOT EXISTS teachers 
+             (id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, phone TEXT, role TEXT, hall TEXT, hall_city TEXT)''')
+c.execute('''CREATE TABLE IF NOT EXISTS halls 
+             (number TEXT PRIMARY KEY, hall_name TEXT, city TEXT)''')
+conn.commit()
 
 # =====================================
-# 3. دالة Word
+# 2. دالة تعبئة نموذج Word الخاص بك
 # =====================================
-def create_docx(row):
-    doc = Document()
-    doc.add_paragraph("دولة فلسطين\nوزارة التربية والتعليم").alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_heading('بطاقة تكليف رسمي', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    content = f"الاسم: {row['name']}\nرقم الهوية: {row['id']}\nالمهمة: {row['role']}\nالقاعة: {row['hall']}\nالمدينة: {row['city']}"
-    run = p.add_run(content)
-    run.font.size = Pt(13)
+def generate_official_doc(row):
+    # تحميل القالب الذي أرسلته (يجب تسميته template.docx)
+    try:
+        doc = Document("template.docx")
+    except:
+        # إذا لم يجد القالب، ينشئ ملفاً بسيطاً للتنبيه
+        doc = Document()
+        doc.add_paragraph("خطأ: لم يتم العثور على ملف template.docx")
+        return doc
+
+    # استبدال البيانات في كل فقرات المستند
+    for paragraph in doc.paragraphs:
+        if '<NAME>' in paragraph.text:
+            paragraph.text = paragraph.text.replace('<NAME>', str(row['name']))
+        if '<ID>' in paragraph.text:
+            paragraph.text = paragraph.text.replace('<ID>', str(row['id']))
+        if '<HALL_NAME>' in paragraph.text:
+            paragraph.text = paragraph.text.replace('<HALL_NAME>', str(row['hall']))
+        if '<HALL_LOCATION>' in paragraph.text:
+            paragraph.text = paragraph.text.replace('<HALL_LOCATION>', str(row['hall_city']))
+        if '<WORKPLACE>' in paragraph.text:
+            paragraph.text = paragraph.text.replace('<WORKPLACE>', str(row['school']))
+        if '<CITY>' in paragraph.text:
+            paragraph.text = paragraph.text.replace('<CITY>', str(row['city']))
+
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
     return bio
 
 # =====================================
-# 4. تسجيل الدخول
+# 3. الواجهة الرئيسية
 # =====================================
-if "logged" not in st.session_state: st.session_state.logged = False
-if not st.session_state.logged:
-    pwd = st.text_input("كلمة المرور", type="password")
-    if st.button("دخول"):
-        if pwd == "1234":
-            st.session_state.logged = True
-            st.rerun()
-    st.stop()
+st.set_page_config(page_title="نظام امتحانات 2026", layout="wide")
+st.title("📑 إصدار تكليفات الثانوية العامة 2026")
 
-# =====================================
-# 5. الواجهة
-# =====================================
-tab1, tab2, tab3 = st.tabs(["🔍 البحث", "📥 الرفع", "⚙️ الإدارة"])
+tab_search, tab_upload = st.tabs(["🔍 بحث وإصدار", "📥 رفع البيانات"])
 
-with tab1:
-    df_h = pd.read_sql("SELECT * FROM halls", conn)
-    h_list = [""] + df_h['hall_name'].tolist() if not df_h.empty else [""]
-    roles = ["مراقب", "رئيس قاعة", "مساعد", "آذن"]
+with tab_search:
+    q = st.text_input("ابحث عن موظف (اسم أو هوية)")
     
-    q = st.text_input("ابحث بالاسم أو الهوية")
+    # جلب بيانات القاعات للربط
+    df_h = pd.read_sql("SELECT * FROM halls", conn)
+    h_map = {row['hall_name']: row['city'] for _, row in df_h.iterrows()}
+    hall_names = [""] + list(h_map.keys())
+
     df_t = pd.read_sql("SELECT * FROM teachers", conn)
     if q and not df_t.empty:
-        res = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].astype(str).str.contains(q)]
-        for _, r in res.iterrows():
-            with st.expander(f"👤 {r['name']}"):
-                c1, c2 = st.columns(2)
-                new_h = c1.selectbox("القاعة", h_list, index=h_list.index(r['hall']) if r['hall'] in h_list else 0, key=f"h{r['id']}")
-                new_r = c1.selectbox("المهمة", roles, index=roles.index(r['role']) if r['role'] in roles else 0, key=f"r{r['id']}")
-                if c2.button("حفظ", key=f"s{r['id']}"):
-                    c.execute("UPDATE teachers SET hall=?, role=? WHERE id=?", (new_h, new_r, r['id']))
+        results = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].astype(str).str.contains(q)]
+        
+        for _, row in results.iterrows():
+            with st.expander(f"👤 {row['name']}"):
+                col1, col2 = st.columns(2)
+                
+                # اختيار القاعة وتحديث مكانها تلقائياً
+                selected_hall = col1.selectbox("تعيين القاعة", hall_names, 
+                                             index=hall_names.index(row['hall']) if row['hall'] in hall_names else 0,
+                                             key=f"h_{row['id']}")
+                
+                if col1.button("💾 حفظ التعيين", key=f"s_{row['id']}"):
+                    h_city = h_map.get(selected_hall, "")
+                    c.execute("UPDATE teachers SET hall=?, hall_city=? WHERE id=?", (selected_hall, h_city, row['id']))
                     conn.commit()
                     st.success("تم الحفظ")
                     st.rerun()
-                if r['hall']: st.download_button("تحميل", create_docx(r), f"{r['id']}.docx", key=f"d{r['id']}")
 
-with tab2:
-    st.subheader("رفع الملفات")
-    f_h = st.file_uploader("1. ملف القاعات", type="xlsx")
-    if f_h and st.button("تثبيت القاعات"):
-        df = pd.read_excel(f_h)
-        # حذف وإعادة إنشاء الجدول لتجنب OperationalError
-        c.execute("DROP TABLE IF EXISTS halls")
-        c.execute("CREATE TABLE halls (number TEXT PRIMARY KEY, hall_name TEXT, city TEXT)")
-        
-        c_n = find_col(df, ['number', 'رقم'])
-        c_h = find_col(df, ['hall', 'قاعة'])
-        c_c = find_col(df, ['city', 'مدينة', 'سكن'])
-        
+                if row['hall']:
+                    doc_bytes = generate_official_doc(row)
+                    col2.download_button("📥 تحميل الكتاب الرسمي", data=doc_bytes, 
+                                       file_name=f"تكليف_{row['name']}.docx",
+                                       key=f"dl_{row['id']}")
+
+with tab_upload:
+    st.subheader("رفع ملفات الإكسل")
+    
+    up_h = st.file_uploader("1. رفع ملف القاعات", type="xlsx")
+    if up_h and st.button("تثبيت القاعات"):
+        df = pd.read_excel(up_h)
+        c.execute("DELETE FROM halls")
         for _, r in df.iterrows():
-            c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r[c_n]), str(r[c_h]), str(r[c_c]) if c_c else ""))
+            # نفترض الأعمدة: رقم القاعة، اسم القاعة، المدينة
+            c.execute("INSERT INTO halls VALUES (?,?,?)", (str(r.iloc[0]), str(r.iloc[1]), str(r.iloc[2])))
         conn.commit()
-        st.success("تم رفع القاعات بنجاح ✅")
+        st.success("تم رفع القاعات")
 
-    f_t = st.file_uploader("2. ملف الموظفين", type="xlsx")
-    if f_t and st.button("تثبيت الموظفين"):
-        df = pd.read_excel(f_t)
-        c.execute("DROP TABLE IF EXISTS teachers")
-        c.execute("CREATE TABLE teachers (id TEXT PRIMARY KEY, name TEXT, school TEXT, city TEXT, phone TEXT, role TEXT, hall TEXT, accept TEXT)")
-        
-        cid = find_col(df, ['id', 'هوية'])
-        cnm = find_col(df, ['name', 'اسم'])
-        
+    up_t = st.file_uploader("2. رفع ملف الموظفين", type="xlsx")
+    if up_t and st.button("تثبيت الموظفين"):
+        df = pd.read_excel(up_t)
+        c.execute("DELETE FROM teachers")
         for _, r in df.iterrows():
-            c.execute("INSERT INTO teachers VALUES (?,?,?,?,?,?,?,?)", 
-                      (str(r[cid]), str(r[cnm]), str(df.columns[2]), "", "", "", "", "نعم"))
+            # مطابقة أعمدة الصورة: id, name, school, city, phone, role...
+            c.execute("INSERT INTO teachers (id, name, school, city, phone, role, hall, hall_city) VALUES (?,?,?,?,?,?,?,?)",
+                      (str(r['id']), str(r['name']), str(r['school']), str(r['city']), str(r['phone']), str(r['role']), "", ""))
         conn.commit()
-        st.success("تم رفع الموظفين بنجاح ✅")
-
-with tab3:
-    if st.button("🗑️ تفريغ النظام"):
-        c.execute("DROP TABLE IF EXISTS teachers")
-        c.execute("DROP TABLE IF EXISTS halls")
-        conn.commit()
-        st.rerun()
+        st.success("تم رفع الموظفين")
