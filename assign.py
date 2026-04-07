@@ -75,16 +75,26 @@ def generate_from_template(row):
         def apply_smart_bold_replace(paragraph, data_map):
             text = paragraph.text
             if any(key in text for key in data_map):
+                # 1. حفظ حجم الخط الأصلي من أول جزء في الفقرة قبل مسحه
+                original_size = Pt(14) # القيمة الافتراضية إذا فشل البرنامج في القراءة
+                if paragraph.runs and paragraph.runs[0].font.size:
+                    original_size = paragraph.runs[0].font.size
+                
+                # 2. تفريغ الـ runs الحالية
                 for run in paragraph.runs: run.text = ""
+                
+                # 3. تقسيم النص وإعادة البناء بنفس الحجم الأصلي
                 parts = re.split(r'(<[^>]+>)', text)
                 for part in parts:
+                    run = paragraph.add_run()
                     if part in data_map:
-                        run = paragraph.add_run(data_map[part] if data_map[part] else "")
+                        run.text = str(data_map[part]) if data_map[part] else ""
                         run.bold = True
-                        run.font.size = Pt(14)
                     else:
-                        paragraph.add_run(part)
-                        run.font.size = Pt(14)
+                        run.text = part
+                    
+                    # 4. إعادة تطبيق الحجم الأصلي المحفوظ على كل أجزاء الفقرة
+                    run.font.size = original_size
 
         for p in doc.paragraphs: apply_smart_bold_replace(p, replacements)
         for table in doc.tables:
