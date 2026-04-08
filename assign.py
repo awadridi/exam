@@ -6,16 +6,17 @@ import io
 import os
 from datetime import datetime
 
+# =====================================
+# 1. نظام تسجيل الدخول ودالة الرفع
+# =====================================
 
-# --- دالة الرفع إلى جوجل درايف ---
+# --- دالة الرفع إلى جوجل درايف (يجب أن تكون في الأعلى) ---
 def upload_to_drive():
     try:
         from pydrive2.auth import GoogleAuth
         from pydrive2.drive import GoogleDrive
         from oauth2client.service_account import ServiceAccountCredentials
-        import streamlit as st
-        from datetime import datetime
-
+        
         # 1. جلب البيانات من السيكرتس
         gdata = dict(st.secrets["gdrive_service_account"])
         
@@ -30,7 +31,7 @@ def upload_to_drive():
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
 
-        # 4. الرفع (حل مشكلة الـ Quota بإجبار الرفع داخل المجلد المشترك)
+        # 4. الرفع 
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
 
@@ -40,15 +41,13 @@ def upload_to_drive():
         }
 
         file_drive = drive.CreateFile(file_metadata)
-        file_drive.SetContentFile("data_system_v26.db") # تأكد أن هذا هو اسم ملف القاعدة عندك
+        file_drive.SetContentFile("data_system_v26.db") 
         file_drive.Upload()
         
         return True, file_name
     except Exception as e:
         return False, str(e)
-# =====================================
-# 1. نظام تسجيل الدخول باستخدام Secrets
-# =====================================
+
 def login():
     if 'logged_in' not in st.session_state:
         st.session_state['logged_in'] = False
@@ -200,7 +199,6 @@ with tab_search:
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
     
-    # --- الخانة التي كانت محذوفة وتم إرجاعها ---
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -223,30 +221,19 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-   # قراءة البيانات المحدثة فوراً عند الضغط على التبويب
-   # 1. حساب الإجمالي الحقيقي من ملف الإكسل/الرابط (يبقى ثابتاً)
     try:
         df_all_source = pd.read_csv(TEACHERS_URL)
         total_count = len(df_all_source)
     except:
-        # إذا فشل الرابط يقرأ من جدول المعلمين بالكامل
         total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
 
-    # 2. حساب من تم تكليفهم فعلياً من قاعدة البيانات
     assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
-
-    # 3. حساب المتبقي (طرح المنجز من الإجمالي الثابت)
     remaining_count = total_count - assigned_count
 
-    # إسناد القيم للمتغيرات المستخدمة في العرض أسفل
-    total_t = total_count
-    assigned_t = assigned_count
-    remaining_t = remaining_count
-    # عرض الإحصائيات المحدثة
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", total_t)
-    c_m2.metric("تم إنجازهم", assigned_t)
-    c_m3.metric("المتبقي", remaining_t)
+    c_m1.metric("إجمالي المعلمين", total_count)
+    c_m2.metric("تم إنجازهم", assigned_count)
+    c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
 
@@ -254,16 +241,13 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
-            # جلب بيانات المعلمين المكلفين في هذه القاعة حصراً
             df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
-            # حساب الأعداد بناءً على المهمة (Role)
             count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
             count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
             count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
             count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
 
-            # عرض الإحصائيات في صف واحد تحت القائمة المنسدلة
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", count_chief)
@@ -272,11 +256,7 @@ with tab_manage:
             c_stat4.metric("آذنة", count_servant)
             
             st.divider()
-        
-            
 
-            # ... هنا يكمل الكود السابق الخاص بأزرار الإكسل والوورد والجدول
-        if h_choice:
             df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             c_exc, c_wrd = st.columns(2)
             with c_exc:
@@ -312,23 +292,22 @@ with tab_manage:
                             add_log("حذف", f"حذف تكليف {m['name']}")
                             conn.commit(); st.rerun()
 
-# --- قسم النسخ الاحتياطي إلى جوجل درايف ---
+    # --- قسم النسخ الاحتياطي (هنا تم وضع الكود المطلوب) ---
     st.divider()
     st.subheader("🛡️ الأمان والنسخ الاحتياطي السحابي")
     c_back1, c_back2 = st.columns([2, 1])
     with c_back1:
         st.info("يتم رفع نسخة من قاعدة البيانات إلى Google Drive لضمان عدم ضياع البيانات.")
     with c_back2:
-        if st.button("🚀 رفع نسخة الآن", key="manual_backup"):
+        # الكود الذي سألت عنه تم وضعه هنا
+        if st.button("🚀 رفع نسخة احتياطية إلى Google Drive", key="manual_backup"):
             with st.spinner("جاري الرفع..."):
-                # استدعاء الدالة التي عرفناها سابقاً في نهاية الملف
                 success, res = upload_to_drive() 
                 if success:
-                    st.success("✅ تم الرفع!")
+                    st.success(f"✅ تم الرفع بنجاح باسم: {res}")
                     add_log("نسخ احتياطي", f"تم الرفع بنجاح: {res}")
                 else:
-                    st.error("❌ فشل الرفع")
-                    st.caption(f"السبب: {res}")
+                    st.error(f"❌ فشل الرفع. السبب: {res}")
 
 with tab_logs:
     st.subheader("📜 سجل العمليات")
