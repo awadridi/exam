@@ -183,11 +183,19 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-    df_all = pd.read_sql("SELECT hall FROM teachers", conn)
+   # قراءة البيانات المحدثة فوراً عند الضغط على التبويب
+    df_stats_current = pd.read_sql("SELECT hall FROM teachers", conn)
+    
+    total_t = len(df_stats_current)
+    assigned_t = len(df_stats_current[df_stats_current['hall'] != ''])
+    remaining_t = total_t - assigned_t
+    
+    # عرض الإحصائيات المحدثة
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", len(df_all))
-    c_m2.metric("تم إنجازهم", len(df_all[df_all['hall'] != '']))
-    c_m3.metric("المتبقي", len(df_all) - len(df_all[df_all['hall'] != '']))
+    c_m1.metric("إجمالي المعلمين", total_t)
+    c_m2.metric("تم إنجازهم", assigned_t)
+    c_m3.metric("المتبقي", remaining_t)
+    
     st.divider()
 
     df_active = pd.read_sql("SELECT DISTINCT hall FROM teachers WHERE hall != ''", conn)
