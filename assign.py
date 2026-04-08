@@ -13,39 +13,43 @@ from datetime import datetime
 # --- دالة الرفع إلى جوجل درايف (يجب أن تكون في الأعلى) ---
 def upload_to_drive():
     try:
-        from pydrive2.auth import GoogleAuth
-        from pydrive2.drive import GoogleDrive
-        from oauth2client.service_account import ServiceAccountCredentials
-        
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
+        import streamlit as st
+        from datetime import datetime
+
+        # 1. جلب البيانات من السيكرتس
         gdata = dict(st.secrets["gdrive_service_account"])
         gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
-        scope = ['https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(gdata, scope)
-        
-        gauth = GoogleAuth()
-        gauth.credentials = creds
-        drive = GoogleDrive(gauth)
+        # 2. إعداد الصلاحيات باستخدام المكتبة الرسمية
+        creds = service_account.Credentials.from_service_account_info(gdata)
+        service = build('drive', 'v3', credentials=creds)
 
+        # 3. إعداد بيانات الملف والمجلد
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
+        file_path = "data_system_v26.db"
 
-        # التعديل الجذري هنا:
         file_metadata = {
-            'title': file_name,
-            'parents': [{'id': folder_id}] # إجبار الرفع داخل المجلد المشترك
+            'name': file_name,
+            'parents': [folder_id]
         }
-
-        file_drive = drive.CreateFile(file_metadata)
-        file_drive.SetContentFile("data_system_v26.db")
         
-        # إضافة معاملات الدعم لضمان تجاوز مشكلة المساحة (Quota)
-        file_drive.Upload(param={'supportsAllDrives': True}) 
+        media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=True)
+
+        # 4. الرفع مع إجبار استخدام صلاحيات المجلد المشترك (تجاوز خطأ Quota)
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id',
+            supportsAllDrives=True # هذا السطر هو الأهم لتجاوز المشكلة
+        ).execute()
         
         return True, file_name
     except Exception as e:
         return False, str(e)
-
 def login():
     if 'logged_in' not in st.session_state:
         st.session_state['logged_in'] = False
