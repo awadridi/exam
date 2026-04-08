@@ -14,11 +14,12 @@ def upload_to_drive():
         from pydrive2.drive import GoogleDrive
         from oauth2client.service_account import ServiceAccountCredentials
         import streamlit as st
+        from datetime import datetime
 
-        # 1. جلب البيانات
+        # 1. جلب البيانات من السيكرتس
         gdata = dict(st.secrets["gdrive_service_account"])
         
-        # 2. تحويل الـ \n المكتوبة إلى أسطر حقيقية (هذا هو الحل للخطأ)
+        # 2. إصلاح المفتاح (حل مشكلة الـ Decoder)
         gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
         # 3. التفويض
@@ -29,14 +30,20 @@ def upload_to_drive():
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
 
-        # 4. الرفع
-        file_drive = drive.CreateFile({
-            'title': f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db",
-            'parents': [{'id': '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ'}]
-        })
-        file_drive.SetContentFile("data_system_v26.db")
+        # 4. الرفع (حل مشكلة الـ Quota بإجبار الرفع داخل المجلد المشترك)
+        file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
+        folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
+
+        file_metadata = {
+            'title': file_name,
+            'parents': [{'id': folder_id}]
+        }
+
+        file_drive = drive.CreateFile(file_metadata)
+        file_drive.SetContentFile("data_system_v26.db") # تأكد أن هذا هو اسم ملف القاعدة عندك
         file_drive.Upload()
-        return True, "تم الرفع بنجاح"
+        
+        return True, file_name
     except Exception as e:
         return False, str(e)
 # =====================================
