@@ -7,45 +7,8 @@ import os
 from datetime import datetime
 
 # =====================================
-# 1. نظام تسجيل الدخول ودالة الرفع
+# 1. نظام تسجيل الدخول باستخدام Secrets
 # =====================================
-
-# --- دالة الرفع إلى جوجل درايف (يجب أن تكون في الأعلى) ---
-def upload_to_drive():
-    try:
-        import dropbox
-        import streamlit as st
-        from datetime import datetime
-        import os
-
-        # 1. التوكن الخاص بك من دروب بوكس
-        # ملاحظة: يفضل وضعه في st.secrets للأمان، لكن سأضعه لك هنا مباشرة كما طلبت
-        DROPBOX_TOKEN = "sl.u.AGbW3h_QsFLLZt14X7P6LTFKprJkX806_xbvG4WNqUY9v3vhAuiM9sOlhsm3NtibIl32EajoPNpaxjiEDb7e2P32X0htvyXPshBQhatUieZWJ97JKokkdp-no2wf8Gfv2lUeLwzb6Oyu8xUka0LIlv0tHZLjBoqqP46QlYrMhFtWDkBCRXphnG0h4-90bBG0lwC8CJl8VVpf3YncfLSpzqX9DT0uUYSKihQ878BVmzCN5i5fH7xsN24R4t-f5SKGRDTR9AOVOxbOn3HcOWIWAOZIgbgSiTP6IGkKxiccSwmUnDdK8rzFd6KejJWemttja__knstbI73wJCB0Ic7jio0n5cRYhHYsC44rUFbhi_WCcF3mV30d4_fO0ngy_kQOZq-i6vQ6jhK29EA7vU3A6DplI6Vh_hunREjFbVe2UWE26damoIBSWKjWMAAqFyXZS0V1nvH0vh_VNUfFSLhxzmeqe1llAp2XAOeMX_1m-8N6n0E_u0CzI2wK6Kw8fPAmsvX9-tDxPZ-psgqyt9zaMZS7gDVINtYRMy-wwQTOKr-VmVYBCezybndejtOvz-INiUb8qAmZOG0j2TKEViNkoa9B3SQcZISmAUB1_cEyVkC8udKIDsGfChb5uXQx6JkE63OQsUvGl2cnz1K7uNg1kezAAbTU2tM2aiLipphKgwQxL8s_5Gd2niq44vI5i9ebQkYnVHFkeF23gfR0s8KPqT8-T-iRFKnSQITgm2YAxYYnM5KlkPwtH6r2f3uVKMar3mEOFVY4-3UHbs-D1m6SZ2AtVdFM6zKo4TZSuIZwyrlYGOaJpRHK_M8vL_osQikEP90W1v-m6Lj6dPcS8SoEskRl4Xg3faDApuyFET0i6KAcLscUk0hIdRsP3FvhTjkhGhD9ZoQ8oMPEg0S74GS0frfB_KefbV0qRMZzHCysM55piw2Fde-3U3ovadTenyOj5lBGuVFl1yTm2gqhkXd5mx2CkZMdOi0deKXQXrab77r1MhpX7cqEG0FvcYdtIw36FeovYPkGlFl5mqxSWFVaKAI0KjATkns9a8TtV3rXmrN6US_RlmS1wBCMDCMqa-Jfnmx_hDatc3pLp-1jMmBn30ACo3hntUMsIW6iXl5q4p3bGrlge50GKDeW0418O8BzSxDbAFcTB_HL5hvbRyJJc5AVPGuSe6jr_qBEYXJvqVuNwIKPZ3gKQlAyG64leQNgas7zJCMwEUAvUCTtK00Sw59WDAsHAfEo-xfqdPGrKulu-irltS372UhR5zJ853UMUIk"
-
-        # 2. إنشاء اتصال
-        dbx = dropbox.Dropbox(DROPBOX_TOKEN)
-
-        # 3. اسم الملف الذي سيظهر في دروب بوكس
-        # نستخدم الـ / في البداية لأنه مسار في دروب بوكس
-        remote_file_name = f"/backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
-        local_file_path = "data_system_v26.db"
-
-        # 4. التأكد من وجود الملف المحلي قبل الرفع
-        if not os.path.exists(local_file_path):
-            return False, f"الملف المحلي {local_file_path} غير موجود"
-
-        # 5. عملية الرفع
-        with open(local_file_path, "rb") as f:
-            dbx.files_upload(
-                f.read(), 
-                remote_file_name, 
-                mode=dropbox.files.WriteMode.overwrite
-            )
-        
-        return True, remote_file_name
-
-    except Exception as e:
-        return False, str(e)
 def login():
     if 'logged_in' not in st.session_state:
         st.session_state['logged_in'] = False
@@ -197,6 +160,7 @@ with tab_search:
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
     
+    # --- الخانة التي كانت محذوفة وتم إرجاعها ---
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -219,19 +183,30 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
+   # قراءة البيانات المحدثة فوراً عند الضغط على التبويب
+   # 1. حساب الإجمالي الحقيقي من ملف الإكسل/الرابط (يبقى ثابتاً)
     try:
         df_all_source = pd.read_csv(TEACHERS_URL)
         total_count = len(df_all_source)
     except:
+        # إذا فشل الرابط يقرأ من جدول المعلمين بالكامل
         total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
 
+    # 2. حساب من تم تكليفهم فعلياً من قاعدة البيانات
     assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
+
+    # 3. حساب المتبقي (طرح المنجز من الإجمالي الثابت)
     remaining_count = total_count - assigned_count
 
+    # إسناد القيم للمتغيرات المستخدمة في العرض أسفل
+    total_t = total_count
+    assigned_t = assigned_count
+    remaining_t = remaining_count
+    # عرض الإحصائيات المحدثة
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", total_count)
-    c_m2.metric("تم إنجازهم", assigned_count)
-    c_m3.metric("المتبقي", remaining_count)
+    c_m1.metric("إجمالي المعلمين", total_t)
+    c_m2.metric("تم إنجازهم", assigned_t)
+    c_m3.metric("المتبقي", remaining_t)
     
     st.divider()
 
@@ -239,13 +214,16 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
+            # جلب بيانات المعلمين المكلفين في هذه القاعة حصراً
             df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
+            # حساب الأعداد بناءً على المهمة (Role)
             count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
             count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
             count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
             count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
 
+            # عرض الإحصائيات في صف واحد تحت القائمة المنسدلة
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", count_chief)
@@ -254,7 +232,9 @@ with tab_manage:
             c_stat4.metric("آذنة", count_servant)
             
             st.divider()
-
+            
+            # ... هنا يكمل الكود السابق الخاص بأزرار الإكسل والوورد والجدول
+        if h_choice:
             df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             c_exc, c_wrd = st.columns(2)
             with c_exc:
@@ -289,23 +269,6 @@ with tab_manage:
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, m['id']))
                             add_log("حذف", f"حذف تكليف {m['name']}")
                             conn.commit(); st.rerun()
-
-    # --- قسم النسخ الاحتياطي (هنا تم وضع الكود المطلوب) ---
-    st.divider()
-    st.subheader("🛡️ الأمان والنسخ الاحتياطي السحابي")
-    c_back1, c_back2 = st.columns([2, 1])
-    with c_back1:
-        st.info("يتم رفع نسخة من قاعدة البيانات إلى dropbox لضمان عدم ضياع البيانات.")
-    with c_back2:
-        # الكود الذي سألت عنه تم وضعه هنا
-        if st.button("🚀 رفع نسخة احتياطية إلى dropbox", key="manual_backup"):
-            with st.spinner("جاري الرفع..."):
-                success, res = upload_to_drive() 
-                if success:
-                    st.success(f"✅ تم الرفع بنجاح باسم: {res}")
-                    add_log("نسخ احتياطي", f"تم الرفع بنجاح: {res}")
-                else:
-                    st.error(f"❌ فشل الرفع. السبب: {res}")
 
 with tab_logs:
     st.subheader("📜 سجل العمليات")
