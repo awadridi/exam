@@ -5,3 +5,7 @@ fpdf
 openpyxl
 xlsxwriter
 pydrive2
+pydrive2
+oauth2client
+arabic-reshaper
+python-bidi
