@@ -5,12 +5,10 @@ from docx import Document
 import io
 import os
 from datetime import datetime
-from fpdf import FPDF
-from arabic_reshaper import reshape
-from bidi.algorithm import get_display
+import aspose.words as aw  # المكتبة المسؤولة عن التحويل الدقيق
 
 # =====================================
-# 1. نظام تسجيل الدخول باستخدام Secrets
+# 1. نظام تسجيل الدخول
 # =====================================
 def login():
     if 'logged_in' not in st.session_state:
@@ -25,7 +23,6 @@ def login():
                 user = st.text_input("اسم المستخدم").lower().strip()
                 pw = st.text_input("كلمة المرور", type="password").strip()
                 submit = st.form_submit_button("دخول")
-                
                 if submit:
                     try:
                         valid_password = st.secrets[f"password_{user}"]
@@ -36,7 +33,7 @@ def login():
                         else:
                             st.error("❌ كلمة المرور غير صحيحة")
                     except KeyError:
-                        st.error("❌ اسم المستخدم غير معرف في Secrets")
+                        st.error("❌ اسم المستخدم غير معرف")
         return False
     return True
 
@@ -55,8 +52,6 @@ st.markdown("""
     button[key^="btn_"] { background-color: #28a745 !important; color: white !important; }
     button[key^="del_"] { background-color: #dc3545 !important; color: white !important; }
     .stDownloadButton button { background-color: #007bff !important; color: white !important; width: 100%; }
-    .editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
-    [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -73,66 +68,28 @@ conn.commit()
 
 def add_log(action, details):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    c.execute("INSERT INTO logs (user, action, details, timestamp) VALUES (?, ?, ?, ?)", 
-              (st.session_state.username, action, details, now))
+    c.execute("INSERT INTO logs (user, action, details, timestamp) VALUES (?, ?, ?, ?)", (st.session_state.username, action, details, now))
     conn.commit()
 
 TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (Word & PDF)
+# 3. وظائف معالجة الملفات (التحويل الحقيقي)
 # =====================================
 
-def fix_ar(text):
-    """تصحيح عرض النصوص العربية"""
-    if not text: return ""
-    return get_display(reshape(str(text)))
-
-def create_pdf(df_records):
-    """إنشاء ملف PDF متوافق مع اللغة العربية ومع Streamlit"""
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    
-    font_path = "arial.ttf"
-    if not os.path.exists(font_path):
-        return None
-    
-    pdf.add_font("ArabicFont", "", font_path, uni=True)
-    pdf.set_font("ArabicFont", "", 14)
-
-    for _, row in df_records.iterrows():
-        pdf.add_page()
-        pdf.set_right_margin(10)
-        
-        # الترويسة
-        pdf.set_font_size(16)
-        pdf.cell(190, 10, fix_ar("دولة فلسطين"), ln=True, align='C')
-        pdf.cell(190, 10, fix_ar("وزارة التربية والتعليم"), ln=True, align='C')
-        pdf.ln(10)
-        
-        pdf.set_font_size(22)
-        pdf.cell(190, 10, fix_ar("بطاقة تكليف رسمي"), ln=True, align='C')
-        pdf.ln(15)
-        
-        # محتوى البيانات
-        pdf.set_font_size(15)
-        pdf.cell(190, 12, fix_ar(f"الاسم: {row['name']}"), ln=True, align='R')
-        pdf.cell(190, 12, fix_ar(f"رقم الهوية: {row['id']}"), ln=True, align='R')
-        pdf.cell(190, 12, fix_ar(f"المهمة: {row.get('role', 'لم تحدد')}"), ln=True, align='R')
-        pdf.cell(190, 12, fix_ar(f"مركز العمل الحالي: {row.get('school', '')}"), ln=True, align='R')
-        pdf.ln(5)
-        pdf.cell(190, 12, fix_ar(f"يُكلف المذكور أعلاه للعمل في قاعة: {row.get('hall', '')}"), ln=True, align='R')
-        pdf.cell(190, 12, fix_ar(f"مكان القاعة: {row.get('hall_city', '')}"), ln=True, align='R')
-        
-        pdf.ln(20)
-        pdf.cell(190, 10, fix_ar("توقيع وختم المديرية"), ln=True, align='L')
-
-    return bytes(pdf.output())
+def word_to_pdf_bytes(word_io):
+    """تحويل محتوى BytesIO الخاص بـ Word إلى PDF Bytes"""
+    word_io.seek(0)
+    doc = aw.Document(word_io)
+    pdf_io = io.BytesIO()
+    doc.save(pdf_io, aw.SaveFormat.PDF)
+    return pdf_io.getvalue()
 
 def process_doc(doc_obj, row, h_name, h_city):
-    repls = {'<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), '<PHONE>': str(row.get('phone', '')), 
-             '<JOB>': str(row.get('role', '')), '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
+    repls = {'<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), 
+             '<PHONE>': str(row.get('phone', '')), '<JOB>': str(row.get('role', '')), 
+             '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
              '<WORKPLACE>': str(row.get('school', '')), '<CITY>': str(row.get('city', ''))}
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
@@ -186,10 +143,9 @@ with tab_search:
     q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
     if q:
         df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
-        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
+        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 with c1:
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), index=(list(hall_map.keys()).index(row['hall'])+1 if row['hall'] in hall_map else 0), key=f"q_h_{row['id']}")
@@ -197,22 +153,20 @@ with tab_search:
                 with c2:
                     if st.button("💾 حفظ", key=f"btn_save_{row['id']}"):
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
-                        add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
+                        add_log("حفظ تكليف", f"تم تكليف {row['name']}")
                         conn.commit(); st.success("تم الحفظ"); st.rerun()
                     
                     if row['hall']:
-                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
-                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, row['id']))
-                            add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
-                            conn.commit(); st.rerun()
-                        
-                        # أزرار التحميل
-                        col_w, col_p = st.columns(2)
-                        f_word = generate_single_doc(row)
-                        if f_word: col_w.download_button("📥 Word", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_w_{row['id']}")
-                        
-                        pdf_data = create_pdf(pd.DataFrame([row]))
-                        if pdf_data: col_p.download_button("📕 PDF", data=pdf_data, file_name=f"تكليف_{row['name']}.pdf", key=f"dl_p_{row['id']}")
+                        # استخراج ملف الوورد أولاً
+                        word_file = generate_single_doc(row)
+                        if word_file:
+                            col_w, col_p = st.columns(2)
+                            # زر الوورد
+                            col_w.download_button("📥 Word", data=word_file, file_name=f"تكليف_{row['name']}.docx")
+                            # زر الـ PDF (تحويل حقيقي لنفس ملف الوورد)
+                            with st.spinner("جاري التحويل لـ PDF..."):
+                                pdf_bytes = word_to_pdf_bytes(word_file)
+                                col_p.download_button("📕 PDF", data=pdf_bytes, file_name=f"تكليف_{row['name']}.pdf")
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
@@ -220,10 +174,7 @@ with tab_upload:
     if up_tpl:
         with open("template.docx", "wb") as f:
             f.write(up_tpl.getbuffer())
-        add_log("تحديث قالب", "تم رفع قالب وورد جديد")
-        st.success("تم تحديث قالب الوورد بنجاح")
-    
-    st.divider()
+        st.success("تم تحديث القالب")
     
     if st.button("🔄 تحديث من Google Sheets"):
         try:
@@ -233,24 +184,19 @@ with tab_upload:
                 if col not in dft.columns: dft[col] = ""
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
-            add_log("تحديث بيانات", "تحديث من جوجل شيت")
             st.success("تم التحديث"); st.rerun()
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-    try:
-        df_all_source = pd.read_csv(TEACHERS_URL)
-        total_count = len(df_all_source)
-    except:
-        total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
-
-    assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
-    remaining_count = total_count - assigned_count
-
+    # إحصائيات سريعة
+    df_count = pd.read_sql("SELECT id, hall FROM teachers", conn)
+    total_t = len(df_count)
+    assigned_t = len(df_count[df_count['hall'] != ''])
+    
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", total_count)
-    c_m2.metric("تم إنجازهم", assigned_count)
-    c_m3.metric("المتبقي", remaining_count)
+    c_m1.metric("الإجمالي", total_t)
+    c_m2.metric("تم إنجازهم", assigned_t)
+    c_m3.metric("المتبقي", total_t - assigned_t)
     
     st.divider()
 
@@ -258,55 +204,25 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
-            df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-            stats = df_hall_details['role'].value_counts()
-            
-            st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
-            c_s1, c_s2, c_s3, c_s4 = st.columns(4)
-            c_s1.metric("رئيس قاعة", stats.get('رئيس قاعة', 0))
-            c_s2.metric("مساعد رئيس", stats.get('مساعد رئيس قاعة', 0))
-            c_s3.metric("مراقبين", stats.get('مراقب', 0))
-            c_s4.metric("آذنة", stats.get('آذن', 0))
-            
-            st.divider()
-            
             df_m_full = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
             c_exc, c_wrd, c_pdf = st.columns(3)
-            with c_exc:
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_m_full[['id', 'name', 'phone', 'school', 'role', 'updated_by']].to_excel(writer, index=False, sheet_name='العاملين')
-                    worksheet = writer.sheets['العاملين']
-                    worksheet.right_to_left()
-                st.download_button(f"📊 إكسل {h_choice}", data=output.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
+            # زر إكسل القاعة
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_m_full[['id', 'name', 'role']].to_excel(writer, index=False)
+            c_exc.download_button(f"📊 إكسل {h_choice}", data=output.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
             
-            with c_wrd:
-                bulk_f = generate_bulk_word(df_m_full, h_choice)
-                if bulk_f: st.download_button(f"📄 وورد {h_choice}", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
-                
-            with c_pdf:
-                bulk_pdf = create_pdf(df_m_full)
-                if bulk_pdf: st.download_button(f"📕 PDF {h_choice}", data=bulk_pdf, file_name=f"تكليفات_{h_choice}.pdf")
-
-            for _, m in df_m_full.iterrows():
-                with st.expander(f"📝 {m['name']} | {m['role']}"):
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    with col1: new_h = st.selectbox("نقل", list(hall_map.keys()), index=list(hall_map.keys()).index(m['hall']), key=f"m_h_{m['id']}")
-                    with col2: new_r = st.selectbox("مهمة", ["رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], index=0, key=f"m_r_{m['id']}")
-                    with col3:
-                        if st.button("تحديث", key=f"m_up_{m['id']}"):
-                            c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (new_h, new_r, hall_map.get(new_h, ""), st.session_state.username, m['id']))
-                            add_log("تعديل", f"نقل {m['name']} إلى {new_h}")
-                            conn.commit(); st.rerun()
-                        if st.button("حذف", key=f"m_del_{m['id']}"):
-                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, m['id']))
-                            add_log("حذف", f"حذف تكليف {m['name']}")
-                            conn.commit(); st.rerun()
+            # زر وورد القاعة (الكل في ملف واحد)
+            bulk_word = generate_bulk_word(df_m_full, h_choice)
+            if bulk_word:
+                c_wrd.download_button(f"📄 وورد {h_choice}", data=bulk_word, file_name=f"تكليفات_{h_choice}.docx")
+                # زر PDF القاعة (تحويل حقيقي للوورد المجمع)
+                with st.spinner("جاري تحويل الكل لـ PDF..."):
+                    bulk_pdf = word_to_pdf_bytes(bulk_word)
+                    c_pdf.download_button(f"📕 PDF {h_choice}", data=bulk_pdf, file_name=f"تكليفات_{h_choice}.pdf")
 
 with tab_logs:
     st.subheader("📜 سجل العمليات")
-    df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
+    df_l = pd.read_sql("SELECT user, action, details, timestamp FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
-    if st.button("🗑️ مسح السجل"):
-        c.execute("DELETE FROM logs"); conn.commit(); st.rerun()
