@@ -5,6 +5,9 @@ from docx import Document
 import io
 import os
 from datetime import datetime
+from fpdf import FPDF
+from arabic_reshaper import reshape
+from bidi.algorithm import get_display
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
@@ -62,7 +65,7 @@ c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
-              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT)''')
+             role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
@@ -78,8 +81,50 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات
+# 3. وظائف معالجة الملفات والتحويل لـ PDF
 # =====================================
+
+def fix_ar(text):
+    """دالة لتصحيح مظهر اللغة العربية في الـ PDF"""
+    return get_display(reshape(str(text)))
+
+def create_pdf(df_records, title="كتاب تكليف"):
+    """إنشاء ملف PDF يدعم العربية لواحد أو مجموعة من الموظفين"""
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # تحميل الخط العربي (تأكد من وجود الملف في مجلد المشروع)
+    font_path = "arial.ttf" 
+    if os.path.exists(font_path):
+        pdf.add_font("ArabicFont", "", font_path, uni=True)
+        pdf.set_font("ArabicFont", "", 16)
+    else:
+        pdf.set_font("Arial", "", 12) # خط بديل إذا لم يجد الخط العربي
+
+    for _, row in df_records.iterrows():
+        pdf.add_page()
+        pdf.set_right_margin(10)
+        
+        # ترويسة بسيطة
+        pdf.cell(190, 10, fix_ar("دولة فلسطين"), ln=True, align='C')
+        pdf.cell(190, 10, fix_ar("وزارة التربية والتعليم"), ln=True, align='C')
+        pdf.ln(10)
+        pdf.set_font_size(20)
+        pdf.cell(190, 10, fix_ar("كتاب تكليف"), ln=True, align='C')
+        pdf.ln(10)
+        pdf.set_font_size(16)
+        
+        # محتوى التكليف
+        pdf.cell(190, 10, fix_ar(f"اسم الموظف: {row['name']}"), ln=True, align='R')
+        pdf.cell(190, 10, fix_ar(f"رقم الهوية: {row['id']}"), ln=True, align='R')
+        pdf.cell(190, 10, fix_ar(f"المهمة: {row['role']}"), ln=True, align='R')
+        pdf.cell(190, 10, fix_ar(f"القاعة المكلف بها: {row['hall']}"), ln=True, align='R')
+        pdf.cell(190, 10, fix_ar(f"موقع القاعة: {row['hall_city']}"), ln=True, align='R')
+        pdf.ln(20)
+        pdf.cell(190, 10, fix_ar("التوقيع والختم: ........................."), ln=True, align='L')
+
+    return pdf.output(dest='S')
+
 def process_doc(doc_obj, row, h_name, h_city):
     repls = {'<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), '<PHONE>': str(row.get('phone', '')), 
              '<JOB>': str(row.get('role', '')), '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
@@ -154,13 +199,18 @@ with tab_search:
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, row['id']))
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             conn.commit(); st.rerun()
+                        
+                        col_dl1, col_dl2 = st.columns(2)
                         f_word = generate_single_doc(row)
-                        if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
+                        with col_dl1:
+                            if f_word: st.download_button("📥 تحميل Word", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
+                        with col_dl2:
+                            pdf_file = create_pdf(pd.DataFrame([row]))
+                            st.download_button("📕 تحميل PDF", data=pdf_file, file_name=f"تكليف_{row['name']}.pdf", key=f"dl_p_{row['id']}")
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
     
-    # --- الخانة التي كانت محذوفة وتم إرجاعها ---
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -183,30 +233,19 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-   # قراءة البيانات المحدثة فوراً عند الضغط على التبويب
-   # 1. حساب الإجمالي الحقيقي من ملف الإكسل/الرابط (يبقى ثابتاً)
     try:
         df_all_source = pd.read_csv(TEACHERS_URL)
         total_count = len(df_all_source)
     except:
-        # إذا فشل الرابط يقرأ من جدول المعلمين بالكامل
         total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
 
-    # 2. حساب من تم تكليفهم فعلياً من قاعدة البيانات
     assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
-
-    # 3. حساب المتبقي (طرح المنجز من الإجمالي الثابت)
     remaining_count = total_count - assigned_count
 
-    # إسناد القيم للمتغيرات المستخدمة في العرض أسفل
-    total_t = total_count
-    assigned_t = assigned_count
-    remaining_t = remaining_count
-    # عرض الإحصائيات المحدثة
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", total_t)
-    c_m2.metric("تم إنجازهم", assigned_t)
-    c_m3.metric("المتبقي", remaining_t)
+    c_m1.metric("إجمالي المعلمين", total_count)
+    c_m2.metric("تم إنجازهم", assigned_count)
+    c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
 
@@ -214,16 +253,13 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
-            # جلب بيانات المعلمين المكلفين في هذه القاعة حصراً
             df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
-            # حساب الأعداد بناءً على المهمة (Role)
             count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
             count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
             count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
             count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
 
-            # عرض الإحصائيات في صف واحد تحت القائمة المنسدلة
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", count_chief)
@@ -233,10 +269,10 @@ with tab_manage:
             
             st.divider()
             
-            # ... هنا يكمل الكود السابق الخاص بأزرار الإكسل والوورد والجدول
-        if h_choice:
             df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-            c_exc, c_wrd = st.columns(2)
+            df_m_full = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
+
+            c_exc, c_wrd, c_pdf = st.columns(3)
             with c_exc:
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -251,9 +287,12 @@ with tab_manage:
                 st.download_button(f"📊 إكسل {h_choice}", data=output.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
             
             with c_wrd:
-                df_m_full = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
                 bulk_f = generate_bulk_word(df_m_full, h_choice)
                 if bulk_f: st.download_button(f"📄 وورد {h_choice}", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
+            
+            with c_pdf:
+                bulk_pdf = create_pdf(df_m_full)
+                st.download_button(f"📕 PDF {h_choice}", data=bulk_pdf, file_name=f"تكليفات_{h_choice}.pdf")
 
             for _, m in df_m_full.iterrows():
                 with st.expander(f"📝 {m['name']} | {m['role']}"):
