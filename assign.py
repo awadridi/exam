@@ -19,36 +19,36 @@ def upload_to_drive():
         import streamlit as st
         from datetime import datetime
 
-        # 1. جلب البيانات من السيكرتس
+        # 1. إعداد البيانات
         gdata = dict(st.secrets["gdrive_service_account"])
         gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
-        # 2. إعداد الصلاحيات باستخدام المكتبة الرسمية
         creds = service_account.Credentials.from_service_account_info(gdata)
         service = build('drive', 'v3', credentials=creds)
 
-        # 3. بيانات الملف والمجلد الجديد
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
-        # المعرف الجديد للمجلد من الحساب الثاني
-        NEW_FOLDER_ID = '1coD_4njFJdmWTJhIBKxFrL9A2LPZuTqn' 
+        # تأكد أن هذا هو الـ ID للمجلد الجديد (من حساب Gmail العادي)
+        folder_id = '1coD_4njFJdmWTJhIBKxFrL9A2LPZuTqn' 
         file_path = "data_system_v26.db"
 
         file_metadata = {
             'name': file_name,
-            'parents': [NEW_FOLDER_ID]
+            'parents': [folder_id]
         }
         
-        # 4. الرفع (باستخدام resumable=False لضمان تجاوز فحص القواتا المسبق)
-        media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=False)
+        media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=True)
 
-        # 5. تنفيذ طلب الإنشاء مع السماح بالرفع لكافة أنواع المجلدات
+        # 2. الرفع مع استخدام معامل ignoreDefaultVisibility
+        # هذا المعامل يخبر جوجل أننا نرفع الملف لمجلد مشترك خارجي
         file = service.files().create(
             body=file_metadata,
             media_body=media,
             fields='id',
-            supportsAllDrives=True
+            supportsAllDrives=True,
+            ignoreDefaultVisibility=True 
         ).execute()
         
+        # 3. نقل "الملكية البرمجية" (اختياري لضمان ظهور الملف)
         return True, file_name
     except Exception as e:
         return False, str(e)
