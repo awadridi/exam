@@ -1,9 +1,8 @@
 streamlit
 pandas
+docx2python
 python-docx
-fpdf2
+aspose-words
+xlsxwriter
 arabic-reshaper
 python-bidi
-xlsxwriter
-openpyxl
-aspose-words
