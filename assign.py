@@ -214,6 +214,27 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
+            # جلب بيانات المعلمين المكلفين في هذه القاعة حصراً
+            df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
+            
+            # حساب الأعداد بناءً على المهمة (Role)
+            count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
+            count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
+            count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
+            count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
+
+            # عرض الإحصائيات في صف واحد تحت القائمة المنسدلة
+            st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
+            c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
+            c_stat1.metric("رئيس قاعة", count_chief)
+            c_stat2.metric("مساعد رئيس", count_assistant)
+            c_stat3.metric("مراقبين", count_proctor)
+            c_stat4.metric("آذنة", count_servant)
+            
+            st.divider()
+            
+            # ... هنا يكمل الكود السابق الخاص بأزرار الإكسل والوورد والجدول
+        if h_choice:
             df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             c_exc, c_wrd = st.columns(2)
             with c_exc:
