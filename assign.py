@@ -270,9 +270,51 @@ with tab_manage:
                             add_log("حذف", f"حذف تكليف {m['name']}")
                             conn.commit(); st.rerun()
 
+# --- قسم النسخ الاحتياطي إلى جوجل درايف ---
+    st.divider()
+    st.subheader("🛡️ الأمان والنسخ الاحتياطي السحابي")
+    c_back1, c_back2 = st.columns([2, 1])
+    with c_back1:
+        st.info("يتم رفع نسخة من قاعدة البيانات إلى Google Drive لضمان عدم ضياع البيانات.")
+    with c_back2:
+        if st.button("🚀 رفع نسخة الآن", key="manual_backup"):
+            with st.spinner("جاري الرفع..."):
+                # استدعاء الدالة التي عرفناها سابقاً في نهاية الملف
+                success, res = upload_to_drive() 
+                if success:
+                    st.success("✅ تم الرفع!")
+                    add_log("نسخ احتياطي", f"تم الرفع بنجاح: {res}")
+                else:
+                    st.error("❌ فشل الرفع")
+                    st.caption(f"السبب: {res}")
+
 with tab_logs:
     st.subheader("📜 سجل العمليات")
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
     if st.button("🗑️ مسح السجل"):
         c.execute("DELETE FROM logs"); conn.commit(); st.rerun()
+# --- دالة الرفع إلى جوجل درايف ---
+def upload_to_drive():
+    try:
+        from pydrive2.auth import GoogleAuth
+        from pydrive2.drive import GoogleDrive
+        from oauth2client.service_account import ServiceAccountCredentials
+        
+        gdata = st.secrets["gdrive_service_account"]
+        scope = ['https://www.googleapis.com/auth/drive']
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(gdata), scope)
+        
+        gauth = GoogleAuth()
+        gauth.credentials = creds
+        drive = GoogleDrive(gauth)
+
+        file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
+        folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
+
+        file_drive = drive.CreateFile({'title': file_name, 'parents': [{'id': folder_id}]})
+        file_drive.SetContentFile("data_system_v26.db")
+        file_drive.Upload()
+        return True, file_name
+    except Exception as e:
+        return False, str(e)
