@@ -6,13 +6,8 @@ import io
 import os
 
 # =====================================
-# 1. نظام تسجيل الدخول والأدوار
+# 1. نظام تسجيل الدخول باستخدام Secrets
 # =====================================
-USER_CREDENTIALS = {
-    "awad": "password_awad",
-    "hind": "password_hind",
-    "majed": "password_majed"
-}
 
 def login():
     if 'logged_in' not in st.session_state:
@@ -25,15 +20,22 @@ def login():
         with col2:
             with st.form("login_form"):
                 user = st.text_input("اسم المستخدم").lower().strip()
-                pw = st.text_input("كلمة المرور", type="password")
+                pw = st.text_input("كلمة المرور", type="password").strip()
                 submit = st.form_submit_button("دخول")
+                
                 if submit:
-                    if user in USER_CREDENTIALS and USER_CREDENTIALS[user] == pw:
-                        st.session_state['logged_in'] = True
-                        st.session_state['username'] = user
-                        st.rerun()
-                    else:
-                        st.error("اسم المستخدم أو كلمة المرور غير صحيحة")
+                    # التحقق من اليوزر والباسوورد بناءً على الإعدادات في الصورة
+                    try:
+                        valid_password = st.secrets[f"password_{user}"]
+                        if pw == valid_password:
+                            st.session_state['logged_in'] = True
+                            st.session_state['username'] = user
+                            st.success("تم التحقق.. جاري الدخول")
+                            st.rerun()
+                        else:
+                            st.error("❌ كلمة المرور غير صحيحة")
+                    except KeyError:
+                        st.error("❌ اسم المستخدم غير موجود في Secrets")
         return False
     return True
 
