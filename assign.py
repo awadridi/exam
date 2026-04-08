@@ -295,7 +295,7 @@ with tab_manage:
     st.subheader("🛡️ الأمان والنسخ الاحتياطي السحابي")
     c_back1, c_back2 = st.columns([2, 1])
     with c_back1:
-        st.info("يتم رفع نسخة من قاعدة البيانات إلى Google Drive لضمان عدم ضياع البيانات.")
+        st.info("يتم رفع نسخة من قاعدة البيانات إلى dropbox لضمان عدم ضياع البيانات.")
     with c_back2:
         # الكود الذي سألت عنه تم وضعه هنا
         if st.button("🚀 رفع نسخة احتياطية إلى dropbox", key="manual_backup"):
