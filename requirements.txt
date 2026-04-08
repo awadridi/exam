@@ -4,6 +4,6 @@ python-docx
 fpdf
 openpyxl
 xlsxwriter
-dropbox
 arabic-reshaper
 python-bidi
+docx2pdf
