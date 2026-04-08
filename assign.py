@@ -23,29 +23,30 @@ def upload_to_drive():
         gdata = dict(st.secrets["gdrive_service_account"])
         gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
-        # 2. إعداد الصلاحيات
+        # 2. إعداد الصلاحيات باستخدام المكتبة الرسمية
         creds = service_account.Credentials.from_service_account_info(gdata)
         service = build('drive', 'v3', credentials=creds)
 
-        # 3. بيانات الملف
+        # 3. بيانات الملف والمجلد الجديد
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
-        folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
+        # المعرف الجديد للمجلد من الحساب الثاني
+        NEW_FOLDER_ID = '1coD_4njFJdmWTJhIBKxFrL9A2LPZuTqn' 
         file_path = "data_system_v26.db"
 
         file_metadata = {
             'name': file_name,
-            'parents': [folder_id]
+            'parents': [NEW_FOLDER_ID]
         }
         
-        # 4. الرفع بطريقة Simple Upload (إيقاف resumable)
+        # 4. الرفع (باستخدام resumable=False لضمان تجاوز فحص القواتا المسبق)
         media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=False)
 
-        # 5. التنفيذ
+        # 5. تنفيذ طلب الإنشاء مع السماح بالرفع لكافة أنواع المجلدات
         file = service.files().create(
             body=file_metadata,
             media_body=media,
             fields='id',
-            supportsAllDrives=True # لضمان دعم كافة أنواع المجلدات
+            supportsAllDrives=True
         ).execute()
         
         return True, file_name
