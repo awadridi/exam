@@ -81,47 +81,48 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات والتحويل لـ PDF
+# 3. وظائف معالجة الملفات (PDF & Word)
 # =====================================
 
 def fix_ar(text):
-    """دالة لتصحيح مظهر اللغة العربية في الـ PDF"""
+    """تصحيح عرض النصوص العربية لملفات PDF"""
+    if not text: return ""
     return get_display(reshape(str(text)))
 
-def create_pdf(df_records, title="كتاب تكليف"):
-    """إنشاء ملف PDF يدعم العربية لواحد أو مجموعة من الموظفين"""
+def create_pdf(df_records):
+    """إنشاء ملف PDF يدعم العربية بالكامل"""
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     
-    # تحميل الخط العربي (تأكد من وجود الملف في مجلد المشروع)
-    font_path = "arial.ttf" 
-    if os.path.exists(font_path):
-        pdf.add_font("ArabicFont", "", font_path, uni=True)
-        pdf.set_font("ArabicFont", "", 16)
-    else:
-        pdf.set_font("Arial", "", 12) # خط بديل إذا لم يجد الخط العربي
+    font_path = "arial.ttf"
+    if not os.path.exists(font_path):
+        return None # سيعالج الكود الرئيسي عرض التنبيه
+    
+    pdf.add_font("ArabicFont", "", font_path, uni=True)
+    pdf.set_font("ArabicFont", "", 14)
 
     for _, row in df_records.iterrows():
         pdf.add_page()
         pdf.set_right_margin(10)
         
-        # ترويسة بسيطة
+        # ترويسة الكتاب
+        pdf.set_font_size(16)
         pdf.cell(190, 10, fix_ar("دولة فلسطين"), ln=True, align='C')
         pdf.cell(190, 10, fix_ar("وزارة التربية والتعليم"), ln=True, align='C')
         pdf.ln(10)
-        pdf.set_font_size(20)
-        pdf.cell(190, 10, fix_ar("كتاب تكليف"), ln=True, align='C')
+        pdf.set_font_size(22)
+        pdf.cell(190, 10, fix_ar("بطاقة تكليف رسمي"), ln=True, align='C')
         pdf.ln(10)
-        pdf.set_font_size(16)
         
-        # محتوى التكليف
-        pdf.cell(190, 10, fix_ar(f"اسم الموظف: {row['name']}"), ln=True, align='R')
-        pdf.cell(190, 10, fix_ar(f"رقم الهوية: {row['id']}"), ln=True, align='R')
-        pdf.cell(190, 10, fix_ar(f"المهمة: {row['role']}"), ln=True, align='R')
-        pdf.cell(190, 10, fix_ar(f"القاعة المكلف بها: {row['hall']}"), ln=True, align='R')
-        pdf.cell(190, 10, fix_ar(f"موقع القاعة: {row['hall_city']}"), ln=True, align='R')
+        # بيانات الموظف
+        pdf.set_font_size(15)
+        pdf.cell(190, 12, fix_ar(f"الاسم: {row['name']}"), ln=True, align='R')
+        pdf.cell(190, 12, fix_ar(f"رقم الهوية: {row['id']}"), ln=True, align='R')
+        pdf.cell(190, 12, fix_ar(f"المهمة: {row['role']}"), ln=True, align='R')
+        pdf.cell(190, 12, fix_ar(f"القاعة: {row['hall']}"), ln=True, align='R')
+        pdf.cell(190, 12, fix_ar(f"المدينة: {row['hall_city']}"), ln=True, align='R')
         pdf.ln(20)
-        pdf.cell(190, 10, fix_ar("التوقيع والختم: ........................."), ln=True, align='L')
+        pdf.cell(190, 10, fix_ar("ختم وتوقيع المديرية: ........................."), ln=True, align='L')
 
     return pdf.output(dest='S')
 
@@ -200,17 +201,19 @@ with tab_search:
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             conn.commit(); st.rerun()
                         
-                        col_dl1, col_dl2 = st.columns(2)
+                        col_w, col_p = st.columns(2)
                         f_word = generate_single_doc(row)
-                        with col_dl1:
-                            if f_word: st.download_button("📥 تحميل Word", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
-                        with col_dl2:
-                            pdf_file = create_pdf(pd.DataFrame([row]))
-                            st.download_button("📕 تحميل PDF", data=pdf_file, file_name=f"تكليف_{row['name']}.pdf", key=f"dl_p_{row['id']}")
+                        with col_w:
+                            if f_word: st.download_button("📥 تحميل Word", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_w_{row['id']}")
+                        with col_p:
+                            pdf_data = create_pdf(pd.DataFrame([row]))
+                            if pdf_data:
+                                st.download_button("📕 تحميل PDF", data=pdf_data, file_name=f"تكليف_{row['name']}.pdf", key=f"dl_p_{row['id']}")
+                            else:
+                                st.warning("ارفع ملف arial.ttf لتفعيل PDF")
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
-    
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -255,35 +258,27 @@ with tab_manage:
         if h_choice:
             df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
-            count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
-            count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
-            count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
-            count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
-
+            # حساب الإحصائيات
+            stats = df_hall_details['role'].value_counts()
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
-            c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
-            c_stat1.metric("رئيس قاعة", count_chief)
-            c_stat2.metric("مساعد رئيس", count_assistant)
-            c_stat3.metric("مراقبين", count_proctor)
-            c_stat4.metric("آذنة", count_servant)
+            c_s1, c_s2, c_s3, c_s4 = st.columns(4)
+            c_s1.metric("رئيس قاعة", stats.get('رئيس قاعة', 0))
+            c_s2.metric("مساعد رئيس", stats.get('مساعد رئيس قاعة', 0))
+            c_s3.metric("مراقبين", stats.get('مراقب', 0))
+            c_s4.metric("آذنة", stats.get('آذن', 0))
             
             st.divider()
             
-            df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             df_m_full = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-
+            
             c_exc, c_wrd, c_pdf = st.columns(3)
             with c_exc:
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_m.to_excel(writer, index=False, sheet_name='العاملين')
-                    workbook, worksheet = writer.book, writer.sheets['العاملين']
-                    h_fmt = workbook.add_format({'bold':True,'font_size':14,'border':1,'align':'center','bg_color':'#D7E4BC'})
-                    c_fmt = workbook.add_format({'font_size':14,'border':1,'align':'right'})
+                    df_export = df_m_full[['id', 'name', 'phone', 'school', 'role', 'updated_by']]
+                    df_export.to_excel(writer, index=False, sheet_name='العاملين')
+                    worksheet = writer.sheets['العاملين']
                     worksheet.right_to_left()
-                    for col_num, col_name in enumerate(df_m.columns):
-                        worksheet.write(0, col_num, col_name, h_fmt)
-                        worksheet.set_column(col_num, col_num, 20, c_fmt)
                 st.download_button(f"📊 إكسل {h_choice}", data=output.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
             
             with c_wrd:
@@ -292,7 +287,8 @@ with tab_manage:
             
             with c_pdf:
                 bulk_pdf = create_pdf(df_m_full)
-                st.download_button(f"📕 PDF {h_choice}", data=bulk_pdf, file_name=f"تكليفات_{h_choice}.pdf")
+                if bulk_pdf:
+                    st.download_button(f"📕 PDF {h_choice}", data=bulk_pdf, file_name=f"تكليفات_{h_choice}.pdf")
 
             for _, m in df_m_full.iterrows():
                 with st.expander(f"📝 {m['name']} | {m['role']}"):
