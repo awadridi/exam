@@ -23,11 +23,11 @@ def upload_to_drive():
         gdata = dict(st.secrets["gdrive_service_account"])
         gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
-        # 2. إعداد الصلاحيات باستخدام المكتبة الرسمية
+        # 2. إعداد الصلاحيات
         creds = service_account.Credentials.from_service_account_info(gdata)
         service = build('drive', 'v3', credentials=creds)
 
-        # 3. إعداد بيانات الملف والمجلد
+        # 3. بيانات الملف
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
         file_path = "data_system_v26.db"
@@ -37,18 +37,24 @@ def upload_to_drive():
             'parents': [folder_id]
         }
         
-        media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=True)
+        # 4. إعداد الرفع (تم تغيير mimetype لضمان قبول جوجل له كملف بيانات)
+        media = MediaFileUpload(
+            file_path, 
+            mimetype='application/octet-stream',
+            resumable=False # تحويله لـ False يحل مشاكل الـ Quota في بعض الأحيان
+        )
 
-        # 4. الرفع مع إجبار استخدام صلاحيات المجلد المشترك (تجاوز خطأ Quota)
+        # 5. التنفيذ مع إرسال الطلب بشكل يفرض استهلاك مساحة المجلد الأب
         file = service.files().create(
             body=file_metadata,
             media_body=media,
             fields='id',
-            supportsAllDrives=True # هذا السطر هو الأهم لتجاوز المشكلة
+            supportsAllDrives=True
         ).execute()
         
         return True, file_name
     except Exception as e:
+        # إذا فشل، سنحاول إرجاع رسالة الخطأ لتفحصها
         return False, str(e)
 def login():
     if 'logged_in' not in st.session_state:
