@@ -1,13 +1,8 @@
 streamlit
 pandas
 python-docx
-fpdf
-openpyxl
-xlsxwriter
-arabic-reshaper
-python-bidi
-docx2pdf
-python-docx
 fpdf2
 arabic-reshaper
 python-bidi
+xlsxwriter
+openpyxl
