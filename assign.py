@@ -14,13 +14,16 @@ def upload_to_drive():
         from pydrive2.drive import GoogleDrive
         from oauth2client.service_account import ServiceAccountCredentials
         
-        # جلب البيانات وتحويلها لقاموس
+        # 1. جلب البيانات من Secrets وتحويلها لقاموس
         gdata = dict(st.secrets["gdrive_service_account"])
         
-        # --- السطر السحري لحل مشكلة الـ Decoder ---
-        # يقوم باستبدال أسطر المفتاح لضمان قراءتها بشكل صحيح
-        gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
+        # 2. تنظيف المفتاح الخاص (حل مشكلة الـ Decoder)
+        # نقوم بإزالة أي علامات تنصيص زائدة أو مسافات ونحول \n لسطر حقيقي
+        raw_key = gdata["private_key"]
+        fixed_key = raw_key.replace("\\n", "\n").strip().strip('"').strip("'")
+        gdata["private_key"] = fixed_key
         
+        # 3. محاولة التفويض
         scope = ['https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_dict(gdata, scope)
         
@@ -28,6 +31,7 @@ def upload_to_drive():
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
 
+        # 4. رفع الملف
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
 
@@ -35,6 +39,7 @@ def upload_to_drive():
         file_drive.SetContentFile("data_system_v26.db")
         file_drive.Upload()
         return True, file_name
+        
     except Exception as e:
         return False, str(e)
 # =====================================
