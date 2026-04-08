@@ -27,7 +27,7 @@ def upload_to_drive():
         creds = service_account.Credentials.from_service_account_info(gdata)
         service = build('drive', 'v3', credentials=creds)
 
-        # 3. بيانات الملف (تأكد من الـ ID)
+        # 3. بيانات الملف
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
         file_path = "data_system_v26.db"
@@ -37,13 +37,15 @@ def upload_to_drive():
             'parents': [folder_id]
         }
         
-        media = MediaFileUpload(file_path, mimetype='application/octet-stream')
+        # 4. الرفع بطريقة Simple Upload (إيقاف resumable)
+        media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=False)
 
-        # 4. الرفع (طريقة مبسطة للحسابات الشخصية)
+        # 5. التنفيذ
         file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True # لضمان دعم كافة أنواع المجلدات
         ).execute()
         
         return True, file_name
