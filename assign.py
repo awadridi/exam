@@ -184,12 +184,24 @@ with tab_upload:
 
 with tab_manage:
    # قراءة البيانات المحدثة فوراً عند الضغط على التبويب
-    df_stats_current = pd.read_sql("SELECT hall FROM teachers", conn)
-    
-    total_t = len(df_stats_current)
-    assigned_t = len(df_stats_current[df_stats_current['hall'] != ''])
-    remaining_t = total_t - assigned_t
-    
+   # 1. حساب الإجمالي الحقيقي من ملف الإكسل/الرابط (يبقى ثابتاً)
+    try:
+        df_all_source = pd.read_csv(TEACHERS_URL)
+        total_count = len(df_all_source)
+    except:
+        # إذا فشل الرابط يقرأ من جدول المعلمين بالكامل
+        total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
+
+    # 2. حساب من تم تكليفهم فعلياً من قاعدة البيانات
+    assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
+
+    # 3. حساب المتبقي (طرح المنجز من الإجمالي الثابت)
+    remaining_count = total_count - assigned_count
+
+    # إسناد القيم للمتغيرات المستخدمة في العرض أسفل
+    total_t = total_count
+    assigned_t = assigned_count
+    remaining_t = remaining_count
     # عرض الإحصائيات المحدثة
     c_m1, c_m2, c_m3 = st.columns(3)
     c_m1.metric("إجمالي المعلمين", total_t)
