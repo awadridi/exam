@@ -13,43 +13,37 @@ from datetime import datetime
 # --- دالة الرفع إلى جوجل درايف (يجب أن تكون في الأعلى) ---
 def upload_to_drive():
     try:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        from googleapiclient.http import MediaFileUpload
+        import dropbox
         import streamlit as st
         from datetime import datetime
+        import os
 
-        # 1. إعداد البيانات
-        gdata = dict(st.secrets["gdrive_service_account"])
-        gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
+        # 1. التوكن الخاص بك من دروب بوكس
+        # ملاحظة: يفضل وضعه في st.secrets للأمان، لكن سأضعه لك هنا مباشرة كما طلبت
+        DROPBOX_TOKEN = "sl.u.AGbW3h_QsFLLZt14X7P6LTFKprJkX806_xbvG4WNqUY9v3vhAuiM9sOlhsm3NtibIl32EajoPNpaxjiEDb7e2P32X0htvyXPshBQhatUieZWJ97JKokkdp-no2wf8Gfv2lUeLwzb6Oyu8xUka0LIlv0tHZLjBoqqP46QlYrMhFtWDkBCRXphnG0h4-90bBG0lwC8CJl8VVpf3YncfLSpzqX9DT0uUYSKihQ878BVmzCN5i5fH7xsN24R4t-f5SKGRDTR9AOVOxbOn3HcOWIWAOZIgbgSiTP6IGkKxiccSwmUnDdK8rzFd6KejJWemttja__knstbI73wJCB0Ic7jio0n5cRYhHYsC44rUFbhi_WCcF3mV30d4_fO0ngy_kQOZq-i6vQ6jhK29EA7vU3A6DplI6Vh_hunREjFbVe2UWE26damoIBSWKjWMAAqFyXZS0V1nvH0vh_VNUfFSLhxzmeqe1llAp2XAOeMX_1m-8N6n0E_u0CzI2wK6Kw8fPAmsvX9-tDxPZ-psgqyt9zaMZS7gDVINtYRMy-wwQTOKr-VmVYBCezybndejtOvz-INiUb8qAmZOG0j2TKEViNkoa9B3SQcZISmAUB1_cEyVkC8udKIDsGfChb5uXQx6JkE63OQsUvGl2cnz1K7uNg1kezAAbTU2tM2aiLipphKgwQxL8s_5Gd2niq44vI5i9ebQkYnVHFkeF23gfR0s8KPqT8-T-iRFKnSQITgm2YAxYYnM5KlkPwtH6r2f3uVKMar3mEOFVY4-3UHbs-D1m6SZ2AtVdFM6zKo4TZSuIZwyrlYGOaJpRHK_M8vL_osQikEP90W1v-m6Lj6dPcS8SoEskRl4Xg3faDApuyFET0i6KAcLscUk0hIdRsP3FvhTjkhGhD9ZoQ8oMPEg0S74GS0frfB_KefbV0qRMZzHCysM55piw2Fde-3U3ovadTenyOj5lBGuVFl1yTm2gqhkXd5mx2CkZMdOi0deKXQXrab77r1MhpX7cqEG0FvcYdtIw36FeovYPkGlFl5mqxSWFVaKAI0KjATkns9a8TtV3rXmrN6US_RlmS1wBCMDCMqa-Jfnmx_hDatc3pLp-1jMmBn30ACo3hntUMsIW6iXl5q4p3bGrlge50GKDeW0418O8BzSxDbAFcTB_HL5hvbRyJJc5AVPGuSe6jr_qBEYXJvqVuNwIKPZ3gKQlAyG64leQNgas7zJCMwEUAvUCTtK00Sw59WDAsHAfEo-xfqdPGrKulu-irltS372UhR5zJ853UMUIk"
+
+        # 2. إنشاء اتصال
+        dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+
+        # 3. اسم الملف الذي سيظهر في دروب بوكس
+        # نستخدم الـ / في البداية لأنه مسار في دروب بوكس
+        remote_file_name = f"/backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
+        local_file_path = "data_system_v26.db"
+
+        # 4. التأكد من وجود الملف المحلي قبل الرفع
+        if not os.path.exists(local_file_path):
+            return False, f"الملف المحلي {local_file_path} غير موجود"
+
+        # 5. عملية الرفع
+        with open(local_file_path, "rb") as f:
+            dbx.files_upload(
+                f.read(), 
+                remote_file_name, 
+                mode=dropbox.files.WriteMode.overwrite
+            )
         
-        creds = service_account.Credentials.from_service_account_info(gdata)
-        service = build('drive', 'v3', credentials=creds)
+        return True, remote_file_name
 
-        file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
-        # تأكد أن هذا هو الـ ID للمجلد الجديد (من حساب Gmail العادي)
-        folder_id = '1coD_4njFJdmWTJhIBKxFrL9A2LPZuTqn' 
-        file_path = "data_system_v26.db"
-
-        file_metadata = {
-            'name': file_name,
-            'parents': [folder_id]
-        }
-        
-        media = MediaFileUpload(file_path, mimetype='application/octet-stream', resumable=True)
-
-        # 2. الرفع مع استخدام معامل ignoreDefaultVisibility
-        # هذا المعامل يخبر جوجل أننا نرفع الملف لمجلد مشترك خارجي
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id',
-            supportsAllDrives=True,
-            ignoreDefaultVisibility=True 
-        ).execute()
-        
-        # 3. نقل "الملكية البرمجية" (اختياري لضمان ظهور الملف)
-        return True, file_name
     except Exception as e:
         return False, str(e)
 def login():
