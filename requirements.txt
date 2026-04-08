@@ -3,3 +3,4 @@ pandas
 python-docx
 aspose-words
 xlsxwriter
+fpdf2
