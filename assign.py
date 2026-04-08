@@ -13,15 +13,15 @@ def upload_to_drive():
         from pydrive2.auth import GoogleAuth
         from pydrive2.drive import GoogleDrive
         from oauth2client.service_account import ServiceAccountCredentials
-        from datetime import datetime
         import streamlit as st
 
-        # جلب البيانات من Secrets
+        # 1. جلب البيانات
         gdata = dict(st.secrets["gdrive_service_account"])
         
-        # تنظيف المفتاح الخاص
-        gdata["private_key"] = gdata["private_key"].strip()
+        # 2. تحويل الـ \n المكتوبة إلى أسطر حقيقية (هذا هو الحل للخطأ)
+        gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
+        # 3. التفويض
         scope = ['https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_dict(gdata, scope)
         
@@ -29,15 +29,14 @@ def upload_to_drive():
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
 
-        # إعداد ملف النسخة الاحتياطية
-        file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
-        folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
-
-        file_drive = drive.CreateFile({'title': file_name, 'parents': [{'id': folder_id}]})
+        # 4. الرفع
+        file_drive = drive.CreateFile({
+            'title': f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db",
+            'parents': [{'id': '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ'}]
+        })
         file_drive.SetContentFile("data_system_v26.db")
         file_drive.Upload()
-        
-        return True, file_name
+        return True, "تم الرفع بنجاح"
     except Exception as e:
         return False, str(e)
 # =====================================
