@@ -8,29 +8,29 @@ from datetime import datetime
 
 
 # --- دالة الرفع إلى جوجل درايف ---
-    def upload_to_drive():
-        try:
-            from pydrive2.auth import GoogleAuth
-            from pydrive2.drive import GoogleDrive
-            from oauth2client.service_account import ServiceAccountCredentials
-            
-            gdata = st.secrets["gdrive_service_account"]
-            scope = ['https://www.googleapis.com/auth/drive']
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(gdata), scope)
-            
-            gauth = GoogleAuth()
-            gauth.credentials = creds
-            drive = GoogleDrive(gauth)
-    
-            file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
-            folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
-    
-            file_drive = drive.CreateFile({'title': file_name, 'parents': [{'id': folder_id}]})
-            file_drive.SetContentFile("data_system_v26.db")
-            file_drive.Upload()
-            return True, file_name
-        except Exception as e:
-            return False, str(e)
+def upload_to_drive():
+    try:
+        from pydrive2.auth import GoogleAuth
+        from pydrive2.drive import GoogleDrive
+        from oauth2client.service_account import ServiceAccountCredentials
+        
+        gdata = st.secrets["gdrive_service_account"]
+        scope = ['https://www.googleapis.com/auth/drive']
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(gdata), scope)
+        
+        gauth = GoogleAuth()
+        gauth.credentials = creds
+        drive = GoogleDrive(gauth)
+
+        file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
+        folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
+
+        file_drive = drive.CreateFile({'title': file_name, 'parents': [{'id': folder_id}]})
+        file_drive.SetContentFile("data_system_v26.db")
+        file_drive.Upload()
+        return True, file_name
+    except Exception as e:
+        return False, str(e)
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
 # =====================================
