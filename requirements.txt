@@ -4,9 +4,6 @@ python-docx
 fpdf
 openpyxl
 xlsxwriter
-google-api-python-client
-google-auth-httplib2
-google-auth-oauthlib
-oauth2client
+dropbox
 arabic-reshaper
 python-bidi
