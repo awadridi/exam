@@ -298,7 +298,7 @@ with tab_manage:
         st.info("يتم رفع نسخة من قاعدة البيانات إلى Google Drive لضمان عدم ضياع البيانات.")
     with c_back2:
         # الكود الذي سألت عنه تم وضعه هنا
-        if st.button("🚀 رفع نسخة احتياطية إلى Google Drive", key="manual_backup"):
+        if st.button("🚀 رفع نسخة احتياطية إلى dropbox", key="manual_backup"):
             with st.spinner("جاري الرفع..."):
                 success, res = upload_to_drive() 
                 if success:
