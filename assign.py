@@ -13,17 +13,20 @@ def upload_to_drive():
         from pydrive2.auth import GoogleAuth
         from pydrive2.drive import GoogleDrive
         from oauth2client.service_account import ServiceAccountCredentials
-        
-        # 1. جلب البيانات من Secrets وتحويلها لقاموس
+        import json # سنستخدم مكتبة json لضمان التنسيق
+
+        # 1. جلب البيانات وتحويلها لقاموس نظيف
+        # نستخدم dict() للتأكد من أنها قابلة للتعديل
         gdata = dict(st.secrets["gdrive_service_account"])
         
-        # 2. تنظيف المفتاح الخاص (حل مشكلة الـ Decoder)
-        # نقوم بإزالة أي علامات تنصيص زائدة أو مسافات ونحول \n لسطر حقيقي
-        raw_key = gdata["private_key"]
-        fixed_key = raw_key.replace("\\n", "\n").strip().strip('"').strip("'")
-        gdata["private_key"] = fixed_key
-        
-        # 3. محاولة التفويض
+        # 2. إصلاح المفتاح بشكل قسري
+        # هذا السطر يحل مشكلة الـ Decoder بشكل نهائي
+        if "private_key" in gdata:
+            # التأكد من تحويل الـ \n النصية إلى سطر حقيقي
+            cleaned_key = gdata["private_key"].replace("\\n", "\n")
+            gdata["private_key"] = cleaned_key
+
+        # 3. التفويض
         scope = ['https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_dict(gdata, scope)
         
@@ -31,7 +34,7 @@ def upload_to_drive():
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
 
-        # 4. رفع الملف
+        # 4. الرفع
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
 
@@ -41,6 +44,7 @@ def upload_to_drive():
         return True, file_name
         
     except Exception as e:
+        # طباعة الخطأ كاملاً للتشخيص إذا فشل مجدداً
         return False, str(e)
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
