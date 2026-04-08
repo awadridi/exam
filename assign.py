@@ -17,13 +17,9 @@ def upload_to_drive():
         from pydrive2.drive import GoogleDrive
         from oauth2client.service_account import ServiceAccountCredentials
         
-        # 1. جلب البيانات من السيكرتس
         gdata = dict(st.secrets["gdrive_service_account"])
-        
-        # 2. إصلاح المفتاح (حل مشكلة الـ Decoder)
         gdata["private_key"] = gdata["private_key"].replace("\\n", "\n")
         
-        # 3. التفويض
         scope = ['https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_dict(gdata, scope)
         
@@ -31,18 +27,20 @@ def upload_to_drive():
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
 
-        # 4. الرفع 
         file_name = f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.db"
         folder_id = '1Aqz28edUvb9pwlD9YBgYgwQlnrpjQzrQ' 
 
+        # التعديل الجذري هنا:
         file_metadata = {
             'title': file_name,
-            'parents': [{'id': folder_id}]
+            'parents': [{'id': folder_id}] # إجبار الرفع داخل المجلد المشترك
         }
 
         file_drive = drive.CreateFile(file_metadata)
-        file_drive.SetContentFile("data_system_v26.db") 
-        file_drive.Upload()
+        file_drive.SetContentFile("data_system_v26.db")
+        
+        # إضافة معاملات الدعم لضمان تجاوز مشكلة المساحة (Quota)
+        file_drive.Upload(param={'supportsAllDrives': True}) 
         
         return True, file_name
     except Exception as e:
