@@ -422,11 +422,12 @@ with tab_manage:
     if assigned_halls:
         h_choice = st.selectbox("اختر قاعة لعرض الكادر (يظهر فقط القاعات التي بها موظفون):", [""] + assigned_halls)
         if h_choice:
-            df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
+            df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice].copy()
             
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
             if not df_hall_details.empty:
+                # العرض على الشاشة (بدون الترقيم لإبقاء الواجهة نظيفة)
                 df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
                 df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
                 
@@ -440,7 +441,7 @@ with tab_manage:
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
-            col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
+            col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
             
             with col_btns1:
                 if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
@@ -461,6 +462,46 @@ with tab_manage:
                                            file_name=f"تكليفات_{h_choice}.docx",
                                            key=f"bulk_dl_now_{h_choice}")
             
+            with col_btns3:
+                # توليد ملف الإكسل المنسق للطباعة
+                output_hall_excel = io.BytesIO()
+                # تجهيز البيانات المطلوبة بالترتيب
+                df_hall_excel = df_hall_details.copy()
+                df_hall_excel.insert(0, 'م', range(1, 1 + len(df_hall_excel))) # الترقيم
+                
+                # اختيار وتسمية الأعمدة المطلوبة بدقة
+                df_final_export = df_hall_excel[['م', 'name', 'id', 'phone', 'school', 'role', 'city']]
+                df_final_export.columns = ['م', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'اسم المدرسة (مكان العمل)', 'طبيعة العمل في القاعة', 'العنوان']
+
+                with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
+                    df_final_export.to_excel(writer, index=False, sheet_name='كشف القاعة')
+                    workbook = writer.book
+                    worksheet = writer.sheets['كشف القاعة']
+                    
+                    # تنسيق المحاذاة والاتجاه
+                    worksheet.right_to_left()
+                    
+                    # إعدادات الصفحة للطباعة (أفقي، احتواء كافة الأعمدة)
+                    worksheet.set_landscape() # ورقة أفقية
+                    worksheet.set_paper(9)    # A4
+                    worksheet.fit_to_pages(1, 0) # احتواء كل الأعمدة في صفحة واحدة عرضاً
+                    
+                    # تنسيقات الخلايا
+                    header_format = workbook.add_format({'bold': True, 'bg_color': '#E2EFDA', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+                    cell_format = workbook.add_format({'border': 1, 'align': 'right', 'valign': 'vcenter'})
+                    
+                    # تطبيق التنسيقات وعرض الأعمدة
+                    for col_num, value in enumerate(df_final_export.columns.values):
+                        worksheet.write(0, col_num, value, header_format)
+                        worksheet.set_column(col_num, col_num, 20, cell_format)
+                    
+                    worksheet.set_column(0, 0, 5) # عمود الترقيم أصغر
+
+                st.download_button(f"📊 كشف إكسل {h_choice}", 
+                                  data=output_hall_excel.getvalue(), 
+                                  file_name=f"كشف_قاعة_{h_choice}.xlsx",
+                                  key=f"excel_hall_{h_choice}")
+
             st.markdown("---")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
