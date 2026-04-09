@@ -89,7 +89,7 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (تعديلات التنسيق والفراغات)
+# 3. وظائف معالجة الملفات (تعديل التنسيق والفراغات)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -139,13 +139,22 @@ def generate_single_doc(row):
     return bio
 
 # =====================================
-# 4. التبويبات الرئيسية
+# 4. الشريط الجانبي (الموظف وتسجيل الخروج)
+# =====================================
+st.sidebar.markdown(f"### 👤 الموظف الحالي:")
+st.sidebar.info(f"**{st.session_state.username}**")
+if st.sidebar.button("🚪 تسجيل الخروج", use_container_width=True):
+    st.session_state.logged_in = False
+    st.rerun()
+st.sidebar.divider()
+
+# =====================================
+# 5. التبويبات الرئيسية
 # =====================================
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
     "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
 ])
 
-# شاشة البحث والتعيين
 with tab_search:
     st.markdown("<div class='right-align'><h3>🔍 إدارة الموظفين والتعيين اليدوي</h3></div>", unsafe_allow_html=True)
     df_h_data = pd.read_sql("SELECT * FROM halls", conn)
@@ -182,15 +191,11 @@ with tab_search:
                         f_word = generate_single_doc(row)
                         if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_btn_{row['id']}")
 
-# -------------------------------------
-# شاشة التوزيع التلقائي (تم استعادة الإحصائيات بالكامل)
-# -------------------------------------
 with tab_auto:
     st.markdown("<div class='right-align'><h3>🤖 التوزيع التلقائي للمراقبين</h3></div>", unsafe_allow_html=True)
     df_h_data_auto = pd.read_sql("SELECT * FROM halls", conn)
     hall_map_auto = {r['hall_name']: r['city'] for _, r in df_h_data_auto.iterrows()}
     
-    # القوائم المتاحة للسحب
     df_avail = pd.read_sql("SELECT * FROM teachers WHERE current_job = 'معلم' AND preference = 'يرغب' AND ability = 'يصلح' AND (hall = '' OR hall IS NULL OR hall = 'nan')", conn)
     df_not_willing = pd.read_sql("SELECT * FROM teachers WHERE current_job = 'معلم' AND preference = 'لا يرغب' AND ability = 'يصلح' AND (hall = '' OR hall IS NULL OR hall = 'nan')", conn)
 
@@ -206,16 +211,14 @@ with tab_auto:
                 if not pool.empty:
                     for _, t in pool.iterrows():
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (target_hall, "مراقب", hall_map_auto.get(target_hall, ""), st.session_state.username, t['id']))
-                    conn.commit(); st.session_state.last_assigned_proctors = pool[['name', 'id', 'city', 'school']]; st.success("✅ تم التوزيع بنجاح"); st.rerun()
+                    conn.commit(); st.session_state.last_assigned_proctors = pool[['name', 'id', 'city', 'school']]; st.success("✅ تم التوزيع"); st.rerun()
 
     if 'last_assigned_proctors' in st.session_state and st.session_state.last_assigned_proctors is not None:
         st.divider()
-        st.markdown(f"<div class='right-align'><h4>📋 كشف الموزعين حالياً في: {target_hall}</h4></div>", unsafe_allow_html=True)
         st.dataframe(st.session_state.last_assigned_proctors, use_container_width=True, hide_index=True)
         if st.button("🧹 إخفاء الجدول"): st.session_state.last_assigned_proctors = None; st.rerun()
 
     st.divider()
-    # استعادة المعلمون المتاحون (يرغبون)
     with st.expander("✅ المعلمون المتاحون (الذين يرغبون) - توزيع سكني"):
         if not df_avail.empty:
             stats_yes = df_avail['city'].value_counts().reset_index()
@@ -223,9 +226,8 @@ with tab_auto:
             for i, r in stats_yes.iterrows():
                 with cols[i % 4]:
                     st.markdown(f"<div class='city-card'><b>{r['city']}</b><br><span style='color:#00ffcc; font-size:1.3rem;'>{r['count']} معلم</span></div>", unsafe_allow_html=True)
-        else: st.info("لا يوجد معلمون متاحون حالياً.")
+        else: st.info("لا يوجد متاحون.")
 
-    # استعادة المعلمون الاحتياط (لا يرغبون)
     with st.expander("⚠️ المعلمون الاحتياط (الذين لا يرغبون) - توزيع سكني"):
         if not df_not_willing.empty:
             stats_no = df_not_willing['city'].value_counts().reset_index()
@@ -235,7 +237,6 @@ with tab_auto:
                     st.markdown(f"<div class='city-card'><b>{r['city']}</b><br><span style='color:#ff4b4b; font-size:1.3rem;'>{r['count']} معلم</span></div>", unsafe_allow_html=True)
         else: st.info("القائمة فارغة.")
 
-# باقي التبويبات (Manage, Upload, Logs) كما هي
 with tab_manage:
     st.markdown("<div class='right-align'><h3>📊 الإدارة والإحصائيات العامة</h3></div>", unsafe_allow_html=True)
     df_all = pd.read_sql("SELECT * FROM teachers", conn)
@@ -251,7 +252,7 @@ with tab_manage:
             df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             col_m1, col_m2 = st.columns(2)
             with col_m1:
-                if st.button(f"🗑️ حذف المراقبين من {h_choice}", use_container_width=True):
+                if st.button(f"🗑️ حذف مراقبي {h_choice}", use_container_width=True):
                     c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE hall=? AND role='مراقب'", (h_choice,))
                     conn.commit(); st.rerun()
             with col_m2:
@@ -264,13 +265,13 @@ with tab_upload:
     if up_tpl:
         with open("template.docx", "wb") as f: f.write(up_tpl.getbuffer())
         st.success("تم تحديث القالب")
-    if st.button("🔄 تحديث شامل من Google Sheets"):
+    if st.button("🔄 تحديث من Google Sheets"):
         try:
             dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
             dft.columns = dft.columns.str.strip().str.lower()
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
-            st.success("تمت المزامنة بنجاح"); st.rerun()
+            st.success("تمت المزامنة"); st.rerun()
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_logs:
