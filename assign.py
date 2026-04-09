@@ -245,7 +245,7 @@ with tab_search:
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 rel_info = ""
                 if st.session_state.system_mode == "tawzif":
-                    # تنظيف قيم الأقارب من الـ nan
+                    # تنظيف قيم الأقارب
                     r_val = str(row.get('relative', 'لا يوجد'))
                     re_val = str(row.get('relative_exam', '---'))
                     if r_val.lower() == 'nan': r_val = 'لا يوجد'
@@ -262,6 +262,7 @@ with tab_search:
                 abil_val = str(row.get('ability', 'لم تحدد'))
                 if abil_val.lower() == 'nan': abil_val = 'لم تحدد'
 
+                # عرض الجدول بشكل موحد
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
