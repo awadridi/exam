@@ -63,27 +63,16 @@ st.markdown("""
     .stDownloadButton button { background-color: #007bff !important; color: white !important; }
     .editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
     [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
-    
-    /* ستايل البطاقات الإحصائية المطلوبة */
     .stat-card {
         flex: 1;
-        padding: 20px;
-        border-radius: 12px;
+        padding: 15px;
+        border-radius: 10px;
         text-align: center;
-        min-width: 200px;
+        min-width: 150px;
         border: 1px solid #333;
-        margin: 10px;
     }
-    .stat-wants { 
-        border-bottom: 5px solid #00ffcc; 
-        background-color: #1a2321; 
-    }
-    .stat-no-wants { 
-        border-bottom: 5px solid #ff4b4b; 
-        background-color: #231a1a; 
-    }
-    .stat-title { color: #ffffff; font-size: 1rem; margin-bottom: 10px; display: block; }
-    .stat-value { font-size: 2.5rem; font-weight: bold; }
+    .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
+    .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -291,43 +280,48 @@ with tab_search:
 with tab_auto:
     st.subheader("🤖 نظام التوزيع التلقائي")
     df_all = get_cached_teachers()
-    # المعلم المتاح هو الذي ليس لديه قاعة
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
-        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_all['city'].unique().tolist()))
+        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
+        
+        # --- إضافة الزر الأول كما في الصورة ---
+        with st.expander("📍 إحصائيات المناطق المتاحة"):
+            if selected_cities:
+                st.write(df_available[df_available['city'].isin(selected_cities)]['city'].value_counts())
+            else:
+                st.write(df_available['city'].value_counts())
     
-    # فلترة المتاحين حسب المنطقة المختارة
-    pool_stats = df_available.copy()
+    pool_stats = df_available
     if selected_cities:
         pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
     
-    # حساب الإحصائيات للبطاقات الملونة
-    # 1. يصلح ويرغب
     can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
-    # 2. يصلح ولا يرغب
     can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
     
-    # عرض البطاقات الإحصائية (التصميم المطلوب)
     st.markdown(f"""
-    <div style="display: flex; gap: 10px; justify-content: space-between; direction: rtl; margin-top: 20px;">
+    <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
         <div class="stat-card stat-wants">
-            <span class="stat-title">يصلح ويرغب (حسب المنطقة)</span>
-            <span class="stat-value" style="color: #00ffcc;">{can_and_wants}</span>
+            <span style="color: #bbb; font-size: 0.9rem;">يصلح ويرغب (حسب المنطقة)</span><br>
+            <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
         </div>
         <div class="stat-card stat-no-wants">
-            <span class="stat-title">يصلح ولا يرغب (حسب المنطقة)</span>
-            <span class="stat-value" style="color: #ff4b4b;">{can_not_wants}</span>
+            <span style="color: #bbb; font-size: 0.9rem;">يصلح ولا يرغب (حسب المنطقة)</span><br>
+            <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     with col_a2:
-        # المجمع المتاح فعلياً للتوزيع هم من "يصلحون" فقط
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
+        
+        # --- إضافة الزر الثاني كما في الصورة ---
+        with st.expander("💡 إحصائيات حسب الرغبة"):
+            st.write(pool_stats['preference'].value_counts())
+
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
