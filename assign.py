@@ -342,7 +342,7 @@ with tab_auto:
             (pool_stats['current_job'] == 'معلم')
         ]
         
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=min(1, len(df_auto_pool)))
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_auto_pool), value=0)
 
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
             if not target_h:
