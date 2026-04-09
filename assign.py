@@ -125,15 +125,25 @@ def generate_single_doc(row):
     bio = io.BytesIO(); doc.save(bio); bio.seek(0)
     return bio
 
+# الوظيفة المعدلة لمنع الصفحات الفارغة في النهاية
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
     final_doc = Document("template.docx"); final_doc._body.clear_content()
-    for idx, row in df.iterrows():
+    
+    total_rows = len(df)
+    for idx, row in df.reset_index(drop=True).iterrows():
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
-        if idx > 0: final_doc.add_page_break()
+        
+        # دمج العناصر
         for element in temp_doc.element.body:
-            if not element.tag.endswith('sectPr'): final_doc.element.body.append(element)
+            if not element.tag.endswith('sectPr'):
+                final_doc.element.body.append(element)
+        
+        # إضافة فاصل صفحات فقط إذا لم يكن هذا هو الشخص الأخير
+        if idx < total_rows - 1:
+            final_doc.add_page_break()
+            
     out = io.BytesIO(); final_doc.save(out); out.seek(0)
     return out
 
