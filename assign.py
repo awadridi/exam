@@ -55,6 +55,9 @@ st.markdown("""
     .stDownloadButton button { background-color: #007bff !important; color: white !important; }
     .editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
     [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
+    /* تنسيق كروت المناطق */
+    .area-stats-container { display: flex; flex-wrap: wrap; gap: 10px; direction: rtl; margin-top: 10px; }
+    .area-card { background: #1e2130; padding: 10px; border-radius: 8px; border-bottom: 3px solid #00ffcc; min-width: 120px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -270,7 +273,30 @@ with tab_auto:
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
         selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
-    
+        
+        # --- الإضافة المطلوبة: زر إحصائيات المناطق ---
+        with st.popover("📍 إحصائيات المناطق المتاحة"):
+            st.write("العدد المتاح (يصلح) حسب كل منطقة:")
+            # تصفية المعلمين الذين صلاحيتهم "يصلح" وغير موزعين
+            available_pool = df_available[df_available['ability'] == 'يصلح']
+            if not available_pool.empty:
+                area_counts = available_pool['city'].value_counts().reset_index()
+                area_counts.columns = ['المنطقة', 'العدد']
+                
+                # عرض على شكل كروت
+                st.markdown('<div class="area-stats-container">', unsafe_allow_html=True)
+                for _, r_stat in area_counts.iterrows():
+                    st.markdown(f"""
+                    <div class="area-card">
+                        <small>{r_stat['المنطقة']}</small><br>
+                        <strong style="color: #00ffcc;">{r_stat['العدد']}</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.info("لا يوجد موظفون متاحون حالياً.")
+        # -------------------------------------------
+
     # --- الإحصائيات المطلوبة للشاشة ---
     pool_stats = df_available
     if selected_cities:
@@ -280,7 +306,7 @@ with tab_auto:
     can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
     
     st.markdown(f"""
-    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+    <div style="display: flex; gap: 20px; margin-bottom: 20px; direction: rtl;">
         <div style="background: #1e2130; padding: 10px 20px; border-radius: 8px; border-right: 4px solid #00ffcc;">
             <small>يصلح ويرغب (حسب المنطقة)</small><br>
             <strong style="font-size: 1.5rem;">{can_and_wants}</strong>
@@ -369,7 +395,6 @@ with tab_manage:
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    # جلب جميع القاعات المتاحة من جدول القاعات وليس فقط التي تم التوزيع عليها
     df_h_list = get_cached_halls()
     halls_list = sorted(df_h_list['hall_name'].unique().tolist())
     
@@ -380,12 +405,10 @@ with tab_manage:
             
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             
-            # --- الإضافة المطلوبة: جدول الكادر المكلف في القاعة ---
             if not df_hall_details.empty:
                 st.table(df_hall_details[['name', 'role', 'school', 'city', 'phone']])
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
-            # --------------------------------------------------
 
             col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
             
