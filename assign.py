@@ -71,11 +71,20 @@ c.execute('''CREATE TABLE IF NOT EXISTS logs
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
 conn.commit()
 
+@st.cache_data(ttl=60)
+def get_cached_teachers():
+    return pd.read_sql("SELECT * FROM teachers", conn)
+
+@st.cache_data(ttl=60)
+def get_cached_halls():
+    return pd.read_sql("SELECT * FROM halls", conn)
+
 def add_log(action, details):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     c.execute("INSERT INTO logs (user, action, details, timestamp) VALUES (?, ?, ?, ?)", 
               (st.session_state.username, action, details, now))
     conn.commit()
+    st.cache_data.clear()
 
 TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
@@ -153,13 +162,13 @@ tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البح
 
 with tab_search:
     st.subheader("إدارة الموظفين")
-    df_h_data = pd.read_sql("SELECT * FROM halls", conn)
+    df_h_data = get_cached_halls()
     hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
     
     q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
     if q:
-        df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
-        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
+        df_teachers = get_cached_teachers()
+        results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
             display_phone = str(row['phone'])
             if display_phone.startswith('5') and len(display_phone) == 9:
@@ -227,8 +236,8 @@ with tab_search:
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
-                        add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
                         conn.commit()
+                        add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
                         st.success("✅ تم الحفظ")
                         time.sleep(0.5)
                         st.rerun()
@@ -239,50 +248,69 @@ with tab_search:
                         if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", 
                                       (st.session_state.username, row['id']))
-                            add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             conn.commit()
+                            add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             st.rerun()
                         
-                        f_word = generate_single_doc(row)
-                        if f_word: 
-                            st.download_button("📥 تحميل الكتاب", data=f_word, 
+                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row['id']}"):
+                            f_word = generate_single_doc(row)
+                            if f_word: 
+                                st.download_button("📥 تحميل الآن", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
                                                key=f"dl_s_{row['id']}")
 
 with tab_auto:
     st.subheader("🤖 نظام التوزيع التلقائي")
-    df_auto_teachers = pd.read_sql("SELECT * FROM teachers WHERE (hall = '' OR hall IS NULL) AND ability = 'يصلح'", conn)
+    df_all = get_cached_teachers()
     
-    if df_auto_teachers.empty:
-        st.warning("⚠️ لا يوجد معلمين متاحين للتوزيع (تأكد من خانة 'يصلح' في صلاحية المراقبة).")
-    else:
-        col_a1, col_a2 = st.columns(2)
-        with col_a1:
-            target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
-            selected_cities = st.multiselect("السحب من مناطق سكن معينة:", df_auto_teachers['city'].unique())
-        
-        with col_a2:
-            num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=len(df_auto_teachers), value=1)
-            if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
-                if not target_h:
-                    st.error("الرجاء اختيار قاعة أولاً")
-                else:
-                    pool = df_auto_teachers
-                    if selected_cities:
-                        pool = pool[pool['city'].isin(selected_cities)]
-                    
-                    if len(pool) < num_to_assign:
-                        st.error(f"العدد المتاح في المناطق المختارة ({len(pool)}) أقل من العدد المطلوب.")
-                    else:
-                        selected_sample = pool.sample(n=int(num_to_assign))
-                        for _, r in selected_sample.iterrows():
-                            c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
-                                     (target_h, hall_map[target_h], r['id']))
-                        conn.commit()
-                        add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب على قاعة {target_h}")
-                        st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
-                        time.sleep(1)
-                        st.rerun()
+    # المعلمين المتاحين (غير موزعين)
+    df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
+    
+    col_a1, col_a2 = st.columns(2)
+    with col_a1:
+        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
+        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
+    
+    # --- الإحصائيات المطلوبة للشاشة ---
+    pool_stats = df_available
+    if selected_cities:
+        pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
+    
+    can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
+    can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
+    
+    st.markdown(f"""
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="background: #1e2130; padding: 10px 20px; border-radius: 8px; border-right: 4px solid #00ffcc;">
+            <small>يصلح ويرغب (حسب المنطقة)</small><br>
+            <strong style="font-size: 1.5rem;">{can_and_wants}</strong>
+        </div>
+        <div style="background: #1e2130; padding: 10px 20px; border-radius: 8px; border-right: 4px solid #ff4b4b;">
+            <small>يصلح ولا يرغب (حسب المنطقة)</small><br>
+            <strong style="font-size: 1.5rem;">{can_not_wants}</strong>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    # --------------------------------
+
+    with col_a2:
+        df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
+        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
+            if not target_h:
+                st.error("الرجاء اختيار قاعة أولاً")
+            elif len(df_auto_pool) < num_to_assign:
+                st.error(f"العدد المتاح ({len(df_auto_pool)}) أقل من المطلوب.")
+            else:
+                selected_sample = df_auto_pool.sample(n=int(num_to_assign))
+                for _, r in selected_sample.iterrows():
+                    c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
+                             (target_h, hall_map[target_h], r['id']))
+                conn.commit()
+                add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب على قاعة {target_h}")
+                st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
+                time.sleep(1)
+                st.rerun()
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
@@ -312,7 +340,7 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-    df_all_teachers = pd.read_sql("SELECT * FROM teachers", conn)
+    df_all_teachers = get_cached_teachers()
     total_count = len(df_all_teachers)
     assigned_count = len(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0])
     remaining_count = total_count - assigned_count
@@ -341,16 +369,24 @@ with tab_manage:
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    df_active = pd.read_sql("SELECT DISTINCT hall FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn)
-    if not df_active.empty:
-        h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
+    # جلب جميع القاعات المتاحة من جدول القاعات وليس فقط التي تم التوزيع عليها
+    df_h_list = get_cached_halls()
+    halls_list = sorted(df_h_list['hall_name'].unique().tolist())
+    
+    if halls_list:
+        h_choice = st.selectbox("اختر قاعة لعرض الكادر:", [""] + halls_list)
         if h_choice:
-            df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
+            df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
             
-            # --- تعديل مكان الأزرار ليصبحوا بجانب بعضهما ---
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             
-            # عمود لزر التفريغ وعمود لزر التحميل وعمود فارغ للمحاذاة
+            # --- الإضافة المطلوبة: جدول الكادر المكلف في القاعة ---
+            if not df_hall_details.empty:
+                st.table(df_hall_details[['name', 'role', 'school', 'city', 'phone']])
+            else:
+                st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
+            # --------------------------------------------------
+
             col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
             
             with col_btns1:
@@ -363,16 +399,16 @@ with tab_manage:
                     st.rerun()
             
             with col_btns2:
-                bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                if bulk_f: 
-                    st.download_button(f"📄 تحميل كتب قاعة {h_choice} (وورد)", 
-                                       data=bulk_f, 
-                                       file_name=f"تكليفات_{h_choice}.docx",
-                                       key=f"bulk_dl_{h_choice}")
+                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+                    with st.spinner("جاري إنشاء الملف المجمع..."):
+                        bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                        if bulk_f: 
+                            st.download_button("📥 تحميل الآن (وورد)", 
+                                           data=bulk_f, 
+                                           file_name=f"تكليفات_{h_choice}.docx",
+                                           key=f"bulk_dl_now_{h_choice}")
             
             st.markdown("---")
-            # ---------------------------------------------
-
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
             c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
@@ -384,4 +420,4 @@ with tab_logs:
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
     if st.button("🗑️ مسح السجل"):
-        c.execute("DELETE FROM logs"); conn.commit(); st.rerun()
+        c.execute("DELETE FROM logs"); conn.commit(); st.cache_data.clear(); st.rerun()
