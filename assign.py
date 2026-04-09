@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from docx import Document
+from docx.shared import Mm
 import io
 import os
 from datetime import datetime
@@ -89,7 +90,7 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (تعديل الحذف التلقائي للأسطر الفارغة)
+# 3. وظائف معالجة الملفات (تم إصلاح مشكلة الصفحات الفارغة في البداية)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -120,7 +121,7 @@ def process_doc(doc_obj, row, h_name, h_city):
             for cell in r.cells:
                 replace_in_paragraphs(cell.paragraphs)
     
-    # --- كود الحذف القاطع للأسطر الفارغة في نهاية المستند ---
+    # حذف الأسطر الفارغة في نهاية المستند
     while len(doc_obj.paragraphs) > 0:
         last_p = doc_obj.paragraphs[-1]
         if not last_p.text.strip():
@@ -133,22 +134,44 @@ def process_doc(doc_obj, row, h_name, h_city):
 
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
-    final_doc = Document("template.docx"); final_doc._body.clear_content()
+    
+    # إنشاء مستند جديد نظيف تماماً لتجنب الصفحات الفارغة في البداية
+    final_doc = Document()
+    
+    # ضبط هوامش المستند الجديد لتطابق القالب (0.5 سم)
+    for section in final_doc.sections:
+        section.top_margin = Mm(5)
+        section.bottom_margin = Mm(5)
+        section.left_margin = Mm(10)
+        section.right_margin = Mm(10)
+
     df_clean = df.reset_index(drop=True)
+    
     for idx, row in df_clean.iterrows():
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
         
-        # تنظيف الفقرات الفارغة في نهاية التكليف قبل دمجه
+        # استخراج المحتوى بدون خصائص القسم التي تسبب الفراغات
         elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
-        while elements and elements[-1].tag.endswith('p') and not elements[-1].text.strip():
-            elements.pop()
-            
+        
+        # تنظيف الفقرات الفارغة في نهاية كل تكليف
+        while elements and elements[-1].tag.endswith('p'):
+            p_text = "".join(elements[-1].itertext()).strip()
+            if not p_text:
+                elements.pop()
+            else:
+                break
+                
         for element in elements:
             final_doc.element.body.append(element)
+            
+        # إضافة فاصل صفحات فقط "بين" التكليفات
         if idx < len(df_clean) - 1:
             final_doc.add_page_break()
-    out = io.BytesIO(); final_doc.save(out); out.seek(0)
+            
+    out = io.BytesIO()
+    final_doc.save(out)
+    out.seek(0)
     return out
 
 def generate_single_doc(row):
