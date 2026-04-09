@@ -43,6 +43,7 @@ if not login():
 # =====================================
 # 2. الاختيار الرئيسي (التوجيهي vs التوظيف)
 # =====================================
+# القائمة الجانبية هنا ستكون ثابتة بناءً على إعدادات الصفحة أدناه
 st.sidebar.title("🗂️ القائمة الرئيسية")
 system_choice = st.sidebar.radio("اختر النظام المطلوب العمل عليه:", 
                                  ["مراقبة الثانوية العامة", "مراقبة امتحان التوظيف"])
@@ -62,7 +63,7 @@ else:
     SYS_TITLE = "نظام امتحان التوظيف 2026"
 
 # =====================================
-# 3. إعدادات الواجهة والاتصال
+# 3. إعدادات الواجهة والاتصال (تم تثبيت القائمة هنا)
 # =====================================
 st.set_page_config(page_title=SYS_TITLE, layout="wide", initial_sidebar_state="expanded")
 
@@ -79,13 +80,15 @@ st.markdown("""
     .stat-card { flex: 1; padding: 15px; border-radius: 10px; text-align: center; min-width: 150px; border: 1px solid #333; }
     .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
     .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
+    /* إخفاء زر إغلاق القائمة الجانبية لضمان ثباتها */
+    button[kind="headerNoPadding"] { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول (محددة لتشمل الأعمدة الجديدة في التوظيف تلقائياً)
+# إنشاء الجداول
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
@@ -114,7 +117,7 @@ def add_log(action, details):
     st.cache_data.clear()
 
 # =====================================
-# 4. وظائف معالجة الوورد (المطورة للتوظيف)
+# 4. وظائف معالجة الوورد
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -172,7 +175,7 @@ def generate_bulk_word(df, h_name):
     return out
 
 # =====================================
-# 5. التبويبات (نفس الوظائف السابقة)
+# 5. التبويبات 
 # =====================================
 st.title(f"🏢 {system_choice}")
 
@@ -232,7 +235,6 @@ with tab_upload:
         try:
             dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
             dft.columns = dft.columns.str.strip().str.lower()
-            # التأكد من وجود الأعمدة الجديدة
             for col in ['relative', 'relative_exam', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability']:
                 if col not in dft.columns: dft[col] = ""
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
@@ -244,7 +246,6 @@ with tab_upload:
 with tab_manage:
     df_all_teachers = get_cached_teachers()
     st.metric("إجمالي الموظفين", len(df_all_teachers))
-    # عرض القاعات
     assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
     h_choice = st.selectbox("عرض كادر قاعة:", [""] + assigned_halls)
     if h_choice:
