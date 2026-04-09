@@ -245,16 +245,26 @@ with tab_search:
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 rel_info = ""
                 if st.session_state.system_mode == "tawzif":
+                    # تنظيف قيم الأقارب من الـ nan
+                    r_val = str(row.get('relative', 'لا يوجد'))
+                    re_val = str(row.get('relative_exam', '---'))
+                    if r_val.lower() == 'nan': r_val = 'لا يوجد'
+                    if re_val.lower() == 'nan': re_val = '---'
+                    
                     rel_info = f"""
-                        <tr>
-                            <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {row.get('relative', 'لا يوجد')}</td>
-                            <td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {row.get('relative_exam', '---')}</td>
-                        </tr>
+                    <tr>
+                        <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {r_val}</td>
+                        <td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {re_val}</td>
+                    </tr>
                     """
 
+                # تنظيف قيمة صلاحية المراقبة
+                abil_val = str(row.get('ability', 'لم تحدد'))
+                if abil_val.lower() == 'nan': abil_val = 'لم تحدد'
+
                 st.markdown(f"""
-                <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
-                    <table style="width:100%; color: white; border: none; direction: rtl;">
+                <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
+                    <table style="width:100%; color: white; border: none;">
                         <tr>
                             <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
                             <td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td>
@@ -270,7 +280,7 @@ with tab_search:
                         {rel_info}
                         <tr>
                             <td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;">
-                                <b>⚠️ صلاحية المراقبة:</b> {row.get('ability', 'لم تحدد')}
+                                <b>⚠️ صلاحية المراقبة:</b> {abil_val}
                             </td>
                         </tr>
                     </table>
