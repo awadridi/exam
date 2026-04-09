@@ -84,7 +84,6 @@ HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14
 # 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
-    # معالجة رقم الجوال ليظهر بالصفر في الوورد
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9:
         phone_val = '0' + phone_val
@@ -146,7 +145,6 @@ with tab_search:
         df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
         results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
-            # تنسيق رقم الجوال للعرض في الموقع (إضافة الصفر إذا كان ناقصاً)
             display_phone = str(row['phone'])
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
@@ -185,7 +183,6 @@ with tab_search:
                 
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state[update_count_key]}"):
                     with st.form(key=f"edit_base_{row['id']}"):
-                        st.write(f"تعديل بيانات: {row['name']}")
                         u_name = st.text_input("الاسم", value=row['name'])
                         u_phone = st.text_input("رقم الجوال", value=display_phone)
                         u_school = st.text_input("المدرسة", value=row['school'])
@@ -207,22 +204,37 @@ with tab_search:
                 st.divider()
                 c1, c2 = st.columns(2)
                 with c1:
-                    sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), index=(list(hall_map.keys()).index(row['hall'])+1 if row['hall'] in hall_map else 0), key=f"q_h_{row['id']}")
-                    sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], index=0, key=f"q_r_{row['id']}")
+                    current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
+                    sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), 
+                                         index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0), 
+                                         key=f"q_h_{row['id']}")
+                    sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
+                                         index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
+                                         key=f"q_r_{row['id']}")
                 with c2:
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
-                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
+                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
+                                  (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
                         add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
                         conn.commit()
                         st.rerun()
-                    if row['hall']:
+                    
+                    # التعديل المطلوب: التحقق من وجود تكليف فعلي لإظهار أزرار الإلغاء والتحميل
+                    is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
+                    
+                    if is_assigned:
                         if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
-                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, row['id']))
+                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", 
+                                      (st.session_state.username, row['id']))
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             conn.commit()
                             st.rerun()
+                        
                         f_word = generate_single_doc(row)
-                        if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
+                        if f_word: 
+                            st.download_button("📥 تحميل الكتاب", data=f_word, 
+                                               file_name=f"تكليف_{row['name']}.docx", 
+                                               key=f"dl_s_{row['id']}")
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
@@ -236,7 +248,7 @@ with tab_upload:
     st.divider()
     if st.button("🔄 تحديث من Google Sheets"):
         try:
-            dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str}) # إجبار استيراد الهوية والجوال كنصوص
+            dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str}) 
             dft.columns = dft.columns.str.strip().str.lower()
             if 'id_number' in dft.columns: dft.rename(columns={'id_number': 'id'}, inplace=True)
             for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability']: 
