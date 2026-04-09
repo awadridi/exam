@@ -181,14 +181,16 @@ with tab_search:
                         u_school = st.text_input("المدرسة", value=row['school'])
                         u_city = st.text_input("السكن", value=row['city'])
                         u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'])
-                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
-                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
+                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], 
+                                             index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
+                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], 
+                                              index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
                         
                         if st.form_submit_button("💾 تحديث وحفظ"):
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                             conn.commit()
-                            add_log("تعديل بيانات أساسية", f"تعديل بيانات المعلم {u_name}")
+                            add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state[update_count_key] += 1
                             st.success("✅ تم التحديث بنجاح!")
                             time.sleep(2)
