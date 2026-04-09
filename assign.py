@@ -46,30 +46,23 @@ if not login():
 # =====================================
 st.set_page_config(page_title="نظام التكليفات 2026", layout="wide")
 
-# تعديل الـ CSS لدعم RTL وتحسين شكل المربعات
 st.markdown("""
     <style>
-    /* تنسيق الاتجاه العام من اليمين لليسار */
     .main, .stApp { 
         direction: rtl; 
         text-align: right; 
         background-color: #0e1117; 
     }
-    
-    /* ضبط القوائم المنسدلة وصناديق الإدخال لتدعم العربية */
     div[data-baseweb="select"], div[data-baseweb="input"], .stMultiSelect {
         direction: rtl !important;
         text-align: right !important;
     }
-
     div[data-testid="stExpander"] { border: 1px solid #444 !important; background-color: #1a1c23 !important; }
     button[key^="btn_"] { background-color: #28a745 !important; color: white !important; }
     button[key^="del_"] { background-color: #dc3545 !important; color: white !important; }
     .stDownloadButton button { background-color: #007bff !important; color: white !important; }
     .editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
     [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
-
-    /* تنسيق مربعات الإحصائيات (يرغب / لا يرغب) */
     .stat-card {
         flex: 1;
         padding: 15px;
@@ -287,8 +280,6 @@ with tab_search:
 with tab_auto:
     st.subheader("🤖 نظام التوزيع التلقائي")
     df_all = get_cached_teachers()
-    
-    # المعلمين المتاحين (غير موزعين)
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
     col_a1, col_a2 = st.columns(2)
@@ -296,7 +287,6 @@ with tab_auto:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
         selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
     
-    # --- الإحصائيات (مربعات منفصلة) ---
     pool_stats = df_available
     if selected_cities:
         pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
@@ -316,29 +306,6 @@ with tab_auto:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # التعديل الجديد: إحصائيات حسب المنطقة السكنية
-    st.write("---")
-    col_stat_left, col_stat_right = st.columns(2)
-    
-    with col_stat_left:
-        st.markdown("**📌 يرغب ويصلح حسب المنطقة السكنية:**")
-        df_wants_area = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'يرغب')]
-        area_wants_counts = df_wants_area.groupby('city').size().reset_index(name='عدد الموظفين المتاحين')
-        if not area_wants_counts.empty:
-            st.dataframe(area_wants_counts.sort_values(by='عدد الموظفين المتاحين', ascending=False), hide_index=True, use_container_width=True)
-        else:
-            st.info("لا يوجد بيانات")
-
-    with col_stat_right:
-        st.markdown("**📌 لا يرغب ويصلح حسب المنطقة السكنية:**")
-        df_no_wants_area = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'لا يرغب')]
-        area_no_wants_counts = df_no_wants_area.groupby('city').size().reset_index(name='عدد الموظفين المتاحين')
-        if not area_no_wants_counts.empty:
-            st.dataframe(area_no_wants_counts.sort_values(by='عدد الموظفين المتاحين', ascending=False), hide_index=True, use_container_width=True)
-        else:
-            st.info("لا يوجد بيانات")
-    st.write("---")
 
     with col_a2:
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
@@ -416,11 +383,11 @@ with tab_manage:
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    df_h_list = get_cached_halls()
-    halls_list = sorted(df_h_list['hall_name'].unique().tolist())
+    # التعديل المطلوب: فلترة المدارس لتظهر فقط التي تحتوي على معلمين مكلفين
+    assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
     
-    if halls_list:
-        h_choice = st.selectbox("اختر قاعة لعرض الكادر:", [""] + halls_list)
+    if assigned_halls:
+        h_choice = st.selectbox("اختر قاعة لعرض الكادر (يظهر فقط القاعات التي بها موظفون):", [""] + assigned_halls)
         if h_choice:
             df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
             
@@ -458,6 +425,8 @@ with tab_manage:
             c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
             c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
             c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
+    else:
+        st.warning("لا يوجد أي قاعات مكلفة حالياً ليتم عرضها.")
 
 with tab_logs:
     st.subheader("📜 سجل العمليات")
