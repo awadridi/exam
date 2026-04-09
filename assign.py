@@ -238,12 +238,13 @@ with tab_search:
         df_teachers = get_cached_teachers()
         results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
+            # --- بداية التنظيف الشامل ---
             display_phone = str(row['phone'])
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-               # 1. تنظيف البيانات الأساسية
+                # 1. تنظيف البيانات
                 def get_val(key, default="---"):
                     try:
                         val = str(row.get(key, default)).strip()
@@ -258,18 +259,14 @@ with tab_search:
                 v_job = get_val('current_job', "غير محدد")
                 v_abil = get_val('ability', "لم تحدد")
 
-                # 2. معالجة ذكية للأقارب (هنا تكمن مشكلة التوجيهي)
+                # 2. منطق الأقارب (منع ظهور الأكواد في التوجيهي)
                 rel_row_html = ""
                 if st.session_state.system_mode == "tawzif":
-                    # في التوظيف، نبحث عن الأعمدة
                     v_rel = get_val('relative', "لا يوجد")
                     v_relex = get_val('relative_exam', "---")
                     rel_row_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td></tr>'
-                else:
-                    # في التوجيهي، نترك الصف فارغاً تماماً ولا نحاول قراءة أعمدة الأقارب
-                    rel_row_html = ""
 
-                # 3. العرض النهائي - تأكد أن هذا الجزء كتلة واحدة لا تنقطع
+                # 3. عرض الجدول (تأكد من عدم وجود أي " قبل هذا السطر)
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
@@ -294,6 +291,7 @@ with tab_search:
                     </table>
                 </div>
                 """, unsafe_allow_html=True)
+                # --- نهاية التنظيف الشامل ---
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
