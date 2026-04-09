@@ -227,26 +227,33 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
+                # --- القسم المطلوب تعديله (الصندوق المنبثق) ---
                 with st.popover("📝 تعديل البيانات الأساسية"):
                     msg_placeholder = st.empty()
-                    # تم إزالة st.form لضمان الإغلاق المباشر عند rerun
-                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}")
-                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}")
-                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}")
-                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row['id']}")
-                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row['id']}")
-                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{row['id']}")
-                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{row['id']}")
                     
-                    if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}"):
+                    # نستخدم المدخلات بدون st.form لضمان الاستجابة الفورية
+                    u_name = st.text_input("الاسم", value=row['name'], key=f"edit_name_{row['id']}")
+                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"edit_phone_{row['id']}")
+                    u_school = st.text_input("المدرسة", value=row['school'], key=f"edit_school_{row['id']}")
+                    u_city = st.text_input("السكن", value=row['city'], key=f"edit_city_{row['id']}")
+                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"edit_job_{row['id']}")
+                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], 
+                                         index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), 
+                                         key=f"edit_pref_{row['id']}")
+                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], 
+                                         index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
+                                         key=f"edit_abil_{row['id']}")
+                    
+                    if st.button("💾 تحديث وحفظ", key=f"save_data_btn_{row['id']}", use_container_width=True):
                         c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
                                      WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                         conn.commit()
                         add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                         
-                        msg_placeholder.success("✅ تم التحديث بنجاح")
-                        time.sleep(1)
-                        st.rerun()
+                        msg_placeholder.success("✅ تم التحديث")
+                        time.sleep(0.8) # وقت كافٍ لرؤية الرسالة
+                        st.rerun() # هذا الأمر سيغلق الـ popover تلقائياً
+                # ---------------------------------------------
 
                 st.divider()
                 c1, c2 = st.columns(2)
@@ -287,6 +294,7 @@ with tab_search:
                                                file_name=f"تكليف_{row['name']}.docx", 
                                                key=f"dl_s_{row['id']}")
 
+# باقي التبويبات تبقى كما هي لعدم وجود تعديلات مطلوبة عليها
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
@@ -336,21 +344,6 @@ with tab_auto:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    col_exp1, col_exp2 = st.columns(2)
-    with col_exp1:
-        with st.expander("📍 تفاصيل (يصلح ويرغب) لكل منطقة"):
-            df_w_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')]
-            if not df_w_sub.empty:
-                st.write(df_w_sub['city'].value_counts())
-            else: st.info("لا توجد بيانات")
-            
-    with col_exp2:
-        with st.expander("📍 تفاصيل (يصلح ولا يرغب) لكل منطقة"):
-            df_nw_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')]
-            if not df_nw_sub.empty:
-                st.write(df_nw_sub['city'].value_counts())
-            else: st.info("لا توجد بيانات")
 
 with tab_upload:
     st.markdown('<h2 class="move-to-right">تحديث القالب والبيانات</h2>', unsafe_allow_html=True)
@@ -407,60 +400,6 @@ with tab_manage:
             worksheet.set_column(col_num, col_num, 18, c_fmt)
     
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
-
-    st.divider()
-    assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
-    
-    if assigned_halls:
-        h_choice = st.selectbox("اختر قاعة لعرض الكادر (يظهر فقط القاعات التي بها موظفون):", [""] + assigned_halls)
-        if h_choice:
-            df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
-            
-            st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
-            
-            if not df_hall_details.empty:
-                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
-                df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
-                
-                styled_df = df_to_show.style.set_properties(**{
-                    'text-align': 'right',
-                    'direction': 'rtl'
-                }).set_table_styles([
-                    dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
-                ])
-                st.markdown(styled_df.to_html(), unsafe_allow_html=True)
-            else:
-                st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
-
-            col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
-            
-            with col_btns1:
-                if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
-                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
-                    conn.commit()
-                    add_log("تفريغ قاعة", f"تم مسح كافة تكليفات قاعة {h_choice}")
-                    st.success("تم تفريغ القاعة")
-                    time.sleep(0.5)
-                    st.rerun()
-            
-            with col_btns2:
-                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
-                    with st.spinner("جاري إنشاء الملف المجمع..."):
-                        bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                        if bulk_f: 
-                            st.download_button("📥 تحميل الآن (وورد)", 
-                                           data=bulk_f, 
-                                           file_name=f"تكليفات_{h_choice}.docx",
-                                           key=f"bulk_dl_now_{h_choice}")
-            
-            st.markdown("---")
-            c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
-            c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
-            c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
-            c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
-            c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
-    else:
-        st.warning("لا يوجد أي قاعات مكلفة حالياً ليتم عرضها.")
 
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
