@@ -89,13 +89,12 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (تعديل الكلمات المفتاحية الجديد)
+# 3. وظائف معالجة الملفات (تعديل الحذف التلقائي للأسطر الفارغة)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9: phone_val = '0' + phone_val
     
-    # القاموس الجديد المتوافق مع تعديلاتك في ملف الوورد
     repls = {
         'ZNAME': str(row.get('name', '')), 
         'ZID': str(row.get('id', '')), 
@@ -120,6 +119,16 @@ def process_doc(doc_obj, row, h_name, h_city):
         for r in table.rows:
             for cell in r.cells:
                 replace_in_paragraphs(cell.paragraphs)
+    
+    # --- كود الحذف القاطع للأسطر الفارغة في نهاية المستند ---
+    while len(doc_obj.paragraphs) > 0:
+        last_p = doc_obj.paragraphs[-1]
+        if not last_p.text.strip():
+            p_element = last_p._element
+            p_element.getparent().remove(p_element)
+        else:
+            break
+            
     return doc_obj
 
 def generate_bulk_word(df, h_name):
@@ -129,9 +138,12 @@ def generate_bulk_word(df, h_name):
     for idx, row in df_clean.iterrows():
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
+        
+        # تنظيف الفقرات الفارغة في نهاية التكليف قبل دمجه
         elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
         while elements and elements[-1].tag.endswith('p') and not elements[-1].text.strip():
             elements.pop()
+            
         for element in elements:
             final_doc.element.body.append(element)
         if idx < len(df_clean) - 1:
