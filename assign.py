@@ -60,7 +60,6 @@ st.markdown("""
 conn = sqlite3.connect("data_system_v26.db", check_same_thread=False)
 c = conn.cursor()
 
-# تحديث: إضافة preference, current_job, ability لقاعدة البيانات
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
@@ -143,7 +142,6 @@ with tab_search:
         for _, row in results.iterrows():
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 
-                # --- مستطيل معلومات الموظف المحدث مع إضافة الصلاحية ---
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
                     <table style="width:100%; color: white; border: none; direction: rtl;">
@@ -170,12 +168,33 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
+                # --- جزء تعديل البيانات الأساسية (جديد) ---
+                with st.popover("📝 تعديل البيانات الأساسية"):
+                    with st.form(key=f"edit_base_{row['id']}"):
+                        st.write(f"تعديل بيانات: {row['name']}")
+                        u_name = st.text_input("الاسم", value=row['name'])
+                        u_phone = st.text_input("رقم الجوال", value=row['phone'])
+                        u_school = st.text_input("المدرسة", value=row['school'])
+                        u_city = st.text_input("السكن", value=row['city'])
+                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'])
+                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
+                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
+                        
+                        if st.form_submit_button("💾 تحديث وحفظ"):
+                            c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
+                                         WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
+                            conn.commit()
+                            add_log("تعديل بيانات أساسية", f"تعديل بيانات المعلم {u_name}")
+                            st.success("تم التحديث")
+                            st.rerun()
+
+                st.divider()
                 c1, c2 = st.columns(2)
                 with c1:
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), index=(list(hall_map.keys()).index(row['hall'])+1 if row['hall'] in hall_map else 0), key=f"q_h_{row['id']}")
                     sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], index=0, key=f"q_r_{row['id']}")
                 with c2:
-                    if st.button("💾 حفظ", key=f"btn_save_{row['id']}"):
+                    if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
                         add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
                         conn.commit(); st.success("تم الحفظ"); st.rerun()
@@ -189,7 +208,6 @@ with tab_search:
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
-    
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -198,16 +216,12 @@ with tab_upload:
         st.success("تم تحديث قالب الوورد بنجاح")
     
     st.divider()
-    
     if st.button("🔄 تحديث من Google Sheets"):
         try:
             dft = pd.read_csv(TEACHERS_URL); dft.columns = dft.columns.str.strip().str.lower()
             if 'id_number' in dft.columns: dft.rename(columns={'id_number': 'id'}, inplace=True)
-            
-            # تحديث: إضافة الأعمدة الجديدة لقائمة الفحص لضمان سحبها
             for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability']: 
                 if col not in dft.columns: dft[col] = ""
-            
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
             add_log("تحديث بيانات", "تحديث من جوجل شيت")
@@ -215,13 +229,9 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-    try:
-        df_all_source = pd.read_csv(TEACHERS_URL)
-        total_count = len(df_all_source)
-    except:
-        total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
-
-    assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
+    df_all_teachers = pd.read_sql("SELECT * FROM teachers", conn)
+    total_count = len(df_all_teachers)
+    assigned_count = len(df_all_teachers[df_all_teachers['hall'].str.len() > 0])
     remaining_count = total_count - assigned_count
 
     c_m1, c_m2, c_m3 = st.columns(3)
@@ -230,61 +240,54 @@ with tab_manage:
     c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
+    
+    # --- تصدير الإكسل الشامل (جديد) ---
+    st.subheader("📦 تصدير البيانات المعدلة")
+    df_export = df_all_teachers.copy()
+    df_export.columns = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية']
+    
+    output_all = io.BytesIO()
+    with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
+        df_export.to_excel(writer, index=False, sheet_name='جميع المعلمين')
+        workbook, worksheet = writer.book, writer.sheets['جميع المعلمين']
+        h_fmt = workbook.add_format({'bold':True,'font_size':12,'border':1,'align':'center','bg_color':'#D7E4BC'})
+        c_fmt = workbook.add_format({'font_size':11,'border':1,'align':'right'})
+        worksheet.right_to_left()
+        for col_num, col_name in enumerate(df_export.columns):
+            worksheet.write(0, col_num, col_name, h_fmt)
+            worksheet.set_column(col_num, col_num, 18, c_fmt)
+    
+    st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
+    st.divider()
     df_active = pd.read_sql("SELECT DISTINCT hall FROM teachers WHERE hall != ''", conn)
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
-            df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
+            df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
-            count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
-            count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
-            count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
-            count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
-
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
-            c_stat1.metric("رئيس قاعة", count_chief)
-            c_stat2.metric("مساعد رئيس", count_assistant)
-            c_stat3.metric("مراقبين", count_proctor)
-            c_stat4.metric("آذنة", count_servant)
+            c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
+            c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
+            c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
+            c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
             
-            st.divider()
+            df_m_display = df_hall_details[['id', 'name', 'phone', 'school', 'role', 'updated_by']].copy()
+            df_m_display.columns = ['رقم الهوية', 'الاسم', 'رقم الجوال', 'المدرسة', 'المهمة', 'الموظف']
             
-            df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             c_exc, c_wrd = st.columns(2)
             with c_exc:
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_m.to_excel(writer, index=False, sheet_name='العاملين')
+                output_h = io.BytesIO()
+                with pd.ExcelWriter(output_h, engine='xlsxwriter') as writer:
+                    df_m_display.to_excel(writer, index=False, sheet_name='العاملين')
                     workbook, worksheet = writer.book, writer.sheets['العاملين']
-                    h_fmt = workbook.add_format({'bold':True,'font_size':14,'border':1,'align':'center','bg_color':'#D7E4BC'})
-                    c_fmt = workbook.add_format({'font_size':14,'border':1,'align':'right'})
                     worksheet.right_to_left()
-                    for col_num, col_name in enumerate(df_m.columns):
-                        worksheet.write(0, col_num, col_name, h_fmt)
-                        worksheet.set_column(col_num, col_num, 20, c_fmt)
-                st.download_button(f"📊 إكسل {h_choice}", data=output.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
+                st.download_button(f"📊 إكسل قاعة {h_choice}", data=output_all.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
             
             with c_wrd:
-                df_m_full = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-                bulk_f = generate_bulk_word(df_m_full, h_choice)
-                if bulk_f: st.download_button(f"📄 وورد {h_choice}", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
-
-            for _, m in df_m_full.iterrows():
-                with st.expander(f"📝 {m['name']} | {m['role']}"):
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    with col1: new_h = st.selectbox("نقل", list(hall_map.keys()), index=list(hall_map.keys()).index(m['hall']), key=f"m_h_{m['id']}")
-                    with col2: new_r = st.selectbox("مهمة", ["رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], index=0, key=f"m_r_{m['id']}")
-                    with col3:
-                        if st.button("تحديث", key=f"m_up_{m['id']}"):
-                            c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (new_h, new_r, hall_map.get(new_h, ""), st.session_state.username, m['id']))
-                            add_log("تعديل", f"نقل {m['name']} إلى {new_h}")
-                            conn.commit(); st.rerun()
-                        if st.button("حذف", key=f"m_del_{m['id']}"):
-                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, m['id']))
-                            add_log("حذف", f"حذف تكليف {m['name']}")
-                            conn.commit(); st.rerun()
+                bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                if bulk_f: st.download_button(f"📄 وورد قاعة {h_choice}", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
 
 with tab_logs:
     st.subheader("📜 سجل العمليات")
