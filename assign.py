@@ -81,14 +81,13 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (المعدلة)
+# 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9:
         phone_val = '0' + phone_val
     
-    # تصحيح قيم القاعة والمدينة لضمان عدم ظهور الكود البرمجي في الوورد
     h_name_final = str(h_name) if h_name and str(h_name).lower() != 'nan' else "---"
     h_city_final = str(h_city) if h_city and str(h_city).lower() != 'nan' else "---"
         
@@ -103,7 +102,6 @@ def process_doc(doc_obj, row, h_name, h_city):
         '<CITY>': str(row.get('city', ''))
     }
 
-    # معالجة الفقرات العادية
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
             if k in p.text:
@@ -112,7 +110,6 @@ def process_doc(doc_obj, row, h_name, h_city):
                         run.text = run.text.replace(k, v)
                         run.bold = True
 
-    # معالجة الجداول (ضروري جداً لأن بيانات التكليف غالباً تكون في جداول)
     for table in doc_obj.tables:
         for r in table.rows:
             for cell in r.cells:
@@ -152,7 +149,10 @@ if st.sidebar.button("🚪 خروج"):
     st.session_state.logged_in = False
     st.rerun()
 
-tab_search, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
+# تعديل الـ Tabs لإضافة التوزيع التلقائي
+tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
+    "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
+])
 
 with tab_search:
     st.subheader("إدارة الموظفين")
@@ -232,7 +232,6 @@ with tab_search:
                                          key=f"q_r_{row['id']}")
                 with c2:
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
-                        # تصحيح: جلب المدينة من hall_map وحفظها في قاعدة البيانات
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
@@ -252,13 +251,104 @@ with tab_search:
                             conn.commit()
                             st.rerun()
                         
-                        # توليد الملف باستخدام البيانات المحدثة
                         f_word = generate_single_doc(row)
                         if f_word: 
                             st.download_button("📥 تحميل الكتاب", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
                                                key=f"dl_s_{row['id']}")
 
+# =====================================
+# الإضافة الجديدة: التوزيع التلقائي
+# =====================================
+with tab_auto:
+    st.subheader("🤖 التوزيع التلقائي على القاعات")
+    
+    # جلب بيانات القاعات والمدن
+    df_h_data_auto = pd.read_sql("SELECT * FROM halls", conn)
+    hall_map_auto = {r['hall_name']: r['city'] for _, r in df_h_data_auto.iterrows()}
+    
+    # جلب المعلمين المتاحين فقط (معلم + يرغب + يصلح + غير مكلف حالياً)
+    query_avail = """
+        SELECT * FROM teachers 
+        WHERE current_job = 'معلم' 
+        AND preference = 'يرغب' 
+        AND ability = 'يصلح' 
+        AND (hall = '' OR hall IS NULL OR hall = 'nan')
+    """
+    df_avail = pd.read_sql(query_avail, conn)
+    
+    col_a1, col_a2 = st.columns([1, 1])
+    
+    with col_a1:
+        st.markdown("##### 📍 إعدادات القاعة والمناطق")
+        target_hall = st.selectbox("اختر القاعة المراد توزيعها:", [""] + list(hall_map_auto.keys()))
+        
+        # اختيار المناطق المتاحة (فقط المناطق التي بها معلمون يحققون الشروط)
+        available_cities = sorted(df_avail['city'].unique().tolist())
+        selected_cities = st.multiselect(
+            "اختر مناطق سكن الموظفين (حتى 5 مناطق):", 
+            options=available_cities,
+            max_selections=5
+        )
+        
+        if selected_cities:
+            st.info("📊 المتاح حالياً في المناطق المختارة:")
+            for city in selected_cities:
+                c_count = len(df_avail[df_avail['city'] == city])
+                st.write(f"• {city}: {c_count} معلم")
+
+    with col_a2:
+        st.markdown("##### 👥 الأعداد المطلوبة")
+        req_assistants = st.number_input("عدد مساعدي رئيس القاعة المطلوب:", min_value=0, max_value=5, value=1)
+        req_proctors = st.number_input("عدد المراقبين المطلوبين:", min_value=0, max_value=100, value=10)
+        
+        if st.button("🚀 تنفيذ التوزيع العشوائي", use_container_width=True):
+            if not target_hall or not selected_cities:
+                st.error("⚠️ يرجى تحديد القاعة والمناطق السكنية")
+            else:
+                # تصفية الموظفين من المناطق المختارة وخلطهم عشوائياً
+                pool = df_avail[df_avail['city'].isin(selected_cities)].sample(frac=1).reset_index(drop=True)
+                total_needed = req_assistants + req_proctors
+                
+                if len(pool) < total_needed:
+                    st.warning(f"⚠️ المتاح ({len(pool)}) أقل من المطلوب ({total_needed}). سيتم توزيع المتاح فقط.")
+                
+                # تنفيذ التوزيع
+                assigned_count = 0
+                h_city_val = hall_map_auto.get(target_hall, "")
+                
+                # توزيع المساعدين أولاً
+                assistants = pool.head(req_assistants)
+                for _, t in assistants.iterrows():
+                    c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
+                              (target_hall, "مساعد رئيس قاعة", h_city_val, st.session_state.username, t['id']))
+                    assigned_count += 1
+                
+                # توزيع المراقبين من المتبقي
+                proctors = pool.iloc[req_assistants : req_assistants + req_proctors]
+                for _, t in proctors.iterrows():
+                    c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
+                              (target_hall, "مراقب", h_city_val, st.session_state.username, t['id']))
+                    assigned_count += 1
+                
+                conn.commit()
+                add_log("توزيع تلقائي", f"توزيع عشوائي لـ {assigned_count} موظف على قاعة {target_hall}")
+                st.success(f"✅ تم التوزيع بنجاح! تم تعيين {assigned_count} موظف.")
+                time.sleep(1)
+                st.rerun()
+
+    st.divider()
+    with st.expander("🌍 كشف المتبقي في كافة المناطق السكنية (معلم + يرغب + يصلح)"):
+        if not df_avail.empty:
+            city_stats = df_avail['city'].value_counts().reset_index()
+            city_stats.columns = ['المنطقة السكنية', 'عدد المعلمين المتاحين']
+            st.table(city_stats)
+        else:
+            st.write("لا يوجد معلمون متاحون حالياً.")
+
+# =====================================
+# بقية الأقسام الأصلية
+# =====================================
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
