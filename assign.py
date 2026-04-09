@@ -6,6 +6,7 @@ from docx.shared import Mm
 import io
 import os
 from datetime import datetime
+from copy import deepcopy
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
@@ -90,7 +91,7 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (تم إصلاح مشكلة الصفحات الفارغة في البداية)
+# 3. وظائف معالجة الملفات (تم تحسين الدمج للحفاظ على الترويسة)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -135,26 +136,24 @@ def process_doc(doc_obj, row, h_name, h_city):
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
     
-    # إنشاء مستند جديد نظيف تماماً لتجنب الصفحات الفارغة في البداية
-    final_doc = Document()
+    # البدء بالقالب الأصلي كقاعدة لضمان وجود الترويسة (Header) والتنسيقات
+    final_doc = Document("template.docx")
     
-    # ضبط هوامش المستند الجديد لتطابق القالب (0.5 سم)
-    for section in final_doc.sections:
-        section.top_margin = Mm(5)
-        section.bottom_margin = Mm(5)
-        section.left_margin = Mm(10)
-        section.right_margin = Mm(10)
+    # تفريغ محتوى الصفحة الأولى فقط مع الحفاظ على الترويسة (Header)
+    final_doc._body.clear_content()
 
     df_clean = df.reset_index(drop=True)
     
     for idx, row in df_clean.iterrows():
+        # فتح نسخة جديدة من القالب لكل موظف
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
         
-        # استخراج المحتوى بدون خصائص القسم التي تسبب الفراغات
+        # استخراج العناصر (فقرات وجداول) من النسخة المعالجة
+        # نتجاهل 'sectPr' للحفاظ على استمرارية التنسيق ومنع الفجوات في البداية
         elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
         
-        # تنظيف الفقرات الفارغة في نهاية كل تكليف
+        # تنظيف الفقرات الفارغة في نهاية التكليف قبل النقل
         while elements and elements[-1].tag.endswith('p'):
             p_text = "".join(elements[-1].itertext()).strip()
             if not p_text:
@@ -162,8 +161,9 @@ def generate_bulk_word(df, h_name):
             else:
                 break
                 
+        # نقل العناصر بعمق (deepcopy) للمستند النهائي
         for element in elements:
-            final_doc.element.body.append(element)
+            final_doc.element.body.append(deepcopy(element))
             
         # إضافة فاصل صفحات فقط "بين" التكليفات
         if idx < len(df_clean) - 1:
