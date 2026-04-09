@@ -84,7 +84,12 @@ HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14
 # 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
-    repls = {'<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), '<PHONE>': str(row.get('phone', '')), 
+    # معالجة رقم الجوال ليظهر بالصفر في الوورد
+    phone_val = str(row.get('phone', ''))
+    if phone_val.startswith('5') and len(phone_val) == 9:
+        phone_val = '0' + phone_val
+        
+    repls = {'<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), '<PHONE>': phone_val, 
              '<JOB>': str(row.get('role', '')), '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
              '<WORKPLACE>': str(row.get('school', '')), '<CITY>': str(row.get('city', ''))}
     for p in doc_obj.paragraphs:
@@ -141,6 +146,11 @@ with tab_search:
         df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
         results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
+            # تنسيق رقم الجوال للعرض في الموقع (إضافة الصفر إذا كان ناقصاً)
+            display_phone = str(row['phone'])
+            if display_phone.startswith('5') and len(display_phone) == 9:
+                display_phone = '0' + display_phone
+
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 
                 st.markdown(f"""
@@ -148,7 +158,7 @@ with tab_search:
                     <table style="width:100%; color: white; border: none; direction: rtl;">
                         <tr>
                             <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
-                            <td style="padding: 5px;"><b>📱 الجوال:</b> {row.get('phone', '---')}</td>
+                            <td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td>
                         </tr>
                         <tr>
                             <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
@@ -177,14 +187,12 @@ with tab_search:
                     with st.form(key=f"edit_base_{row['id']}"):
                         st.write(f"تعديل بيانات: {row['name']}")
                         u_name = st.text_input("الاسم", value=row['name'])
-                        u_phone = st.text_input("رقم الجوال", value=row['phone'])
+                        u_phone = st.text_input("رقم الجوال", value=display_phone)
                         u_school = st.text_input("المدرسة", value=row['school'])
                         u_city = st.text_input("السكن", value=row['city'])
                         u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'])
-                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], 
-                                             index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
-                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], 
-                                              index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
+                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
+                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
                         
                         if st.form_submit_button("💾 تحديث وحفظ"):
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
@@ -193,7 +201,7 @@ with tab_search:
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state[update_count_key] += 1
                             st.success("✅ تم التحديث بنجاح!")
-                            time.sleep(1)
+                            time.sleep(2)
                             st.rerun()
 
                 st.divider()
@@ -228,14 +236,15 @@ with tab_upload:
     st.divider()
     if st.button("🔄 تحديث من Google Sheets"):
         try:
-            dft = pd.read_csv(TEACHERS_URL); dft.columns = dft.columns.str.strip().str.lower()
+            dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str}) # إجبار استيراد الهوية والجوال كنصوص
+            dft.columns = dft.columns.str.strip().str.lower()
             if 'id_number' in dft.columns: dft.rename(columns={'id_number': 'id'}, inplace=True)
             for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability']: 
                 if col not in dft.columns: dft[col] = ""
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
             add_log("تحديث بيانات", "تحديث من جوجل شيت")
-            st.success("تم التحديث")
+            st.success("تم التحديث بنجاح")
             st.rerun()
         except Exception as e: st.error(f"خطأ: {e}")
 
