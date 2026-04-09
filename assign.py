@@ -62,7 +62,7 @@ c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
-              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT)''')
+             role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
@@ -138,62 +138,30 @@ with tab_search:
         df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
         results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
-          with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                with tab_search:
-                    st.subheader("إدارة الموظفين")
-                    df_h_data = pd.read_sql("SELECT * FROM halls", conn)
-                    hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
-                    
-                    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
-                    if q:
-                        df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
-                        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | 
-                                               df_teachers['id'].astype(str).str.contains(q) | 
-                                               df_teachers['phone'].astype(str).str.contains(q)]
-                        
-                        for _, row in results.iterrows():
-                            with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
+            with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 
-                # --- الإضافة الجديدة هنا (لا تحذف ما تحتها) ---
-                    st.markdown(f"""
-                    <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
-                        <table style="width:100%; color: white; border: none; direction: rtl;">
-                            <tr>
-                                <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
-                                <td style="padding: 5px;"><b>📱 الجوال:</b> {row.get('phone', '---')}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
-                                <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
-                                <td style="padding: 5px;"><b>💼 الوظيفة الحالية:</b> {row.get('current_job', 'غير محدد')}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    # --- نهاية الإضافة ---
+                # --- مستطيل معلومات الموظف الكاملة ---
+                st.markdown(f"""
+                <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
+                    <table style="width:100%; color: white; border: none; direction: rtl;">
+                        <tr>
+                            <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
+                            <td style="padding: 5px;"><b>📱 الجوال:</b> {row.get('phone', '---')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
+                            <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
+                            <td style="padding: 5px;"><b>💼 الوظيفة:</b> {row.get('current_job', 'غير محدد')}</td>
+                        </tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                c1, c2 = st.columns(2)
-                with c1:
-                    sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), index=(list(hall_map.keys()).index(row['hall'])+1 if row['hall'] in hall_map else 0), key=f"q_h_{row['id']}")
-                    sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], index=0, key=f"q_r_{row['id']}")
-                with c2:
-                    if st.button("💾 حفظ", key=f"btn_save_{row['id']}"):
-                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
-                        add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
-                        conn.commit(); st.success("تم الحفظ"); st.rerun()
-                    if row['hall']:
-                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
-                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, row['id']))
-                            add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
-                            conn.commit(); st.rerun()
-                        f_word = generate_single_doc(row)
-                        if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
-                st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 with c1:
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), index=(list(hall_map.keys()).index(row['hall'])+1 if row['hall'] in hall_map else 0), key=f"q_h_{row['id']}")
@@ -214,7 +182,6 @@ with tab_search:
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
     
-    # --- الخانة التي كانت محذوفة وتم إرجاعها ---
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -237,30 +204,19 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-   # قراءة البيانات المحدثة فوراً عند الضغط على التبويب
-   # 1. حساب الإجمالي الحقيقي من ملف الإكسل/الرابط (يبقى ثابتاً)
     try:
         df_all_source = pd.read_csv(TEACHERS_URL)
         total_count = len(df_all_source)
     except:
-        # إذا فشل الرابط يقرأ من جدول المعلمين بالكامل
         total_count = len(pd.read_sql("SELECT id FROM teachers", conn))
 
-    # 2. حساب من تم تكليفهم فعلياً من قاعدة البيانات
     assigned_count = len(pd.read_sql("SELECT id FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn))
-
-    # 3. حساب المتبقي (طرح المنجز من الإجمالي الثابت)
     remaining_count = total_count - assigned_count
 
-    # إسناد القيم للمتغيرات المستخدمة في العرض أسفل
-    total_t = total_count
-    assigned_t = assigned_count
-    remaining_t = remaining_count
-    # عرض الإحصائيات المحدثة
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", total_t)
-    c_m2.metric("تم إنجازهم", assigned_t)
-    c_m3.metric("المتبقي", remaining_t)
+    c_m1.metric("إجمالي المعلمين", total_count)
+    c_m2.metric("تم إنجازهم", assigned_count)
+    c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
 
@@ -268,16 +224,13 @@ with tab_manage:
     if not df_active.empty:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
-            # جلب بيانات المعلمين المكلفين في هذه القاعة حصراً
             df_hall_details = pd.read_sql("SELECT role FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
-            # حساب الأعداد بناءً على المهمة (Role)
             count_chief = len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة'])
             count_assistant = len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة'])
             count_proctor = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
             count_servant = len(df_hall_details[df_hall_details['role'] == 'آذن'])
 
-            # عرض الإحصائيات في صف واحد تحت القائمة المنسدلة
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", count_chief)
@@ -287,8 +240,6 @@ with tab_manage:
             
             st.divider()
             
-            # ... هنا يكمل الكود السابق الخاص بأزرار الإكسل والوورد والجدول
-        if h_choice:
             df_m = pd.read_sql("SELECT id as 'رقم الهوية', name as 'الاسم', phone as 'رقم الجوال', school as 'المدرسة', role as 'المهمة', updated_by as 'الموظف' FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             c_exc, c_wrd = st.columns(2)
             with c_exc:
