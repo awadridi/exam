@@ -75,8 +75,8 @@ st.markdown("""
     .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
     
     /* الفئة الجديدة لإجبار النص على الانتقال لليسار (الجهة المقابلة) */
-    .move-to-left {
-        text-align: left !important;
+    .move-to-right {
+        text-align: right !important;
         direction: ltr !important;
         display: block;
         width: 100%;
@@ -190,7 +190,7 @@ tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البح
 
 with tab_search:
     # 1. إدارة الموظفين للجهة المقابلة
-    st.markdown('<h2 class="move-to-left">إدارة الموظفين</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="move-to-right">إدارة الموظفين</h2>', unsafe_allow_html=True)
     df_h_data = get_cached_halls()
     hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
     
@@ -290,7 +290,7 @@ with tab_search:
 
 with tab_auto:
     # 2. نظام التوزيع التلقائي للجهة المقابلة
-    st.markdown('<h2 class="move-to-left">🤖 نظام التوزيع التلقائي</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
@@ -356,7 +356,7 @@ with tab_auto:
 
 with tab_upload:
     # 3. تحديث القالب والبيانات للجهة المقابلة
-    st.markdown('<h2 class="move-to-left">تحديث القالب والبيانات</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="move-to-right">تحديث القالب والبيانات</h2>', unsafe_allow_html=True)
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -395,7 +395,7 @@ with tab_manage:
     
     st.divider()
     # 4. تصدير البيانات المعدلة للجهة المقابلة
-    st.markdown('<h3 class="move-to-left">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
     df_export.columns = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية']
     
@@ -405,7 +405,7 @@ with tab_manage:
         workbook, worksheet = writer.book, writer.sheets['جميع المعلمين']
         h_fmt = workbook.add_format({'bold':True,'font_size':12,'border':1,'align':'center','bg_color':'#D7E4BC'})
         c_fmt = workbook.add_format({'font_size':11,'border':1,'align':'right'})
-        worksheet.right_to_left()
+        worksheet.right_to_right()
         for col_num, col_name in enumerate(df_export.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             worksheet.set_column(col_num, col_num, 18, c_fmt)
@@ -421,7 +421,7 @@ with tab_manage:
             df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
             
             # 5. توزيع الكادر في قاعة للجهة المقابلة
-            st.markdown(f'<h4 class="move-to-left">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
+            st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
             if not df_hall_details.empty:
                 st.table(df_hall_details[['name', 'role', 'school', 'city', 'phone']])
@@ -460,7 +460,7 @@ with tab_manage:
 
 with tab_logs:
     # 6. سجل العمليات للجهة المقابلة
-    st.markdown('<h2 class="move-to-left">📜 سجل العمليات</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
     if st.button("🗑️ مسح السجل"):
