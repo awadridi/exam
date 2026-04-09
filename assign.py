@@ -48,7 +48,7 @@ if 'popover_counter' not in st.session_state:
 # =====================================
 # 2. إعدادات الواجهة وقاعدة البيانات
 # =====================================
-st.set_page_config(page_title="نظام التكليفات 2026", layout="wide")
+st.set_page_config(page_title="نظام التكليفات 2026", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
