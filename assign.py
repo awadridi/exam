@@ -122,9 +122,6 @@ HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14
 # =====================================
 # 3. وظائف معالجة الملفات
 # =====================================
-# =====================================
-# 3. وظائف معالجة الملفات (تم التعديل لتطابق الصورة)
-# =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9:
@@ -133,19 +130,17 @@ def process_doc(doc_obj, row, h_name, h_city):
     h_name_final = str(h_name) if h_name and str(h_name).lower() != 'nan' else "---"
     h_city_final = str(h_city) if h_city and str(h_city).lower() != 'nan' else "---"
         
-    # الربط بين رموز الصورة وبيانات الجدول
     repls = {
-        'ZNAME': str(row.get('name', '')),      # الاسم
-        'ZID': str(row.get('id', '')),          # رقم الهوية
-        'ZPHONE': phone_val,                    # رقم الجوال
-        'ZJOB': str(row.get('role', '')),       # المهمة المكلف بها (مراقب، رئيس قاعة..)
-        'ZHALL': h_name_final,                  # اسم القاعة
-        'ZLOC': h_city_final,                   # مدينة/قرية القاعة
-        'ZWORK': str(row.get('school', '')),    # مقر العمل الأصلي (المدرسة)
-        'ZCITY': str(row.get('city', ''))       # مكان السكن
+        'ZNAME': str(row.get('name', '')),
+        'ZID': str(row.get('id', '')),
+        'ZPHONE': phone_val,
+        'ZJOB': str(row.get('role', '')),
+        'ZHALL': h_name_final,
+        'ZLOC': h_city_final,
+        'ZWORK': str(row.get('school', '')),
+        'ZCITY': str(row.get('city', ''))
     }
 
-    # استبدال النصوص في الفقرات
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
             if k in p.text:
@@ -154,7 +149,6 @@ def process_doc(doc_obj, row, h_name, h_city):
                         run.text = run.text.replace(k, v)
                         run.bold = True
 
-    # استبدال النصوص داخل الجداول إن وجدت
     for table in doc_obj.tables:
         for r in table.rows:
             for cell in r.cells:
@@ -237,9 +231,7 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                # التعديل لضمان الإغلاق الفوري للصندوق عند الحفظ
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
-                    msg_placeholder = st.empty()
                     u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}")
                     u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}")
                     u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}")
@@ -253,7 +245,7 @@ with tab_search:
                                      WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                         conn.commit()
                         add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                        st.session_state.popover_counter += 1  # تغيير المفتاح لإغلاق الصندوق
+                        st.session_state.popover_counter += 1
                         st.success("✅ تم الحفظ")
                         time.sleep(0.5)
                         st.rerun()
@@ -312,21 +304,25 @@ with tab_auto:
         if selected_cities:
             pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
             
-        df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
+        # ========================================================
+        # التعديل المطلوب: التصفية بناءً على الصلاحية والرغبة معاً
+        # ========================================================
+        df_auto_pool = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')]
+        
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=min(1, len(df_auto_pool)))
 
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
             elif len(df_auto_pool) < num_to_assign:
-                st.error(f"العدد المتاح ({len(df_auto_pool)}) أقل من المطلوب.")
+                st.error(f"العدد المتاح ممن يرغبون ويصلحون ({len(df_auto_pool)}) أقل من المطلوب.")
             else:
                 selected_sample = df_auto_pool.sample(n=int(num_to_assign))
                 for _, r in selected_sample.iterrows():
                     c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
                               (target_h, hall_map[target_h], r['id']))
                 conn.commit()
-                add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب على قاعة {target_h}")
+                add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب (يرغبون) على قاعة {target_h}")
                 st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
                 time.sleep(1)
                 st.rerun()
