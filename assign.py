@@ -243,7 +243,10 @@ with tab_search:
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.success("✅ تم التحديث بنجاح!")
+                            
+                            # إغلاق النافذة عن طريق تحديث الحالة وإعادة التشغيل
                             time.sleep(1)
+                            st.session_state[popover_key] = False 
                             st.rerun()
 
                 st.divider()
