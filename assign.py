@@ -405,7 +405,7 @@ with tab_manage:
         workbook, worksheet = writer.book, writer.sheets['جميع المعلمين']
         h_fmt = workbook.add_format({'bold':True,'font_size':12,'border':1,'align':'center','bg_color':'#D7E4BC'})
         c_fmt = workbook.add_format({'font_size':11,'border':1,'align':'right'})
-        worksheet.right_to_right()
+        worksheet.right_to_left()
         for col_num, col_name in enumerate(df_export.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             worksheet.set_column(col_num, col_num, 18, c_fmt)
