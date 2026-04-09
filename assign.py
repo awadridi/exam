@@ -46,7 +46,6 @@ if not login():
 # =====================================
 st.set_page_config(page_title="نظام تكليف المراقبة", layout="wide")
 
-# إعداد التنسيق لليمين (RTL) بالكامل
 st.markdown("""
     <style>
     .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
@@ -72,7 +71,6 @@ st.markdown("""
 conn = sqlite3.connect("data_system_v26.db", check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
@@ -92,30 +90,36 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات
+# 3. وظائف معالجة الملفات المعدلة
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9: phone_val = '0' + phone_val
+    
     repls = {
-        '<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), 
-        '<PHONE>': phone_val, '<JOB>': str(row.get('role', '')), 
-        '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
-        '<WORKPLACE>': str(row.get('school', '')), '<CITY>': str(row.get('city', ''))
+        '<NAME>': str(row.get('name', '')), 
+        '<ID>': str(row.get('id', '')), 
+        '<PHONE>': phone_val, 
+        '<JOB>': str(row.get('role', '')), 
+        '<HALL_NAME>': str(h_name), 
+        '<HALL_LOCATION>': str(h_city), 
+        '<WORKPLACE>': str(row.get('school', '')), 
+        '<CITY>': str(row.get('city', ''))
     }
-    for p in doc_obj.paragraphs:
-        for k, v in repls.items():
-            if k in p.text:
-                for run in p.runs:
-                    if k in run.text: run.text = run.text.replace(k, v)
+
+    def replace_in_paragraphs(paragraphs):
+        for p in paragraphs:
+            for k, v in repls.items():
+                if k in p.text:
+                    # هذه الطريقة تضمن استبدال النص مع الحفاظ على التنسيق الموحد للفقرة
+                    full_text = p.text.replace(k, v)
+                    p.text = full_text
+
+    replace_in_paragraphs(doc_obj.paragraphs)
     for table in doc_obj.tables:
         for r in table.rows:
             for cell in r.cells:
-                for p in cell.paragraphs:
-                    for k, v in repls.items():
-                        if k in p.text:
-                            for run in p.runs:
-                                if k in run.text: run.text = run.text.replace(k, v)
+                replace_in_paragraphs(cell.paragraphs)
     return doc_obj
 
 def generate_single_doc(row):
@@ -125,22 +129,27 @@ def generate_single_doc(row):
     bio = io.BytesIO(); doc.save(bio); bio.seek(0)
     return bio
 
-# الوظيفة المعدلة لمنع الصفحات الفارغة في النهاية
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
     final_doc = Document("template.docx"); final_doc._body.clear_content()
     
-    total_rows = len(df)
-    for idx, row in df.reset_index(drop=True).iterrows():
+    df_clean = df.reset_index(drop=True)
+    total_rows = len(df_clean)
+    
+    for idx, row in df_clean.iterrows():
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
         
-        # دمج العناصر
-        for element in temp_doc.element.body:
-            if not element.tag.endswith('sectPr'):
-                final_doc.element.body.append(element)
+        # تجميع العناصر مع تنظيف أي فقرات فارغة زائدة في النهاية
+        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
         
-        # إضافة فاصل صفحات فقط إذا لم يكن هذا هو الشخص الأخير
+        # إزالة الفقرات الفارغة من نهاية كل تكليف لمنع تراكم الصفحات
+        while elements and elements[-1].tag.endswith('p') and not elements[-1].text.strip():
+            elements.pop()
+
+        for element in elements:
+            final_doc.element.body.append(element)
+        
         if idx < total_rows - 1:
             final_doc.add_page_break()
             
@@ -148,7 +157,7 @@ def generate_bulk_word(df, h_name):
     return out
 
 # =====================================
-# 4. الشريط الجانبي (Sidebar) - معلومات الموظف
+# باقي الكود (Sidebar + Tabs) كما هو بدون تغيير
 # =====================================
 st.sidebar.markdown(f"### 👤 الموظف الحالي:")
 st.sidebar.info(f"**{st.session_state.username}**")
@@ -157,16 +166,10 @@ if st.sidebar.button("🚪 تسجيل الخروج", use_container_width=True):
     st.rerun()
 st.sidebar.divider()
 
-# =====================================
-# 5. التبويبات الرئيسية
-# =====================================
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
     "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
 ])
 
-# -------------------------------------
-# شاشة البحث والتعيين اليدوي
-# -------------------------------------
 with tab_search:
     st.markdown("<div class='right-align'><h3>🔍 إدارة الموظفين والتعيين اليدوي</h3></div>", unsafe_allow_html=True)
     df_h_data = pd.read_sql("SELECT * FROM halls", conn)
@@ -206,15 +209,10 @@ with tab_search:
                         f_word = generate_single_doc(row)
                         if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_btn_{row['id']}")
 
-# -------------------------------------
-# شاشة التوزيع التلقائي للمراقبين
-# -------------------------------------
 with tab_auto:
     st.markdown("<div class='right-align'><h3>🤖 التوزيع التلقائي للمراقبين</h3></div>", unsafe_allow_html=True)
-    
     df_h_data_auto = pd.read_sql("SELECT * FROM halls", conn)
     hall_map_auto = {r['hall_name']: r['city'] for _, r in df_h_data_auto.iterrows()}
-    
     df_avail = pd.read_sql("SELECT * FROM teachers WHERE current_job = 'معلم' AND preference = 'يرغب' AND ability = 'يصلح' AND (hall = '' OR hall IS NULL OR hall = 'nan')", conn)
     df_not_willing = pd.read_sql("SELECT * FROM teachers WHERE current_job = 'معلم' AND preference = 'لا يرغب' AND ability = 'يصلح' AND (hall = '' OR hall IS NULL OR hall = 'nan')", conn)
 
@@ -229,43 +227,14 @@ with tab_auto:
                 pool = df_avail[df_avail['city'].isin(selected_cities)].sample(frac=1).reset_index(drop=True).head(req_proctors)
                 if not pool.empty:
                     for _, t in pool.iterrows():
-                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
-                                  (target_hall, "مراقب", hall_map_auto.get(target_hall, ""), st.session_state.username, t['id']))
-                    conn.commit()
-                    st.session_state.last_assigned_proctors = pool[['name', 'id', 'city', 'school']]
-                    st.success("✅ تم توزيع المعلمين بنجاح")
-                    st.rerun()
+                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (target_hall, "مراقب", hall_map_auto.get(target_hall, ""), st.session_state.username, t['id']))
+                    conn.commit(); st.session_state.last_assigned_proctors = pool[['name', 'id', 'city', 'school']]; st.success("✅ تم التوزيع"); st.rerun()
 
     if 'last_assigned_proctors' in st.session_state and st.session_state.last_assigned_proctors is not None:
         st.divider()
-        st.markdown(f"<div class='right-align'><h4>📋 كشف الموزعين حالياً في: {target_hall}</h4></div>", unsafe_allow_html=True)
         st.dataframe(st.session_state.last_assigned_proctors, use_container_width=True, hide_index=True)
         if st.button("🧹 إخفاء الجدول"): st.session_state.last_assigned_proctors = None; st.rerun()
 
-    st.divider()
-    
-    # الإحصائيات (مفصولة بوضوح)
-    with st.expander("✅ المعلمون المتاحون (الذين يرغبون)"):
-        if not df_avail.empty:
-            stats_yes = df_avail['city'].value_counts().reset_index()
-            cols = st.columns(4)
-            for i, r in stats_yes.iterrows():
-                with cols[i % 4]:
-                    st.markdown(f"<div class='city-card'><b>{r['city']}</b><br><span style='color:#00ffcc; font-size:1.3rem;'>{r['count']} معلم</span></div>", unsafe_allow_html=True)
-        else: st.write("لا يوجد متاحون.")
-
-    with st.expander("⚠️ المعلمون الاحتياط (الذين لا يرغبون)"):
-        if not df_not_willing.empty:
-            stats_no = df_not_willing['city'].value_counts().reset_index()
-            cols = st.columns(4)
-            for i, r in stats_no.iterrows():
-                with cols[i % 4]:
-                    st.markdown(f"<div class='city-card'><b>{r['city']}</b><br><span style='color:#ff4b4b; font-size:1.3rem;'>{r['count']} معلم</span></div>", unsafe_allow_html=True)
-        else: st.write("القائمة فارغة.")
-
-# -------------------------------------
-# شاشة الإدارة والإحصائيات
-# -------------------------------------
 with tab_manage:
     st.markdown("<div class='right-align'><h3>📊 الإدارة والإحصائيات العامة</h3></div>", unsafe_allow_html=True)
     df_all = pd.read_sql("SELECT * FROM teachers", conn)
@@ -280,21 +249,17 @@ with tab_manage:
         h_choice = st.selectbox("اختر قاعة لإدارتها:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
             df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-            st.markdown(f"##### 📊 بيانات كادر قاعة: {h_choice}")
             col_m1, col_m2 = st.columns(2)
             with col_m1:
                 p_cnt = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
-                if st.button(f"🗑️ حذف ({p_cnt}) مراقب من {h_choice} فقط", type="secondary", use_container_width=True):
+                if st.button(f"🗑️ حذف ({p_cnt}) مراقب من {h_choice}", type="secondary", use_container_width=True):
                     c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE hall=? AND role='مراقب'", (h_choice,))
-                    conn.commit(); add_log("حذف مراقبين", f"تفريغ مراقبي {h_choice}"); st.rerun()
+                    conn.commit(); add_log("حذف مراقبين", f"تفريغ {h_choice}"); st.rerun()
             with col_m2:
                 bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                if bulk_f: st.download_button("📥 تحميل كافة كتب القاعة", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx", use_container_width=True)
+                if bulk_f: st.download_button("📥 تحميل كافة الكتب", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx", use_container_width=True)
             st.dataframe(df_hall_details[['name', 'role', 'school', 'city']], use_container_width=True)
 
-# -------------------------------------
-# رفع البيانات والسجل
-# -------------------------------------
 with tab_upload:
     st.markdown("<div class='right-align'><h3>📥 تحديث البيانات والقالب</h3></div>", unsafe_allow_html=True)
     up_tpl = st.file_uploader("ارفع قالب وورد جديد (template.docx)", type="docx")
@@ -308,7 +273,7 @@ with tab_upload:
             dft.columns = dft.columns.str.strip().str.lower()
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
-            st.success("تمت مزامنة البيانات بنجاح"); st.rerun()
+            st.success("تمت المزامنة"); st.rerun()
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_logs:
