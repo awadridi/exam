@@ -2,11 +2,9 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from docx import Document
-from docx.shared import Mm
 import io
 import os
 from datetime import datetime
-from copy import deepcopy
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
@@ -91,12 +89,13 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (إصلاح جذري لمشكلة الصفحات الفارغة)
+# 3. وظائف معالجة الملفات (تعديل الكلمات المفتاحية الجديد)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9: phone_val = '0' + phone_val
     
+    # القاموس الجديد المتوافق مع تعديلاتك في ملف الوورد
     repls = {
         'ZNAME': str(row.get('name', '')), 
         'ZID': str(row.get('id', '')), 
@@ -121,62 +120,23 @@ def process_doc(doc_obj, row, h_name, h_city):
         for r in table.rows:
             for cell in r.cells:
                 replace_in_paragraphs(cell.paragraphs)
-    
     return doc_obj
 
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
-    
-    # 1. ننشئ مستند جديد تماماً (هذا يضمن عدم وجود صفحات فارغة في البداية)
-    final_doc = Document()
-    
-    # 2. نفتح القالب الأصلي لاستنساخ التنسيقات منه
-    source_tpl = Document("template.docx")
-    
-    # ضبط هوامش المستند الجديد لتطابق القالب
-    section = final_doc.sections[0]
-    source_sec = source_tpl.sections[0]
-    section.top_margin = source_sec.top_margin
-    section.bottom_margin = source_sec.bottom_margin
-    section.left_margin = source_sec.left_margin
-    section.right_margin = source_sec.right_margin
-    section.header_distance = source_sec.header_distance
-    section.footer_distance = source_sec.footer_distance
-
+    final_doc = Document("template.docx"); final_doc._body.clear_content()
     df_clean = df.reset_index(drop=True)
-    
     for idx, row in df_clean.iterrows():
-        # فتح ومعالجة القالب لكل موظف
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
-        
-        # نقل الترويسة (Header) من القالب إلى القسم الحالي في المستند النهائي
-        # ملاحظة: يتم تنفيذ هذا في الصفحة الأولى وفي كل مرة بعد فاصل الصفحات
-        current_section = final_doc.sections[-1]
-        source_header = temp_doc.sections[0].header
-        
-        # إذا كانت هناك ترويسة، ننقل محتواها
-        if source_header:
-            target_header = current_section.header
-            target_header.is_linked_to_previous = False # مهم لضمان استقلال الترويسة
-            for p in source_header.paragraphs:
-                new_p = target_header.add_paragraph()
-                new_p._p.append(deepcopy(p._element))
-            for t in source_header.tables:
-                target_header._element.append(deepcopy(t._element))
-
-        # نقل محتوى جسم المستند
         elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+        while elements and elements[-1].tag.endswith('p') and not elements[-1].text.strip():
+            elements.pop()
         for element in elements:
-            final_doc.element.body.append(deepcopy(element))
-            
-        # إضافة فاصل صفحات
+            final_doc.element.body.append(element)
         if idx < len(df_clean) - 1:
             final_doc.add_page_break()
-            
-    out = io.BytesIO()
-    final_doc.save(out)
-    out.seek(0)
+    out = io.BytesIO(); final_doc.save(out); out.seek(0)
     return out
 
 def generate_single_doc(row):
@@ -187,9 +147,8 @@ def generate_single_doc(row):
     return bio
 
 # =====================================
-# بقية أجزاء الكود (الواجهات) تبقى كما هي
+# 4. الشريط الجانبي (الموظف وتسجيل الخروج)
 # =====================================
-
 st.sidebar.markdown(f"### 👤 الموظف الحالي:")
 st.sidebar.info(f"**{st.session_state.username}**")
 if st.sidebar.button("🚪 تسجيل الخروج", use_container_width=True):
@@ -197,6 +156,9 @@ if st.sidebar.button("🚪 تسجيل الخروج", use_container_width=True):
     st.rerun()
 st.sidebar.divider()
 
+# =====================================
+# 5. التبويبات الرئيسية
+# =====================================
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
     "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
 ])
