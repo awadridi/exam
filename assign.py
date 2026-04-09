@@ -140,19 +140,19 @@ with tab_search:
         for _, row in results.iterrows():
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 with tab_search:
-    st.subheader("إدارة الموظفين")
-    df_h_data = pd.read_sql("SELECT * FROM halls", conn)
-    hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
-    
-    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
-    if q:
-        df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
-        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | 
-                               df_teachers['id'].astype(str).str.contains(q) | 
-                               df_teachers['phone'].astype(str).str.contains(q)]
-        
-        for _, row in results.iterrows():
-            with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
+                    st.subheader("إدارة الموظفين")
+                    df_h_data = pd.read_sql("SELECT * FROM halls", conn)
+                    hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
+                    
+                    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
+                    if q:
+                        df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
+                        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | 
+                                               df_teachers['id'].astype(str).str.contains(q) | 
+                                               df_teachers['phone'].astype(str).str.contains(q)]
+                        
+                        for _, row in results.iterrows():
+                            with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 
                 # --- الإضافة الجديدة هنا (لا تحذف ما تحتها) ---
                 st.markdown(f"""
