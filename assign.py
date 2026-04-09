@@ -228,6 +228,8 @@ with tab_search:
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
                 with st.popover("📝 تعديل البيانات الأساسية"):
+                    # إنشاء مساحة للرسالة داخل البوب أوفر
+                    msg_placeholder = st.empty()
                     with st.form(key=f"edit_base_{row['id']}"):
                         u_name = st.text_input("الاسم", value=row['name'])
                         u_phone = st.text_input("رقم الجوال", value=display_phone)
@@ -242,7 +244,9 @@ with tab_search:
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                            st.success("✅ تم التحديث بنجاح!")
+                            
+                            # إظهار الرسالة ثم الانتظار ثم التحديث للإغلاق
+                            msg_placeholder.success("✅ تم التحديث بنجاح")
                             time.sleep(1)
                             st.rerun()
 
