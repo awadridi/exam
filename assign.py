@@ -88,7 +88,6 @@ def process_doc(doc_obj, row, h_name, h_city):
     if phone_val.startswith('5') and len(phone_val) == 9:
         phone_val = '0' + phone_val
     
-    # تصحيح قيم القاعة والمدينة لضمان عدم ظهور الكود البرمجي في الوورد
     h_name_final = str(h_name) if h_name and str(h_name).lower() != 'nan' else "---"
     h_city_final = str(h_city) if h_city and str(h_city).lower() != 'nan' else "---"
         
@@ -103,7 +102,6 @@ def process_doc(doc_obj, row, h_name, h_city):
         '<CITY>': str(row.get('city', ''))
     }
 
-    # معالجة الفقرات العادية
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
             if k in p.text:
@@ -112,7 +110,6 @@ def process_doc(doc_obj, row, h_name, h_city):
                         run.text = run.text.replace(k, v)
                         run.bold = True
 
-    # معالجة الجداول (ضروري جداً لأن بيانات التكليف غالباً تكون في جداول)
     for table in doc_obj.tables:
         for r in table.rows:
             for cell in r.cells:
@@ -152,7 +149,8 @@ if st.sidebar.button("🚪 خروج"):
     st.session_state.logged_in = False
     st.rerun()
 
-tab_search, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
+# تم إضافة تبويب التوزيع التلقائي هنا
+tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
     st.subheader("إدارة الموظفين")
@@ -232,7 +230,6 @@ with tab_search:
                                          key=f"q_r_{row['id']}")
                 with c2:
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
-                        # تصحيح: جلب المدينة من hall_map وحفظها في قاعدة البيانات
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
@@ -252,12 +249,46 @@ with tab_search:
                             conn.commit()
                             st.rerun()
                         
-                        # توليد الملف باستخدام البيانات المحدثة
                         f_word = generate_single_doc(row)
                         if f_word: 
                             st.download_button("📥 تحميل الكتاب", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
                                                key=f"dl_s_{row['id']}")
+
+with tab_auto:
+    st.subheader("🤖 نظام التوزيع التلقائي")
+    df_auto_teachers = pd.read_sql("SELECT * FROM teachers WHERE (hall = '' OR hall IS NULL) AND ability = 'يصلح'", conn)
+    
+    if df_auto_teachers.empty:
+        st.warning("⚠️ لا يوجد معلمين متاحين للتوزيع (تأكد من خانة 'يصلح' في صلاحية المراقبة).")
+    else:
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
+            selected_cities = st.multiselect("السحب من مناطق سكن معينة:", df_auto_teachers['city'].unique())
+        
+        with col_a2:
+            num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=len(df_auto_teachers), value=1)
+            if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
+                if not target_h:
+                    st.error("الرجاء اختيار قاعة أولاً")
+                else:
+                    pool = df_auto_teachers
+                    if selected_cities:
+                        pool = pool[pool['city'].isin(selected_cities)]
+                    
+                    if len(pool) < num_to_assign:
+                        st.error(f"العدد المتاح في المناطق المختارة ({len(pool)}) أقل من العدد المطلوب.")
+                    else:
+                        selected_sample = pool.sample(n=int(num_to_assign))
+                        for _, r in selected_sample.iterrows():
+                            c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
+                                     (target_h, hall_map[target_h], r['id']))
+                        conn.commit()
+                        add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب على قاعة {target_h}")
+                        st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
+                        time.sleep(1)
+                        st.rerun()
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
@@ -321,7 +352,20 @@ with tab_manage:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
             df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-            st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
+            
+            col_h1, col_h2 = st.columns([3, 1])
+            with col_h1:
+                st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
+            with col_h2:
+                # زر حذف تكليفات القاعة بالكامل
+                if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
+                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
+                    conn.commit()
+                    add_log("تفريغ قاعة", f"تم مسح كافة تكليفات قاعة {h_choice}")
+                    st.success("تم تفريغ القاعة")
+                    time.sleep(0.5)
+                    st.rerun()
+
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
             c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
