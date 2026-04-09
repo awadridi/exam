@@ -430,7 +430,7 @@ with tab_manage:
                 # تجهيز البيانات للعرض مع إضافة الترقيم
                 df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']].copy()
                 df_to_show.insert(0, 'م', range(1, 1 + len(df_to_show))) # إضافة عمود الترقيم هنا
-                df_to_show.columns = ['م', 'الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
+                df_to_show.columns = ['الرقم', 'الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
                 
                 styled_df = df_to_show.style.set_properties(**{
                     'text-align': 'right',
