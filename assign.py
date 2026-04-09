@@ -89,17 +89,24 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (تعديل التنسيق والفراغات)
+# 3. وظائف معالجة الملفات (تعديل الكلمات المفتاحية الجديد)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9: phone_val = '0' + phone_val
+    
+    # القاموس الجديد المتوافق مع تعديلاتك في ملف الوورد
     repls = {
-        '<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), 
-        '<PHONE>': phone_val, '<JOB>': str(row.get('role', '')), 
-        '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
-        '<WORKPLACE>': str(row.get('school', '')), '<CITY>': str(row.get('city', ''))
+        'ZNAME': str(row.get('name', '')), 
+        'ZID': str(row.get('id', '')), 
+        'ZJOB': str(row.get('role', '')), 
+        'ZHALL': str(h_name), 
+        'ZLOC': str(h_city), 
+        'ZWORK': str(row.get('school', '')), 
+        'ZCITY': str(row.get('city', '')),
+        'ZPHONE': phone_val
     }
+    
     def replace_in_paragraphs(paragraphs):
         for p in paragraphs:
             for k, v in repls.items():
@@ -107,6 +114,7 @@ def process_doc(doc_obj, row, h_name, h_city):
                     for run in p.runs:
                         if k in run.text:
                             run.text = run.text.replace(k, v)
+
     replace_in_paragraphs(doc_obj.paragraphs)
     for table in doc_obj.tables:
         for r in table.rows:
