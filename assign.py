@@ -243,45 +243,50 @@ with tab_search:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                rel_info = ""
+                # 1. تنظيف البيانات من قيم nan لضمان عرض نظيف
+                def clean_val(v, default="---"):
+                    val = str(v).strip()
+                    return default if val.lower() in ['nan', 'none', ''] else val
+
+                v_id = clean_val(row.get('id'))
+                v_city = clean_val(row.get('city'))
+                v_school = clean_val(row.get('school'))
+                v_pref = clean_val(row.get('preference'), "غير محدد")
+                v_job = clean_val(row.get('current_job'), "غير محدد")
+                v_abil = clean_val(row.get('ability'), "لم تحدد")
+                v_rel = clean_val(row.get('relative'), "لا يوجد")
+                v_relex = clean_val(row.get('relative_exam'))
+
+                # 2. تجهيز جزء الأقارب كمتغير نصي نظيف
+                rel_html_row = ""
                 if st.session_state.system_mode == "tawzif":
-                    # تنظيف قيم الأقارب
-                    r_val = str(row.get('relative', 'لا يوجد'))
-                    re_val = str(row.get('relative_exam', '---'))
-                    if r_val.lower() == 'nan': r_val = 'لا يوجد'
-                    if re_val.lower() == 'nan': re_val = '---'
-                    
-                    rel_info = f"""
+                    rel_html_row = f"""
                     <tr>
-                        <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {r_val}</td>
-                        <td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {re_val}</td>
+                        <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td>
+                        <td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td>
                     </tr>
                     """
 
-                # تنظيف قيمة صلاحية المراقبة
-                abil_val = str(row.get('ability', 'لم تحدد'))
-                if abil_val.lower() == 'nan': abil_val = 'لم تحدد'
-
-                # عرض الجدول بشكل موحد
+                # 3. عرض الجدول (كتلة واحدة محكمة الإغلاق)
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
                         <tr>
-                            <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
+                            <td style="padding: 5px;"><b>🆔 الهوية:</b> {v_id}</td>
                             <td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
-                            <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
+                            <td style="padding: 5px;"><b>🏡 السكن:</b> {v_city}</td>
+                            <td style="padding: 5px;"><b>🏫 المدرسة:</b> {v_school}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
-                            <td style="padding: 5px;"><b>💼 الوظيفة:</b> {row.get('current_job', 'غير محدد')}</td>
+                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td>
+                            <td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td>
                         </tr>
-                        {rel_info}
+                        {rel_html_row}
                         <tr>
                             <td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;">
-                                <b>⚠️ صلاحية المراقبة:</b> {abil_val}
+                                <b>⚠️ صلاحية المراقبة:</b> {v_abil}
                             </td>
                         </tr>
                     </table>
