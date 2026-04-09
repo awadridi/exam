@@ -205,7 +205,7 @@ with tab_search:
                             <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير مححدد')}</td>
+                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
                             <td style="padding: 5px;"><b>💼 الوظيفة:</b> {row.get('current_job', 'غير محدد')}</td>
                         </tr>
                         <tr>
@@ -280,51 +280,71 @@ with tab_search:
 with tab_auto:
     st.subheader("🤖 نظام التوزيع التلقائي")
     df_all = get_cached_teachers()
+    # المتاحين فقط هم من ليس لديهم قاعة مكلفين بها
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
         selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
-    
-    pool_stats = df_available
-    if selected_cities:
-        pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
-    
+        
+        # --- الزر الأول: يصلح ويرغب ---
+        with st.expander("✅ مناطق المعلمين (يصلح ويرغب)"):
+            df_wants = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'يرغب')]
+            if not df_wants.empty:
+                st.write(df_wants['city'].value_counts())
+            else:
+                st.info("لا يوجد بيانات")
+
+    with col_a2:
+        # فلترة المسبح (Pool) بناءً على المناطق المختارة
+        pool_stats = df_available
+        if selected_cities:
+            pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
+            
+        df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
+
+        # --- الزر الثاني: يصلح ولا يرغب ---
+        with st.expander("❌ مناطق المعلمين (يصلح ولا يرغب)"):
+            df_no_wants = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'لا يرغب')]
+            if not df_no_wants.empty:
+                st.write(df_no_wants['city'].value_counts())
+            else:
+                st.info("لا يوجد بيانات")
+
+    # بطاقات إحصائية سريعة للمناطق المختارة
     can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
     can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
     
     st.markdown(f"""
     <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
         <div class="stat-card stat-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">يصلح ويرغب (حسب المنطقة)</span><br>
+            <span style="color: #bbb; font-size: 0.9rem;">يصلح ويرغب (في المناطق المختارة)</span><br>
             <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
         </div>
         <div class="stat-card stat-no-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">يصلح ولا يرغب (حسب المنطقة)</span><br>
+            <span style="color: #bbb; font-size: 0.9rem;">يصلح ولا يرغب (في المناطق المختارة)</span><br>
             <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    with col_a2:
-        df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
-        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
-            if not target_h:
-                st.error("الرجاء اختيار قاعة أولاً")
-            elif len(df_auto_pool) < num_to_assign:
-                st.error(f"العدد المتاح ({len(df_auto_pool)}) أقل من المطلوب.")
-            else:
-                selected_sample = df_auto_pool.sample(n=int(num_to_assign))
-                for _, r in selected_sample.iterrows():
-                    c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
-                             (target_h, hall_map[target_h], r['id']))
-                conn.commit()
-                add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب على قاعة {target_h}")
-                st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
-                time.sleep(1)
-                st.rerun()
+    if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
+        if not target_h:
+            st.error("الرجاء اختيار قاعة أولاً")
+        elif len(df_auto_pool) < num_to_assign:
+            st.error(f"العدد المتاح ({len(df_auto_pool)}) أقل من المطلوب.")
+        else:
+            selected_sample = df_auto_pool.sample(n=int(num_to_assign))
+            for _, r in selected_sample.iterrows():
+                c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
+                          (target_h, hall_map[target_h], r['id']))
+            conn.commit()
+            add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب على قاعة {target_h}")
+            st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
+            time.sleep(1)
+            st.rerun()
 
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
@@ -383,10 +403,7 @@ with tab_manage:
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    # التعديل: فلترة القاعات لتظهر فقط التي تحتوي على معلمين مكلفين
-    # نقوم باستخراج القاعات التي لها قيمة نصية (طولها أكبر من صفر) وليست nan
-    assigned_halls_df = df_all_teachers[df_all_teachers['hall'].astype(str).apply(lambda x: len(x.strip()) > 0 and x.lower() != 'nan')]
-    assigned_halls = sorted(assigned_halls_df['hall'].unique().tolist())
+    assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
     
     if assigned_halls:
         h_choice = st.selectbox("اختر قاعة لعرض الكادر (يظهر فقط القاعات التي بها موظفون):", [""] + assigned_halls)
