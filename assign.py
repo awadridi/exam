@@ -243,28 +243,27 @@ with tab_search:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-               # 1. تنظيف البيانات
-                v_id = str(row.get('id', '---'))
-                v_city = str(row.get('city', '---'))
-                v_school = str(row.get('school', '---'))
-                v_pref = str(row.get('preference', 'غير محدد'))
-                v_job = str(row.get('current_job', 'غير محدد'))
-                v_abil = str(row.get('ability', 'لم تحدد'))
-                v_rel = str(row.get('relative', 'لا يوجد'))
-                v_relex = str(row.get('relative_exam', '---'))
+               # 1. تنظيف وتجهيز البيانات (لضمان عدم ظهور nan)
+                def get_val(key, default="---"):
+                    val = str(row.get(key, default)).strip()
+                    return default if val.lower() in ['nan', 'none', ''] else val
 
-                # معالجة قيم nan المزعجة
-                vars_to_clean = [v_id, v_city, v_school, v_pref, v_job, v_abil, v_rel, v_relex]
-                v_id, v_city, v_school, v_pref, v_job, v_abil, v_rel, v_relex = [
-                    "---" if x.lower() == 'nan' else x for x in vars_to_clean
-                ]
+                v_id = get_val('id')
+                v_city = get_val('city')
+                v_school = get_val('school')
+                v_pref = get_val('preference', "غير محدد")
+                v_job = get_val('current_job', "غير محدد")
+                v_abil = get_val('ability', "لم تحدد")
+                v_rel = get_val('relative', "لا يوجد")
+                v_relex = get_val('relative_exam')
 
-                # 2. تجهيز صف الأقارب (بدون علامات تنصيص زائدة تكسر الكود)
+                # 2. بناء صف الأقارب (يظهر فقط إذا كان النظام "tawzif")
+                # استخدمنا علامة اقتباس مفردة ' هنا لتجنب التعارض مع العلامات الثلاثية
                 rel_row_html = ""
                 if st.session_state.system_mode == "tawzif":
                     rel_row_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td></tr>'
 
-                # 3. عرض الجدول (كتلة واحدة تبدأ بـ f""" وتنتهي بـ """)
+                # 3. عرض الجدول النهائي (كتلة واحدة تبدأ بـ f""" وتنتهي بـ """)
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
@@ -289,7 +288,6 @@ with tab_search:
                     </table>
                 </div>
                 """, unsafe_allow_html=True)
-
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
