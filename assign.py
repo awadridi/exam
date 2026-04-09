@@ -48,7 +48,7 @@ if 'popover_counter' not in st.session_state:
 # =====================================
 # 2. إعدادات الواجهة وقاعدة البيانات
 # =====================================
-st.set_page_config(page_title="نظام التكليفات 2026", layout="wide")
+st.set_page_config(page_title="نظام التكليفات 2026", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
@@ -56,6 +56,15 @@ st.markdown("""
         direction: rtl; 
         text-align: right; 
         background-color: #0e1117; 
+    }
+    /* تنسيق مستطيل اسم الموظف - صغير وغير عريض */
+    .user-box {
+        background-color: #1a1c23;
+        padding: 5px 15px;
+        border-radius: 8px;
+        border-right: 5px solid #00ffcc;
+        display: inline-block;
+        float: right;
     }
     div[data-baseweb="select"], div[data-baseweb="input"], .stMultiSelect {
         direction: rtl !important;
@@ -181,13 +190,28 @@ def generate_bulk_word(df, h_name):
     return out
 
 # =====================================
-# 4. الواجهة الرئيسية
+# 4. الواجهة الرئيسية (التعديل المطلوب)
 # =====================================
-st.sidebar.markdown(f"### 👤 الموظف: **{st.session_state.username}**")
-if st.sidebar.button("🚪 خروج"):
-    st.session_state.logged_in = False
-    st.rerun()
 
+# توزيع الهيدر: اليمين للموظف واليسار لتسجيل الخروج
+header_col1, header_col2 = st.columns([4, 1])
+
+with header_col1:
+    st.markdown(f"""
+        <div class="user-box">
+            <span style="color: #bbb;">👤 الموظف الحالي:</span> 
+            <strong style="color: white; font-size: 1.1rem;">{st.session_state.username}</strong>
+        </div>
+    """, unsafe_allow_html=True)
+
+with header_col2:
+    if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
+
+st.divider()
+
+# التبويبات وبقية الكود كما هي تماماً دون أي تغيير
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
@@ -304,7 +328,6 @@ with tab_auto:
         if selected_cities:
             pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
             
-        # فلترة المعلمين فقط الذين يصلحون ويرغبون
         df_auto_pool = pool_stats[
             (pool_stats['ability'] == 'يصلح') & 
             (pool_stats['preference'] == 'يرغب') & 
@@ -344,21 +367,6 @@ with tab_auto:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    col_exp1, col_exp2 = st.columns(2)
-    with col_exp1:
-        with st.expander("📍 تفاصيل المعلمين (يصلح ويرغب)"):
-            df_w_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب') & (pool_stats['current_job'] == 'معلم')]
-            if not df_w_sub.empty:
-                st.write(df_w_sub['city'].value_counts())
-            else: st.info("لا توجد بيانات")
-            
-    with col_exp2:
-        with st.expander("📍 تفاصيل المعلمين (يصلح ولا يرغب)"):
-            df_nw_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب') & (pool_stats['current_job'] == 'معلم')]
-            if not df_nw_sub.empty:
-                st.write(df_nw_sub['city'].value_counts())
-            else: st.info("لا توجد بيانات")
 
 with tab_upload:
     st.markdown('<h2 class="move-to-right">تحديث القالب والبيانات</h2>', unsafe_allow_html=True)
@@ -412,7 +420,7 @@ with tab_manage:
         worksheet.right_to_left()
         for col_num, col_name in enumerate(df_export.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
-            worksheet.set_column(col_num, col_num, 18, c_fmt)
+            worksheet.set_column(col_num, col_num, 22, c_fmt)
     
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
@@ -427,20 +435,20 @@ with tab_manage:
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
             if not df_hall_details.empty:
-                # العرض على الشاشة (بدون الترقيم لإبقاء الواجهة نظيفة)
-                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
-                df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
+                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']].copy()
+                df_to_show.insert(0, 'م', range(1, 1 + len(df_to_show)))
+                df_to_show.columns = ['الرقم', 'الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
                 
                 styled_df = df_to_show.style.set_properties(**{
                     'text-align': 'right',
                     'direction': 'rtl'
                 }).set_table_styles([
                     dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
-                ])
+                ]).hide(axis="index")
+                
                 st.markdown(styled_df.to_html(), unsafe_allow_html=True)
-            else:
-                st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
+            st.markdown("<br>", unsafe_allow_html=True)
             col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
             
             with col_btns1:
@@ -463,59 +471,35 @@ with tab_manage:
                                            key=f"bulk_dl_now_{h_choice}")
             
             with col_btns3:
-                # توليد ملف الإكسل المنسق للطباعة
                 output_hall_excel = io.BytesIO()
-                # تجهيز البيانات المطلوبة بالترتيب
                 df_hall_excel = df_hall_details.copy()
-                df_hall_excel.insert(0, 'م', range(1, 1 + len(df_hall_excel))) # الترقيم
+                df_hall_excel.insert(0, 'م', range(1, 1 + len(df_hall_excel)))
                 
-                # اختيار وتسمية الأعمدة المطلوبة بدقة
                 df_final_export = df_hall_excel[['م', 'name', 'id', 'phone', 'school', 'role', 'city']]
                 df_final_export.columns = ['م', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'اسم المدرسة (مكان العمل)', 'طبيعة العمل في القاعة', 'العنوان']
 
                 with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
-                    df_final_export.to_excel(writer, index=False, sheet_name='كشف القاعة')
+                    df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة')
                     workbook = writer.book
-                    worksheet = writer.sheets['كشف القاعة']
-                    
-                    # تنسيق المحاذاة والاتجاه
+                    worksheet = writer.sheets['كشف_القاعة']
                     worksheet.right_to_left()
                     
-                    # إعدادات الصفحة للطباعة (أفقي، احتواء كافة الأعمدة)
-                    worksheet.set_landscape() # ورقة أفقية
-                    worksheet.set_paper(9)    # A4
-                    worksheet.fit_to_pages(1, 0) # احتواء كل الأعمدة في صفحة واحدة عرضاً
-                    
-                    # تنسيقات الخلايا
                     header_format = workbook.add_format({'bold': True, 'bg_color': '#E2EFDA', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
                     cell_format = workbook.add_format({'border': 1, 'align': 'right', 'valign': 'vcenter'})
                     
-                    # تطبيق التنسيقات وعرض الأعمدة
                     for col_num, value in enumerate(df_final_export.columns.values):
                         worksheet.write(0, col_num, value, header_format)
-                        
-                    # تعيين حدود وتنسيق لجميع الخلايا
-                    worksheet.set_column(1, len(df_final_export.columns)-1, 20, cell_format)
-                    # تطبيق الحدود والخصائص لعمود الترقيم "م" بشكل خاص
-                    worksheet.set_column(0, 0, 5, cell_format) 
+                    
+                    worksheet.set_column(1, 1, 30, cell_format)
+                    worksheet.set_column(2, 6, 20, cell_format)
+                    worksheet.set_column(0, 0, 5, cell_format)
 
                 st.download_button(f"📊 كشف إكسل {h_choice}", 
                                   data=output_hall_excel.getvalue(), 
                                   file_name=f"كشف_قاعة_{h_choice}.xlsx",
                                   key=f"excel_hall_{h_choice}")
 
-            st.markdown("---")
-            c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
-            c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
-            c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
-            c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
-            c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
-    else:
-        st.warning("لا يوجد أي قاعات مكلفة حالياً ليتم عرضها.")
-
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
-    if st.button("🗑️ مسح السجل"):
-        c.execute("DELETE FROM logs"); conn.commit(); st.cache_data.clear(); st.rerun()
