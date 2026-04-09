@@ -243,10 +243,13 @@ with tab_search:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-               # 1. تنظيف البيانات لضمان عدم ظهور nan في أي نظام
+               # 1. تنظيف البيانات الأساسية
                 def get_val(key, default="---"):
-                    val = str(row.get(key, default)).strip()
-                    return default if val.lower() in ['nan', 'none', ''] else val
+                    try:
+                        val = str(row.get(key, default)).strip()
+                        return default if val.lower() in ['nan', 'none', ''] else val
+                    except:
+                        return default
 
                 v_id = get_val('id')
                 v_city = get_val('city')
@@ -254,15 +257,19 @@ with tab_search:
                 v_pref = get_val('preference', "غير محدد")
                 v_job = get_val('current_job', "غير محدد")
                 v_abil = get_val('ability', "لم تحدد")
-                
-                # 2. إعداد صف الأقارب: يظهر فقط إذا كنا في نظام التوظيف
+
+                # 2. معالجة ذكية للأقارب (هنا تكمن مشكلة التوجيهي)
                 rel_row_html = ""
                 if st.session_state.system_mode == "tawzif":
+                    # في التوظيف، نبحث عن الأعمدة
                     v_rel = get_val('relative', "لا يوجد")
-                    v_relex = get_val('relative_exam')
+                    v_relex = get_val('relative_exam', "---")
                     rel_row_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td></tr>'
+                else:
+                    # في التوجيهي، نترك الصف فارغاً تماماً ولا نحاول قراءة أعمدة الأقارب
+                    rel_row_html = ""
 
-                # 3. عرض الجدول النهائي (يعمل بسلاسة مع النظامين)
+                # 3. العرض النهائي - تأكد أن هذا الجزء كتلة واحدة لا تنقطع
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
