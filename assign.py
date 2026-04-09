@@ -73,6 +73,10 @@ st.markdown("""
     }
     .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
     .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
+    /* ضمان محاذاة الأزرار لليمين */
+    .stButton, .stDownloadButton {
+        text-align: right !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -239,8 +243,9 @@ with tab_search:
                             st.rerun()
 
                 st.divider()
-                c1, c2 = st.columns(2)
-                with c1:
+                # تعديل: نقل العناصر لليمين باستخدام columns تبدأ من اليمين
+                c2, c1 = st.columns(2)
+                with c2:
                     current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), 
                                          index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0), 
@@ -249,8 +254,8 @@ with tab_search:
                     sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
                                          index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
                                          key=f"q_r_{row['id']}")
-                with c2:
-                    if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
+                with c1:
+                    if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}", use_container_width=True):
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
@@ -263,31 +268,31 @@ with tab_search:
                     is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
                     
                     if is_assigned:
-                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
+                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}", use_container_width=True):
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", 
                                       (st.session_state.username, row['id']))
                             conn.commit()
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             st.rerun()
                         
-                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row['id']}"):
+                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row['id']}", use_container_width=True):
                             f_word = generate_single_doc(row)
                             if f_word: 
                                 st.download_button("📥 تحميل الآن", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
-                                               key=f"dl_s_{row['id']}")
+                                               key=f"dl_s_{row['id']}", use_container_width=True)
 
 with tab_auto:
     st.subheader("🤖 نظام التوزيع التلقائي")
     df_all = get_cached_teachers()
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
-    col_a1, col_a2 = st.columns(2)
-    with col_a1:
+    # التعديل: جعل المدخلات في اليمين والزر تحتها مباشرة
+    col_a2, col_a1 = st.columns(2)
+    with col_a2:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
         selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique().tolist()))
         
-    with col_a2:
         pool_stats = df_available
         if selected_cities:
             pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
@@ -295,7 +300,6 @@ with tab_auto:
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=min(1, len(df_auto_pool)))
 
-        # التعديل المطلوب: وضع الزر هنا أسفل العدد المطلوب توزيعه (جهة اليسار)
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
@@ -312,7 +316,7 @@ with tab_auto:
                 time.sleep(1)
                 st.rerun()
 
-    # بطاقات إحصائية سريعة للمناطق المختارة
+    # بطاقات إحصائية
     can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
     can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
     
@@ -329,15 +333,15 @@ with tab_auto:
     </div>
     """, unsafe_allow_html=True)
 
-    col_exp1, col_exp2 = st.columns(2)
-    with col_exp1:
+    col_exp2, col_exp1 = st.columns(2)
+    with col_exp2:
         with st.expander("📍 تفاصيل (يصلح ويرغب) لكل منطقة"):
             df_w_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')]
             if not df_w_sub.empty:
                 st.write(df_w_sub['city'].value_counts())
             else: st.info("لا توجد بيانات")
             
-    with col_exp2:
+    with col_exp1:
         with st.expander("📍 تفاصيل (يصلح ولا يرغب) لكل منطقة"):
             df_nw_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')]
             if not df_nw_sub.empty:
@@ -377,10 +381,10 @@ with tab_manage:
     assigned_count = len(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0])
     remaining_count = total_count - assigned_count
 
-    c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي المعلمين", total_count)
+    c_m3, c_m2, c_m1 = st.columns(3)
+    c_m3.metric("إجمالي المعلمين", total_count)
     c_m2.metric("تم إنجازهم", assigned_count)
-    c_m3.metric("المتبقي", remaining_count)
+    c_m1.metric("المتبقي", remaining_count)
     
     st.divider()
     st.subheader("📦 تصدير البيانات المعدلة")
@@ -415,10 +419,11 @@ with tab_manage:
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
-            col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
+            # التعديل: ترتيب الأزرار لتبدأ من اليمين
+            col_spacer, col_btns2, col_btns1 = st.columns([2.5, 1.5, 1])
             
             with col_btns1:
-                if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
+                if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}", use_container_width=True):
                     c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
                     conn.commit()
                     add_log("تفريغ قاعة", f"تم مسح كافة تكليفات قاعة {h_choice}")
@@ -427,17 +432,17 @@ with tab_manage:
                     st.rerun()
             
             with col_btns2:
-                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}", use_container_width=True):
                     with st.spinner("جاري إنشاء الملف المجمع..."):
                         bulk_f = generate_bulk_word(df_hall_details, h_choice)
                         if bulk_f: 
                             st.download_button("📥 تحميل الآن (وورد)", 
                                            data=bulk_f, 
                                            file_name=f"تكليفات_{h_choice}.docx",
-                                           key=f"bulk_dl_now_{h_choice}")
+                                           key=f"bulk_dl_now_{h_choice}", use_container_width=True)
             
             st.markdown("---")
-            c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
+            c_stat4, c_stat3, c_stat2, c_stat1 = st.columns(4)
             c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
             c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
             c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
