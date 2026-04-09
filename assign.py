@@ -81,7 +81,7 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (المعدلة)
+# 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -149,7 +149,6 @@ if st.sidebar.button("🚪 خروج"):
     st.session_state.logged_in = False
     st.rerun()
 
-# تم إضافة تبويب التوزيع التلقائي هنا
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
@@ -193,10 +192,6 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                update_count_key = f"update_tick_{row['id']}"
-                if update_count_key not in st.session_state:
-                    st.session_state[update_count_key] = 0
-                
                 with st.popover("📝 تعديل البيانات الأساسية"):
                     with st.form(key=f"edit_base_{row['id']}"):
                         u_name = st.text_input("الاسم", value=row['name'])
@@ -212,7 +207,6 @@ with tab_search:
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                            st.session_state[update_count_key] += 1
                             st.success("✅ تم التحديث بنجاح!")
                             time.sleep(1)
                             st.rerun()
@@ -353,11 +347,13 @@ with tab_manage:
         if h_choice:
             df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
             
-            col_h1, col_h2 = st.columns([3, 1])
-            with col_h1:
-                st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
-            with col_h2:
-                # زر حذف تكليفات القاعة بالكامل
+            # --- تعديل مكان الأزرار ليصبحوا بجانب بعضهما ---
+            st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
+            
+            # عمود لزر التفريغ وعمود لزر التحميل وعمود فارغ للمحاذاة
+            col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
+            
+            with col_btns1:
                 if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
                     c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
                     conn.commit()
@@ -365,15 +361,23 @@ with tab_manage:
                     st.success("تم تفريغ القاعة")
                     time.sleep(0.5)
                     st.rerun()
+            
+            with col_btns2:
+                bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                if bulk_f: 
+                    st.download_button(f"📄 تحميل كتب قاعة {h_choice} (وورد)", 
+                                       data=bulk_f, 
+                                       file_name=f"تكليفات_{h_choice}.docx",
+                                       key=f"bulk_dl_{h_choice}")
+            
+            st.markdown("---")
+            # ---------------------------------------------
 
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
             c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
             c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
             c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
-            
-            bulk_f = generate_bulk_word(df_hall_details, h_choice)
-            if bulk_f: st.download_button(f"📄 تحميل كتب قاعة {h_choice} (وورد)", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
 
 with tab_logs:
     st.subheader("📜 سجل العمليات")
