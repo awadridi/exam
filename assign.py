@@ -74,14 +74,12 @@ st.markdown("""
     .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
     .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
     
-    /* الفئة الجديدة لإجبار النص على الانتقال لليسار (الجهة المقابلة) */
     .move-to-right {
         text-align: right !important;
-        direction: ltr !important;
+        direction: rtl !important;
         display: block;
         width: 100%;
         color: white;
-        font-family: sans-serif;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -189,7 +187,6 @@ if st.sidebar.button("🚪 خروج"):
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
-    # 1. إدارة الموظفين للجهة المقابلة
     st.markdown('<h2 class="move-to-right">إدارة الموظفين</h2>', unsafe_allow_html=True)
     df_h_data = get_cached_halls()
     hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
@@ -289,7 +286,6 @@ with tab_search:
                                                key=f"dl_s_{row['id']}")
 
 with tab_auto:
-    # 2. نظام التوزيع التلقائي للجهة المقابلة
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
@@ -355,7 +351,6 @@ with tab_auto:
             else: st.info("لا توجد بيانات")
 
 with tab_upload:
-    # 3. تحديث القالب والبيانات للجهة المقابلة
     st.markdown('<h2 class="move-to-right">تحديث القالب والبيانات</h2>', unsafe_allow_html=True)
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
@@ -394,7 +389,6 @@ with tab_manage:
     c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
-    # 4. تصدير البيانات المعدلة للجهة المقابلة
     st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
     df_export.columns = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية']
@@ -420,28 +414,20 @@ with tab_manage:
         if h_choice:
             df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
             
-            # 5. توزيع الكادر في قاعة للجهة المقابلة
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
-        if not df_hall_details.empty:
-                # 1. تحديد الأعمدة المطلوب عرضها
+            if not df_hall_details.empty:
                 df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
-                
-                # 2. تغيير أسماء الأعمدة للعربية (اختياري ليكون الشكل أجمل)
                 df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
                 
-                # 3. استخدام Styler لضبط المحاذاة والاتجاه
                 styled_df = df_to_show.style.set_properties(**{
                     'text-align': 'right',
                     'direction': 'rtl'
                 }).set_table_styles([
-                    # هذا الجزء لضبط عناوين الأعمدة (Header) أيضاً لليمين
                     dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
                 ])
-                
-                # 4. العرض باستخدام st.write (سيتعرف عليه كجدول منسق)
                 st.write(styled_df, use_container_width=True)
-        else:
+            else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
             col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
@@ -475,7 +461,6 @@ with tab_manage:
         st.warning("لا يوجد أي قاعات مكلفة حالياً ليتم عرضها.")
 
 with tab_logs:
-    # 6. سجل العمليات للجهة المقابلة
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
