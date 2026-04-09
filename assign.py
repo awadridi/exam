@@ -496,11 +496,10 @@ with tab_manage:
                 
                 st.download_button(f"📊 كشف إكسل {h_choice}", data=output_hall_excel.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
 
-    # أضف هذا الكود داخل "tab_logs" (تبويب سجل العمليات)
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     
-    # زر حذف كافة السجلات
+    # زر الحذف في الأعلى
     if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
         try:
             c.execute("DELETE FROM logs")
@@ -511,7 +510,13 @@ with tab_logs:
         except Exception as e:
             st.error(f"خطأ أثناء الحذف: {e}")
 
-    # عرض الجدول (الكود الموجود عندك أصلاً)
+    st.divider()
+
+    # جلب البيانات من قاعدة البيانات
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
-    st.dataframe(df_l, use_container_width=True)
-    st.dataframe(df_l, use_container_width=True)
+    
+    # عرض الجدول لمرة واحدة فقط
+    if not df_l.empty:
+        st.dataframe(df_l, use_container_width=True)
+    else:
+        st.info("سجل العمليات فارغ حالياً.")
