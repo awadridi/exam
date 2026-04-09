@@ -168,7 +168,7 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                # --- جزء تعديل البيانات الأساسية (جديد) ---
+                # --- تعديل البيانات الأساسية مع إغلاق تلقائي عبر rerun ---
                 with st.popover("📝 تعديل البيانات الأساسية"):
                     with st.form(key=f"edit_base_{row['id']}"):
                         st.write(f"تعديل بيانات: {row['name']}")
@@ -181,11 +181,12 @@ with tab_search:
                         u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
                         
                         if st.form_submit_button("💾 تحديث وحفظ"):
+                            # تنفيذ التحديث
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات المعلم {u_name}")
-                            st.success("تم التحديث")
+                            # إعادة تشغيل الصفحة ستؤدي لإغلاق الـ popover تلقائياً
                             st.rerun()
 
                 st.divider()
@@ -197,12 +198,14 @@ with tab_search:
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
                         add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
-                        conn.commit(); st.success("تم الحفظ"); st.rerun()
+                        conn.commit()
+                        st.rerun()
                     if row['hall']:
                         if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, row['id']))
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
-                            conn.commit(); st.rerun()
+                            conn.commit()
+                            st.rerun()
                         f_word = generate_single_doc(row)
                         if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
 
@@ -225,7 +228,8 @@ with tab_upload:
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
             add_log("تحديث بيانات", "تحديث من جوجل شيت")
-            st.success("تم التحديث"); st.rerun()
+            st.success("تم التحديث")
+            st.rerun()
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
@@ -240,8 +244,6 @@ with tab_manage:
     c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
-    
-    # --- تصدير الإكسل الشامل (جديد) ---
     st.subheader("📦 تصدير البيانات المعدلة")
     df_export = df_all_teachers.copy()
     df_export.columns = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية']
@@ -265,7 +267,6 @@ with tab_manage:
         h_choice = st.selectbox("اختر قاعة للعرض:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
             df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-            
             st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
             c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
             c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
@@ -273,17 +274,9 @@ with tab_manage:
             c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
             c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
             
-            df_m_display = df_hall_details[['id', 'name', 'phone', 'school', 'role', 'updated_by']].copy()
-            df_m_display.columns = ['رقم الهوية', 'الاسم', 'رقم الجوال', 'المدرسة', 'المهمة', 'الموظف']
-            
             c_exc, c_wrd = st.columns(2)
             with c_exc:
-                output_h = io.BytesIO()
-                with pd.ExcelWriter(output_h, engine='xlsxwriter') as writer:
-                    df_m_display.to_excel(writer, index=False, sheet_name='العاملين')
-                    workbook, worksheet = writer.book, writer.sheets['العاملين']
-                    worksheet.right_to_left()
-                st.download_button(f"📊 إكسل قاعة {h_choice}", data=output_all.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
+                st.write("استخدم زر التصدير الشامل أعلاه للحصول على أحدث البيانات.")
             
             with c_wrd:
                 bulk_f = generate_bulk_word(df_hall_details, h_choice)
