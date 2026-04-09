@@ -57,6 +57,13 @@ st.markdown("""
         text-align: right; 
         background-color: #0e1117; 
     }
+    /* تعديل لضمان استقرار الواجهة عند إخفاء القائمة الجانبية */
+    section[data-testid="stSidebar"] {
+        transition: margin-left 0.3s ease;
+    }
+    div[data-testid="stToolbar"] {
+        direction: rtl !important;
+    }
     div[data-baseweb="select"], div[data-baseweb="input"], .stMultiSelect {
         direction: rtl !important;
         text-align: right !important;
@@ -183,10 +190,11 @@ def generate_bulk_word(df, h_name):
 # =====================================
 # 4. الواجهة الرئيسية
 # =====================================
-st.sidebar.markdown(f"### 👤 الموظف: **{st.session_state.username}**")
-if st.sidebar.button("🚪 خروج"):
-    st.session_state.logged_in = False
-    st.rerun()
+with st.sidebar:
+    st.markdown(f"### 👤 الموظف: **{st.session_state.username}**")
+    if st.button("🚪 خروج"):
+        st.session_state.logged_in = False
+        st.rerun()
 
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
