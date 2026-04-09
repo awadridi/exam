@@ -81,21 +81,38 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات
+# 3. وظائف معالجة الملفات (المعدلة)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9:
         phone_val = '0' + phone_val
+    
+    # تصحيح قيم القاعة والمدينة لضمان عدم ظهور الكود البرمجي في الوورد
+    h_name_final = str(h_name) if h_name and str(h_name).lower() != 'nan' else "---"
+    h_city_final = str(h_city) if h_city and str(h_city).lower() != 'nan' else "---"
         
-    repls = {'<NAME>': str(row.get('name', '')), '<ID>': str(row.get('id', '')), '<PHONE>': phone_val, 
-             '<JOB>': str(row.get('role', '')), '<HALL_NAME>': str(h_name), '<HALL_LOCATION>': str(h_city), 
-             '<WORKPLACE>': str(row.get('school', '')), '<CITY>': str(row.get('city', ''))}
+    repls = {
+        '<NAME>': str(row.get('name', '')), 
+        '<ID>': str(row.get('id', '')), 
+        '<PHONE>': phone_val, 
+        '<JOB>': str(row.get('role', '')), 
+        '<HALL_NAME>': h_name_final, 
+        '<HALL_LOCATION>': h_city_final, 
+        '<WORKPLACE>': str(row.get('school', '')), 
+        '<CITY>': str(row.get('city', ''))
+    }
+
+    # معالجة الفقرات العادية
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
             if k in p.text:
                 for run in p.runs:
-                    if k in run.text: run.text = run.text.replace(k, v); run.bold = True
+                    if k in run.text:
+                        run.text = run.text.replace(k, v)
+                        run.bold = True
+
+    # معالجة الجداول (ضروري جداً لأن بيانات التكليف غالباً تكون في جداول)
     for table in doc_obj.tables:
         for r in table.rows:
             for cell in r.cells:
@@ -103,7 +120,9 @@ def process_doc(doc_obj, row, h_name, h_city):
                     for k, v in repls.items():
                         if k in p.text:
                             for run in p.runs:
-                                if k in run.text: run.text = run.text.replace(k, v); run.bold = True
+                                if k in run.text:
+                                    run.text = run.text.replace(k, v)
+                                    run.bold = True
     return doc_obj
 
 def generate_single_doc(row):
@@ -150,7 +169,6 @@ with tab_search:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
                     <table style="width:100%; color: white; border: none; direction: rtl;">
@@ -181,7 +199,7 @@ with tab_search:
                 if update_count_key not in st.session_state:
                     st.session_state[update_count_key] = 0
                 
-                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state[update_count_key]}"):
+                with st.popover("📝 تعديل البيانات الأساسية"):
                     with st.form(key=f"edit_base_{row['id']}"):
                         u_name = st.text_input("الاسم", value=row['name'])
                         u_phone = st.text_input("رقم الجوال", value=display_phone)
@@ -198,7 +216,7 @@ with tab_search:
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state[update_count_key] += 1
                             st.success("✅ تم التحديث بنجاح!")
-                            time.sleep(2)
+                            time.sleep(1)
                             st.rerun()
 
                 st.divider()
@@ -208,18 +226,22 @@ with tab_search:
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), 
                                          index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0), 
                                          key=f"q_h_{row['id']}")
+                    
                     sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
                                          index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
                                          key=f"q_r_{row['id']}")
                 with c2:
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
+                        # تصحيح: جلب المدينة من hall_map وحفظها في قاعدة البيانات
+                        h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
-                                  (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
+                                  (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
                         add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
                         conn.commit()
+                        st.success("✅ تم الحفظ")
+                        time.sleep(0.5)
                         st.rerun()
                     
-                    # التعديل المطلوب: التحقق من وجود تكليف فعلي لإظهار أزرار الإلغاء والتحميل
                     is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
                     
                     if is_assigned:
@@ -230,6 +252,7 @@ with tab_search:
                             conn.commit()
                             st.rerun()
                         
+                        # توليد الملف باستخدام البيانات المحدثة
                         f_word = generate_single_doc(row)
                         if f_word: 
                             st.download_button("📥 تحميل الكتاب", data=f_word, 
@@ -254,7 +277,10 @@ with tab_upload:
             for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability']: 
                 if col not in dft.columns: dft[col] = ""
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
-            dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
+            
+            dfh = pd.read_csv(HALLS_URL)
+            dfh.to_sql('halls', conn, if_exists='replace', index=False)
+            
             add_log("تحديث بيانات", "تحديث من جوجل شيت")
             st.success("تم التحديث بنجاح")
             st.rerun()
