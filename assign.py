@@ -322,54 +322,52 @@ with tab_search:
                                                key=f"dl_s_{row['id']}")
 
 with tab_auto:
-    st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
+    
+    # 1. جلب البيانات وتحديد المعلمين المتاحين (غير المكلفين) فقط
     df_all = get_cached_teachers()
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
+    
+    # 2. تصفية المعلمين الذين تنطبق عليهم الشروط (يصلح + يرغب + معلم)
+    df_qualified = df_available[
+        (df_available['ability'] == 'يصلح') & 
+        (df_available['preference'] == 'يرغب') & 
+        (df_available['current_job'] == 'معلم')
+    ]
+
+    # 3. استخراج المدن المتوفرة فقط من المعلمين المؤهلين (هنا السر في اختفاء المدن الفارغة)
+    available_cities = sorted(df_qualified['city'].unique().tolist())
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
-        # الكود الصافي الجديد داخل tab_auto
-    df_all = get_cached_teachers()
-    # 1. تصفية المعلمين المتاحين (غير المكلفين) والذين تنطبق عليهم الشروط تماماً
-    df_qualified = df_all[
-        ((df_all['hall'] == '') | (df_all['hall'].isna())) & 
-        (df_all['ability'] == 'يصلح') & 
-        (df_all['preference'] == 'يرغب') & 
-        (df_all['current_job'] == 'معلم')
-    ]
-
-    col_a1, col_a2 = st.columns(2)
-    with col_a1:
-        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
-        
-        # استخراج المدن التي يتوفر فيها معلمون جاهزون فقط
-        available_cities = sorted(df_qualified['city'].unique().tolist())
-        selected_cities = st.multiselect("السحب من مناطق سكن يتوفر بها معلمون مستوفون للشروط:", available_cities)
+        # الآن القائمة ستعرض فقط المدن التي يوجد بها معلمون جاهزون
+        selected_cities = st.multiselect("السحب من مناطق سكن يتوفر بها معلمون (يصلح ويرغب):", available_cities)
         
     with col_a2:
-        # إذا اختار المستخدم مدن معينة، نفلتر المعلمين بناءً عليها، وإلا نستخدم كل المؤهلين
+        # تصفية المعلمين بناءً على المدن المختارة من القائمة الذكية
         if selected_cities:
             df_auto_pool = df_qualified[df_qualified['city'].isin(selected_cities)]
         else:
             df_auto_pool = df_qualified
             
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_auto_pool), value=0)
+        # تحديد العدد المطلوب (بحد أقصى يساوي المتوفر في المدن المختارة)
+        max_val = len(df_auto_pool)
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=max_val, value=0)
 
-        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0)):
-            # كود التوزيع (نفسه الموجود عندك)
-            if target_h:
-                selected_sample = df_auto_pool.sample(n=int(num_to_assign))
-                for _, r in selected_sample.iterrows():
-                    c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
-                              (target_h, hall_map[target_h], r['id']))
-                conn.commit()
-                add_log("توزيع تلقائي", f"توزيع {num_to_assign} معلم على قاعة {target_h}")
-                st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("الرجاء اختيار قاعة أولاً")
+        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
+            selected_sample = df_auto_pool.sample(n=int(num_to_assign))
+            for _, r in selected_sample.iterrows():
+                c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
+                          (target_h, hall_map[target_h], r['id']))
+            conn.commit()
+            add_log("توزيع تلقائي", f"توزيع {num_to_assign} معلم على قاعة {target_h}")
+            st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
+            time.sleep(1)
+            st.rerun()
+
+    # إحصائيات سريعة للمنطقة المختارة
+    st.info(f"عدد المعلمين الجاهزين (يصلح ويرغب) في المناطق المختارة: {len(df_auto_pool)}")
         
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_auto_pool), value=0)
 
