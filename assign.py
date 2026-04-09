@@ -73,6 +73,26 @@ st.markdown("""
     }
     .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
     .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
+    /* تنسيق خاص لنقل العناوين للجهة المقابلة */
+    .left-header {
+        text-align: left !important;
+        direction: ltr !important;
+        display: block;
+        width: 100%;
+        font-size: 1.5rem;
+        font-weight: bold;
+        padding-bottom: 10px;
+    }
+    .left-subheader {
+        text-align: left !important;
+        direction: ltr !important;
+        display: block;
+        width: 100%;
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -179,7 +199,8 @@ if st.sidebar.button("🚪 خروج"):
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
-    st.subheader("إدارة الموظفين")
+    # تعديل 1: إدارة الموظفين للجهة المقابلة
+    st.markdown('<div class="left-header">إدارة الموظفين</div>', unsafe_allow_html=True)
     df_h_data = get_cached_halls()
     hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
     
@@ -278,7 +299,8 @@ with tab_search:
                                                key=f"dl_s_{row['id']}")
 
 with tab_auto:
-    st.subheader("🤖 نظام التوزيع التلقائي")
+    # تعديل 2: نظام التوزيع التلقائي للجهة المقابلة
+    st.markdown('<div class="left-header">🤖 نظام التوزيع التلقائي</div>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
@@ -295,7 +317,6 @@ with tab_auto:
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=min(1, len(df_auto_pool)))
 
-        # التعديل المطلوب: وضع الزر هنا أسفل العدد المطلوب توزيعه (جهة اليسار)
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
@@ -312,7 +333,6 @@ with tab_auto:
                 time.sleep(1)
                 st.rerun()
 
-    # بطاقات إحصائية سريعة للمناطق المختارة
     can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
     can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
     
@@ -345,7 +365,8 @@ with tab_auto:
             else: st.info("لا توجد بيانات")
 
 with tab_upload:
-    st.subheader("تحديث القالب والبيانات")
+    # تعديل 3: تحديث القالب والبيانات للجهة المقابلة
+    st.markdown('<div class="left-header">تحديث القالب والبيانات</div>', unsafe_allow_html=True)
     up_tpl = st.file_uploader("ارفع قالب الوورد (template.docx)", type="docx")
     if up_tpl:
         with open("template.docx", "wb") as f:
@@ -383,7 +404,8 @@ with tab_manage:
     c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
-    st.subheader("📦 تصدير البيانات المعدلة")
+    # تعديل 4: تصدير البيانات المعدلة للجهة المقابلة
+    st.markdown('<div class="left-subheader">📦 تصدير البيانات المعدلة</div>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
     df_export.columns = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية']
     
@@ -408,7 +430,8 @@ with tab_manage:
         if h_choice:
             df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice]
             
-            st.markdown(f"##### 📊 توزيع الكادر في قاعة: {h_choice}")
+            # تعديل 5: توزيع الكادر في قاعة للجهة المقابلة
+            st.markdown(f'<div class="left-subheader">📊 توزيع الكادر في قاعة: {h_choice}</div>', unsafe_allow_html=True)
             
             if not df_hall_details.empty:
                 st.table(df_hall_details[['name', 'role', 'school', 'city', 'phone']])
@@ -446,7 +469,8 @@ with tab_manage:
         st.warning("لا يوجد أي قاعات مكلفة حالياً ليتم عرضها.")
 
 with tab_logs:
-    st.subheader("📜 سجل العمليات")
+    # تعديل 6: سجل العمليات للجهة المقابلة
+    st.markdown('<div class="left-header">📜 سجل العمليات</div>', unsafe_allow_html=True)
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     st.dataframe(df_l, use_container_width=True)
     if st.button("🗑️ مسح السجل"):
