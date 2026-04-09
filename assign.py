@@ -91,7 +91,7 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (تم تحسين الدمج للحفاظ على الترويسة)
+# 3. وظائف معالجة الملفات (إصلاح جذري لمشكلة الصفحات الفارغة)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -122,50 +122,55 @@ def process_doc(doc_obj, row, h_name, h_city):
             for cell in r.cells:
                 replace_in_paragraphs(cell.paragraphs)
     
-    # حذف الأسطر الفارغة في نهاية المستند
-    while len(doc_obj.paragraphs) > 0:
-        last_p = doc_obj.paragraphs[-1]
-        if not last_p.text.strip():
-            p_element = last_p._element
-            p_element.getparent().remove(p_element)
-        else:
-            break
-            
     return doc_obj
 
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
     
-    # البدء بالقالب الأصلي كقاعدة لضمان وجود الترويسة (Header) والتنسيقات
-    final_doc = Document("template.docx")
+    # 1. ننشئ مستند جديد تماماً (هذا يضمن عدم وجود صفحات فارغة في البداية)
+    final_doc = Document()
     
-    # تفريغ محتوى الصفحة الأولى فقط مع الحفاظ على الترويسة (Header)
-    final_doc._body.clear_content()
+    # 2. نفتح القالب الأصلي لاستنساخ التنسيقات منه
+    source_tpl = Document("template.docx")
+    
+    # ضبط هوامش المستند الجديد لتطابق القالب
+    section = final_doc.sections[0]
+    source_sec = source_tpl.sections[0]
+    section.top_margin = source_sec.top_margin
+    section.bottom_margin = source_sec.bottom_margin
+    section.left_margin = source_sec.left_margin
+    section.right_margin = source_sec.right_margin
+    section.header_distance = source_sec.header_distance
+    section.footer_distance = source_sec.footer_distance
 
     df_clean = df.reset_index(drop=True)
     
     for idx, row in df_clean.iterrows():
-        # فتح نسخة جديدة من القالب لكل موظف
+        # فتح ومعالجة القالب لكل موظف
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
         
-        # استخراج العناصر (فقرات وجداول) من النسخة المعالجة
-        # نتجاهل 'sectPr' للحفاظ على استمرارية التنسيق ومنع الفجوات في البداية
-        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+        # نقل الترويسة (Header) من القالب إلى القسم الحالي في المستند النهائي
+        # ملاحظة: يتم تنفيذ هذا في الصفحة الأولى وفي كل مرة بعد فاصل الصفحات
+        current_section = final_doc.sections[-1]
+        source_header = temp_doc.sections[0].header
         
-        # تنظيف الفقرات الفارغة في نهاية التكليف قبل النقل
-        while elements and elements[-1].tag.endswith('p'):
-            p_text = "".join(elements[-1].itertext()).strip()
-            if not p_text:
-                elements.pop()
-            else:
-                break
-                
-        # نقل العناصر بعمق (deepcopy) للمستند النهائي
+        # إذا كانت هناك ترويسة، ننقل محتواها
+        if source_header:
+            target_header = current_section.header
+            target_header.is_linked_to_previous = False # مهم لضمان استقلال الترويسة
+            for p in source_header.paragraphs:
+                new_p = target_header.add_paragraph()
+                new_p._p.append(deepcopy(p._element))
+            for t in source_header.tables:
+                target_header._element.append(deepcopy(t._element))
+
+        # نقل محتوى جسم المستند
+        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
         for element in elements:
             final_doc.element.body.append(deepcopy(element))
             
-        # إضافة فاصل صفحات فقط "بين" التكليفات
+        # إضافة فاصل صفحات
         if idx < len(df_clean) - 1:
             final_doc.add_page_break()
             
@@ -182,8 +187,9 @@ def generate_single_doc(row):
     return bio
 
 # =====================================
-# 4. الشريط الجانبي (الموظف وتسجيل الخروج)
+# بقية أجزاء الكود (الواجهات) تبقى كما هي
 # =====================================
+
 st.sidebar.markdown(f"### 👤 الموظف الحالي:")
 st.sidebar.info(f"**{st.session_state.username}**")
 if st.sidebar.button("🚪 تسجيل الخروج", use_container_width=True):
@@ -191,9 +197,6 @@ if st.sidebar.button("🚪 تسجيل الخروج", use_container_width=True):
     st.rerun()
 st.sidebar.divider()
 
-# =====================================
-# 5. التبويبات الرئيسية
-# =====================================
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
     "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
 ])
