@@ -316,7 +316,29 @@ with tab_auto:
         </div>
     </div>
     """, unsafe_allow_html=True)
-    # --------------------------------
+
+    # التعديل الجديد: إحصائيات حسب المنطقة السكنية
+    st.write("---")
+    col_stat_left, col_stat_right = st.columns(2)
+    
+    with col_stat_left:
+        st.markdown("**📌 يرغب ويصلح حسب المنطقة السكنية:**")
+        df_wants_area = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'يرغب')]
+        area_wants_counts = df_wants_area.groupby('city').size().reset_index(name='عدد الموظفين المتاحين')
+        if not area_wants_counts.empty:
+            st.dataframe(area_wants_counts.sort_values(by='عدد الموظفين المتاحين', ascending=False), hide_index=True, use_container_width=True)
+        else:
+            st.info("لا يوجد بيانات")
+
+    with col_stat_right:
+        st.markdown("**📌 لا يرغب ويصلح حسب المنطقة السكنية:**")
+        df_no_wants_area = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'لا يرغب')]
+        area_no_wants_counts = df_no_wants_area.groupby('city').size().reset_index(name='عدد الموظفين المتاحين')
+        if not area_no_wants_counts.empty:
+            st.dataframe(area_no_wants_counts.sort_values(by='عدد الموظفين المتاحين', ascending=False), hide_index=True, use_container_width=True)
+        else:
+            st.info("لا يوجد بيانات")
+    st.write("---")
 
     with col_a2:
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
