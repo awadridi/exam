@@ -91,7 +91,7 @@ TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7G
 HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
 
 # =====================================
-# 3. وظائف معالجة الملفات (إصلاح جذري لمشكلة الصفحات الفارغة)
+# 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -127,50 +127,22 @@ def process_doc(doc_obj, row, h_name, h_city):
 def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx"): return None
     
-    # 1. ننشئ مستند جديد تماماً (هذا يضمن عدم وجود صفحات فارغة في البداية)
-    final_doc = Document()
-    
-    # 2. نفتح القالب الأصلي لاستنساخ التنسيقات منه
-    source_tpl = Document("template.docx")
-    
-    # ضبط هوامش المستند الجديد لتطابق القالب
-    section = final_doc.sections[0]
-    source_sec = source_tpl.sections[0]
-    section.top_margin = source_sec.top_margin
-    section.bottom_margin = source_sec.bottom_margin
-    section.left_margin = source_sec.left_margin
-    section.right_margin = source_sec.right_margin
-    section.header_distance = source_sec.header_distance
-    section.footer_distance = source_sec.footer_distance
+    # استخدام القالب كأساس ومسح محتواه لضمان الحفاظ على خصائص الأقسام والترويسة
+    final_doc = Document("template.docx")
+    final_doc._body.clear_content()
 
     df_clean = df.reset_index(drop=True)
     
     for idx, row in df_clean.iterrows():
-        # فتح ومعالجة القالب لكل موظف
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
         
-        # نقل الترويسة (Header) من القالب إلى القسم الحالي في المستند النهائي
-        # ملاحظة: يتم تنفيذ هذا في الصفحة الأولى وفي كل مرة بعد فاصل الصفحات
-        current_section = final_doc.sections[-1]
-        source_header = temp_doc.sections[0].header
-        
-        # إذا كانت هناك ترويسة، ننقل محتواها
-        if source_header:
-            target_header = current_section.header
-            target_header.is_linked_to_previous = False # مهم لضمان استقلال الترويسة
-            for p in source_header.paragraphs:
-                new_p = target_header.add_paragraph()
-                new_p._p.append(deepcopy(p._element))
-            for t in source_header.tables:
-                target_header._element.append(deepcopy(t._element))
-
-        # نقل محتوى جسم المستند
-        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
-        for element in elements:
+        # دمج العناصر مع استثناء وسم sectPr الذي يسبب تداخل الصفحات والخطأ في Word
+        for element in temp_doc.element.body:
+            if element.tag.endswith('sectPr'):
+                continue
             final_doc.element.body.append(deepcopy(element))
             
-        # إضافة فاصل صفحات
         if idx < len(df_clean) - 1:
             final_doc.add_page_break()
             
@@ -187,7 +159,7 @@ def generate_single_doc(row):
     return bio
 
 # =====================================
-# بقية أجزاء الكود (الواجهات) تبقى كما هي
+# الواجهات
 # =====================================
 
 st.sidebar.markdown(f"### 👤 الموظف الحالي:")
