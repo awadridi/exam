@@ -60,9 +60,12 @@ st.markdown("""
 conn = sqlite3.connect("data_system_v26.db", check_same_thread=False)
 c = conn.cursor()
 
+# تحديث: إضافة preference, current_job, ability لقاعدة البيانات
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
-             role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT)''')
+             role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
+             preference TEXT, current_job TEXT, ability TEXT)''')
+
 c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
@@ -140,7 +143,7 @@ with tab_search:
         for _, row in results.iterrows():
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 
-                # --- مستطيل معلومات الموظف الكاملة ---
+                # --- مستطيل معلومات الموظف المحدث مع إضافة الصلاحية ---
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
                     <table style="width:100%; color: white; border: none; direction: rtl;">
@@ -155,6 +158,11 @@ with tab_search:
                         <tr>
                             <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
                             <td style="padding: 5px;"><b>💼 الوظيفة:</b> {row.get('current_job', 'غير محدد')}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;">
+                                <b>⚠️ صلاحية المراقبة:</b> {row.get('ability', 'لم تحدد')}
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -195,8 +203,11 @@ with tab_upload:
         try:
             dft = pd.read_csv(TEACHERS_URL); dft.columns = dft.columns.str.strip().str.lower()
             if 'id_number' in dft.columns: dft.rename(columns={'id_number': 'id'}, inplace=True)
-            for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by']: 
+            
+            # تحديث: إضافة الأعمدة الجديدة لقائمة الفحص لضمان سحبها
+            for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability']: 
                 if col not in dft.columns: dft[col] = ""
+            
             dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL); dfh.to_sql('halls', conn, if_exists='replace', index=False)
             add_log("تحديث بيانات", "تحديث من جوجل شيت")
