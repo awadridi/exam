@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 
 # =====================================
-# 1. نظام تسجيل الدخول باستخدام Secrets (كما هو تماماً)
+# 1. نظام تسجيل الدخول باستخدام Secrets
 # =====================================
 def login():
     if 'logged_in' not in st.session_state:
@@ -44,14 +44,12 @@ if not login():
 if 'popover_counter' not in st.session_state:
     st.session_state['popover_counter'] = 0
 
-# إعداد حالة النظام (توجيهي كافتراضي)
 if 'system_mode' not in st.session_state:
     st.session_state['system_mode'] = "tawjihi"
 
 # =====================================
-# 2. إعدادات الواجهة وقاعدة البيانات (معدلة لتشمل النظامين)
+# 2. إعدادات الواجهة وقاعدة البيانات
 # =====================================
-# اختيار المتغيرات بناءً على النظام النشط
 if st.session_state['system_mode'] == "tawjihi":
     DB_NAME = "data_system_v26.db"
     TEMPLATE_NAME = "template.docx"
@@ -67,7 +65,6 @@ else:
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
 
-# CSS (نفس كودك السابق تماماً)
 st.markdown("""
     <style>
     .main, .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
@@ -86,7 +83,6 @@ st.markdown("""
     .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
     .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
     .move-to-right { text-align: right !important; direction: rtl !important; display: block; width: 100%; color: white; }
-    /* إخفاء القائمة الجانبية تماماً لمنع التخريب */
     [data-testid="stSidebar"] { display: none; }
     </style>
     """, unsafe_allow_html=True)
@@ -94,12 +90,19 @@ st.markdown("""
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول (معدلة لتدعم الأعمدة الإضافية للتوظيف تلقائياً)
+# إنشاء الجداول مع الأعمدة الجديدة
 c.execute(f'''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
              preference TEXT, current_job TEXT, ability TEXT,
              relative TEXT, relative_exam TEXT)''')
+
+# كود إضافي للتأكد من وجود الأعمدة الجديدة في قواعد البيانات الحالية
+try:
+    c.execute("ALTER TABLE teachers ADD COLUMN relative TEXT DEFAULT ''")
+    c.execute("ALTER TABLE teachers ADD COLUMN relative_exam TEXT DEFAULT ''")
+except:
+    pass # الأعمدة موجودة بالفعل
 
 c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
@@ -122,7 +125,7 @@ def add_log(action, details):
     st.cache_data.clear()
 
 # =====================================
-# 3. وظائف معالجة الملفات (كما هي مع إضافة متغيرات التوظيف)
+# 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -185,7 +188,7 @@ def generate_bulk_word(df, h_name):
     return out
 
 # =====================================
-# 4. الواجهة الرئيسية (الأزرار في الأعلى)
+# 4. الواجهة الرئيسية
 # =====================================
 header_col1, header_col2 = st.columns([4, 1])
 
@@ -197,7 +200,6 @@ with header_col1:
         </div>
     """, unsafe_allow_html=True)
     
-    # أزرار التبديل تحت اسم الموظف
     st.write("") 
     btn_col1, btn_col2, btn_spacer = st.columns([1, 1, 2])
     with btn_col1:
@@ -216,7 +218,6 @@ with header_col2:
 
 st.divider()
 
-# التبويبات (كما هي تماماً)
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
@@ -234,12 +235,11 @@ with tab_search:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                # عرض الحقول الإضافية في نظام التوظيف
                 rel_info = ""
                 if st.session_state.system_mode == "tawzif":
                     rel_info = f"""
                         <tr>
-                            <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {row.get('relative', 'لا')}</td>
+                            <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {row.get('relative', 'لا يوجد')}</td>
                             <td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {row.get('relative_exam', '---')}</td>
                         </tr>
                     """
@@ -280,10 +280,9 @@ with tab_search:
                     u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{row['id']}")
                     u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{row['id']}")
                     
-                    # حقول إضافية للتوظيف في التعديل
                     if st.session_state.system_mode == "tawzif":
-                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row['relative']=="نعم" else 1, key=f"urel_{row['id']}")
-                        u_relex = st.text_input("اسم امتحان القريب", value=row['relative_exam'], key=f"urex_{row['id']}")
+                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}")
+                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row['id']}")
 
                     if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}"):
                         if st.session_state.system_mode == "tawzif":
@@ -339,7 +338,6 @@ with tab_search:
                                                key=f"dl_s_{row['id']}")
 
 with tab_auto:
-    # (كود التوزيع التلقائي كما هو تماماً دون تغيير)
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
     hall_map = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
@@ -395,7 +393,6 @@ with tab_auto:
             st.rerun()
 
 with tab_upload:
-    # (كود الرفع كما هو مع استخدام اسم القالب النشط)
     st.markdown(f'<h2 class="move-to-right">تحديث القالب والبيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
     up_tpl = st.file_uploader(f"ارفع قالب الوورد ({TEMPLATE_NAME})", type="docx")
     if up_tpl:
@@ -423,7 +420,6 @@ with tab_upload:
         except Exception as e: st.error(f"خطأ: {e}")
 
 with tab_manage:
-    # (كود الإدارة كما هو تماماً)
     df_all_teachers = get_cached_teachers()
     total_count = len(df_all_teachers)
     assigned_count = len(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0])
@@ -437,8 +433,10 @@ with tab_manage:
     st.divider()
     st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
-    # تعديل أسماء الأعمدة للتصدير
-    df_export.columns = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب']
+    
+    # حل مشكلة الـ ValueError: نحدد أسماء الأعمدة ديناميكياً بناءً على العدد الموجود
+    arabic_cols = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب']
+    df_export.columns = arabic_cols[:len(df_export.columns)]
     
     output_all = io.BytesIO()
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
@@ -516,7 +514,6 @@ with tab_manage:
                 st.download_button(f"📊 كشف إكسل {h_choice}", data=output_hall_excel.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
 
 with tab_logs:
-    # (كود السجلات كما هو تماماً)
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
         try:
