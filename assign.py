@@ -412,67 +412,112 @@ with tab_manage:
         worksheet.right_to_left()
         for col_num, col_name in enumerate(df_export.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
-            worksheet.set_column(col_num, col_num, 18, c_fmt)
+            # تم تعديل عرض العمود هنا ليكون أوسع (30) ليناسب الأسماء الطويلة
+            if col_num == 1: # عمود الاسم
+                worksheet.set_column(col_num, col_num, 35, c_fmt)
+            else:
+                worksheet.set_column(col_num, col_num, 18, c_fmt)
     
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
+    # جلب كافة القاعات من جدول القاعات وليس فقط المكلفة ليظهر الزر دائماً
+    df_halls_list = get_cached_halls()
+    all_halls_options = sorted(df_halls_list['hall_name'].unique().tolist())
     
-    if assigned_halls:
-        h_choice = st.selectbox("اختر قاعة لعرض الكادر (يظهر فقط القاعات التي بها موظفون):", [""] + assigned_halls)
+    if all_halls_options:
+        h_choice = st.selectbox("اختر القاعة لعرض الكادر أو إنشاء الكشف:", [""] + all_halls_options)
         if h_choice:
             df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice].copy()
             
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
             if not df_hall_details.empty:
-                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']].copy()
-                df_to_show.insert(0, 'الرقم', range(1, len(df_to_show) + 1))
-                df_to_show.columns = ['الرقم', 'الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
+                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
+                df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
                 
-                # إضافة الحدود وتنسيق الجدول
                 styled_df = df_to_show.style.set_properties(**{
                     'text-align': 'right',
-                    'direction': 'rtl',
-                    'border': '1px solid #444'
+                    'direction': 'rtl'
                 }).set_table_styles([
-                    dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl'), ('border', '1px solid #444'), ('background-color', '#262730')]),
-                    dict(selector='table', props=[('border-collapse', 'collapse'), ('width', '100%')])
+                    dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
                 ])
                 st.markdown(styled_df.to_html(), unsafe_allow_html=True)
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
-            col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
+            col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
             
             with col_btns1:
-                if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
-                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
-                    conn.commit()
-                    add_log("تفريغ قاعة", f"تم مسح كافة تكليفات قاعة {h_choice}")
-                    st.success("تم تفريغ القاعة")
-                    time.sleep(0.5)
-                    st.rerun()
+                if not df_hall_details.empty:
+                    if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
+                        c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
+                        conn.commit()
+                        add_log("تفريغ قاعة", f"تم مسح كافة تكليفات قاعة {h_choice}")
+                        st.success("تم تفريغ القاعة")
+                        time.sleep(0.5)
+                        st.rerun()
             
             with col_btns2:
-                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
-                    with st.spinner("جاري إنشاء الملف المجمع..."):
-                        bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                        if bulk_f: 
-                            st.download_button("📥 تحميل الآن (وورد)", 
-                                           data=bulk_f, 
-                                           file_name=f"تكليفات_{h_choice}.docx",
-                                           key=f"bulk_dl_now_{h_choice}")
+                if not df_hall_details.empty:
+                    if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+                        with st.spinner("جاري إنشاء الملف المجمع..."):
+                            bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                            if bulk_f: 
+                                st.download_button("📥 تحميل الآن (وورد)", 
+                                               data=bulk_f, 
+                                               file_name=f"تكليفات_{h_choice}.docx",
+                                               key=f"bulk_dl_now_{h_choice}")
             
-            st.markdown("---")
-            c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
-            c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
-            c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
-            c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
-            c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
+            with col_btns3:
+                # هذا الزر سيظهر الآن دائماً طالما اخترت قاعة
+                # حتى لو القاعة فارغة، سيحمل ملفاً برؤوس أقلام فقط أو يمكنك إضافة شرط
+                output_hall_excel = io.BytesIO()
+                df_hall_excel = df_hall_details.copy()
+                if not df_hall_excel.empty:
+                    df_hall_excel.insert(0, 'م', range(1, 1 + len(df_hall_excel)))
+                    df_final_export = df_hall_excel[['م', 'name', 'id', 'phone', 'school', 'role', 'city']]
+                else:
+                    df_final_export = pd.DataFrame(columns=['م', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'اسم المدرسة (مكان العمل)', 'طبيعة العمل في القاعة', 'العنوان'])
+
+                df_final_export.columns = ['م', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'اسم المدرسة (مكان العمل)', 'طبيعة العمل في القاعة', 'العنوان']
+
+                with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
+                    df_final_export.to_excel(writer, index=False, sheet_name='كشف القاعة')
+                    workbook = writer.book
+                    worksheet = writer.sheets['كشف القاعة']
+                    worksheet.right_to_left()
+                    worksheet.set_landscape()
+                    worksheet.set_paper(9)
+                    worksheet.fit_to_pages(1, 0)
+                    
+                    header_format = workbook.add_format({'bold': True, 'bg_color': '#E2EFDA', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+                    cell_format = workbook.add_format({'border': 1, 'align': 'right', 'valign': 'vcenter'})
+                    
+                    for col_num, value in enumerate(df_final_export.columns.values):
+                        worksheet.write(0, col_num, value, header_format)
+                        # تنسيق عرض عمود الاسم (رقم 1) بشكل خاص ليناسب الاسم الرباعي
+                        if col_num == 1:
+                            worksheet.set_column(col_num, col_num, 40, cell_format)
+                        else:
+                            worksheet.set_column(col_num, col_num, 20, cell_format)
+                    
+                    worksheet.set_column(0, 0, 5)
+
+                st.download_button(f"📊 كشف إكسل {h_choice}", 
+                                  data=output_hall_excel.getvalue(), 
+                                  file_name=f"كشف_قاعة_{h_choice}.xlsx",
+                                  key=f"excel_hall_{h_choice}")
+
+            if not df_hall_details.empty:
+                st.markdown("---")
+                c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
+                c_stat1.metric("رئيس قاعة", len(df_hall_details[df_hall_details['role'] == 'رئيس قاعة']))
+                c_stat2.metric("مساعد رئيس", len(df_hall_details[df_hall_details['role'] == 'مساعد رئيس قاعة']))
+                c_stat3.metric("مراقبين", len(df_hall_details[df_hall_details['role'] == 'مراقب']))
+                c_stat4.metric("آذنة", len(df_hall_details[df_hall_details['role'] == 'آذن']))
     else:
-        st.warning("لا يوجد أي قاعات مكلفة حالياً ليتم عرضها.")
+        st.warning("لا يوجد أي قاعات معرفة في النظام.")
 
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
