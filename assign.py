@@ -63,16 +63,27 @@ st.markdown("""
     .stDownloadButton button { background-color: #007bff !important; color: white !important; }
     .editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
     [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
+    
+    /* ستايل البطاقات الإحصائية المطلوبة */
     .stat-card {
         flex: 1;
-        padding: 15px;
-        border-radius: 10px;
+        padding: 20px;
+        border-radius: 12px;
         text-align: center;
-        min-width: 150px;
+        min-width: 200px;
         border: 1px solid #333;
+        margin: 10px;
     }
-    .stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
-    .stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
+    .stat-wants { 
+        border-bottom: 5px solid #00ffcc; 
+        background-color: #1a2321; 
+    }
+    .stat-no-wants { 
+        border-bottom: 5px solid #ff4b4b; 
+        background-color: #231a1a; 
+    }
+    .stat-title { color: #ffffff; font-size: 1rem; margin-bottom: 10px; display: block; }
+    .stat-value { font-size: 2.5rem; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -280,34 +291,41 @@ with tab_search:
 with tab_auto:
     st.subheader("🤖 نظام التوزيع التلقائي")
     df_all = get_cached_teachers()
+    # المعلم المتاح هو الذي ليس لديه قاعة
     df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
-        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
+        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_all['city'].unique().tolist()))
     
-    pool_stats = df_available
+    # فلترة المتاحين حسب المنطقة المختارة
+    pool_stats = df_available.copy()
     if selected_cities:
         pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
     
+    # حساب الإحصائيات للبطاقات الملونة
+    # 1. يصلح ويرغب
     can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
+    # 2. يصلح ولا يرغب
     can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
     
+    # عرض البطاقات الإحصائية (التصميم المطلوب)
     st.markdown(f"""
-    <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
+    <div style="display: flex; gap: 10px; justify-content: space-between; direction: rtl; margin-top: 20px;">
         <div class="stat-card stat-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">يصلح ويرغب (حسب المنطقة)</span><br>
-            <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
+            <span class="stat-title">يصلح ويرغب (حسب المنطقة)</span>
+            <span class="stat-value" style="color: #00ffcc;">{can_and_wants}</span>
         </div>
         <div class="stat-card stat-no-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">يصلح ولا يرغب (حسب المنطقة)</span><br>
-            <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
+            <span class="stat-title">يصلح ولا يرغب (حسب المنطقة)</span>
+            <span class="stat-value" style="color: #ff4b4b;">{can_not_wants}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     with col_a2:
+        # المجمع المتاح فعلياً للتوزيع هم من "يصلحون" فقط
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
@@ -383,7 +401,6 @@ with tab_manage:
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    # التعديل المطلوب: فلترة المدارس لتظهر فقط التي تحتوي على معلمين مكلفين
     assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
     
     if assigned_halls:
