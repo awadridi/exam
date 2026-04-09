@@ -423,7 +423,7 @@ with tab_manage:
             # 5. توزيع الكادر في قاعة للجهة المقابلة
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
-           if not df_hall_details.empty:
+        if not df_hall_details.empty:
                 # 1. تحديد الأعمدة المطلوب عرضها
                 df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
                 
