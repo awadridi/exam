@@ -225,7 +225,8 @@ with tab_auto:
 with tab_manage:
     st.markdown("<h3 class='right-align'>📊 إحصائيات القاعات والكشوفات</h3>", unsafe_allow_html=True)
     df_all = pd.read_sql("SELECT * FROM teachers", conn)
-    halls_list = df_all[df_all['hall'] != '']['hall'].unique()
+    # تعديل بسيط هنا لضمان عدم وجود أخطاء في الترتيب
+    halls_list = [h for h in df_all['hall'].unique() if h and str(h).strip()]
     if len(halls_list) > 0:
         sel_h_view = st.selectbox("عرض كشف قاعة:", sorted(halls_list))
         df_view = df_all[df_all['hall'] == sel_h_view]
