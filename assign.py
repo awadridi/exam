@@ -139,7 +139,7 @@ with tab_search:
         results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                with tab_search:
+            with tab_search:
                     st.subheader("إدارة الموظفين")
                     df_h_data = pd.read_sql("SELECT * FROM halls", conn)
                     hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
