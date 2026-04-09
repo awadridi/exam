@@ -344,7 +344,7 @@ with tab_auto:
         
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_auto_pool), value=0)
 
-        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
+        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or num_to_assign > len(df_auto_pool))):
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
             elif len(df_auto_pool) < num_to_assign:
