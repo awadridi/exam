@@ -286,32 +286,17 @@ with tab_auto:
     col_a1, col_a2 = st.columns(2)
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
-        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
+        selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique().tolist()))
         
-        # --- الزر الأول: يصلح ويرغب ---
-        with st.expander("✅ مناطق المعلمين (يصلح ويرغب)"):
-            df_wants = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'يرغب')]
-            if not df_wants.empty:
-                st.write(df_wants['city'].value_counts())
-            else:
-                st.info("لا يوجد بيانات")
-
     with col_a2:
         # فلترة المسبح (Pool) بناءً على المناطق المختارة
         pool_stats = df_available
         if selected_cities:
             pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
             
+        # الموظفون الذين يصلحون للمراقبة في المناطق المختارة
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
-
-        # --- الزر الثاني: يصلح ولا يرغب ---
-        with st.expander("❌ مناطق المعلمين (يصلح ولا يرغب)"):
-            df_no_wants = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'لا يرغب')]
-            if not df_no_wants.empty:
-                st.write(df_no_wants['city'].value_counts())
-            else:
-                st.info("لا يوجد بيانات")
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=min(1, len(df_auto_pool)))
 
     # بطاقات إحصائية سريعة للمناطق المختارة
     can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
@@ -330,12 +315,29 @@ with tab_auto:
     </div>
     """, unsafe_allow_html=True)
 
+    # تفصيل المناطق أسفل البطاقات للشفافية
+    col_exp1, col_exp2 = st.columns(2)
+    with col_exp1:
+        with st.expander("📍 تفاصيل (يصلح ويرغب) لكل منطقة"):
+            df_w_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')]
+            if not df_w_sub.empty:
+                st.write(df_w_sub['city'].value_counts())
+            else: st.info("لا توجد بيانات")
+            
+    with col_exp2:
+        with st.expander("📍 تفاصيل (يصلح ولا يرغب) لكل منطقة"):
+            df_nw_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')]
+            if not df_nw_sub.empty:
+                st.write(df_nw_sub['city'].value_counts())
+            else: st.info("لا توجد بيانات")
+
     if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
         if not target_h:
             st.error("الرجاء اختيار قاعة أولاً")
         elif len(df_auto_pool) < num_to_assign:
             st.error(f"العدد المتاح ({len(df_auto_pool)}) أقل من المطلوب.")
         else:
+            # ترتيب التوزيع: الأولوية لمن "يرغب" ثم "لا يرغب" (اختياري، هنا نستخدم عينة عشوائية من الكل المصلح)
             selected_sample = df_auto_pool.sample(n=int(num_to_assign))
             for _, r in selected_sample.iterrows():
                 c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
