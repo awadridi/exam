@@ -47,9 +47,9 @@ if not login():
 # =====================================
 st.set_page_config(page_title="نظام تكليف المراقبة", layout="wide")
 
-# عرض اسم المستخدم وزر تسجيل الخروج في الشريط الجانبي (الذي كان مفقوداً)
+# الجزء الذي طلبته: عرض المستخدم وتسجيل الخروج في الشريط الجانبي
 with st.sidebar:
-    st.markdown(f"### 👤 المستخدم: {st.session_state.username}")
+    st.markdown(f"### 👤 المستخدم الحالي: \n **{st.session_state.username}**")
     if st.button("🚪 تسجيل الخروج"):
         st.session_state['logged_in'] = False
         st.session_state['username'] = ""
@@ -124,7 +124,6 @@ def generate_bulk_word(df, h_name):
     if not os.path.exists("template.docx") or df.empty: return None
     final_doc = Document("template.docx")
     final_doc._body.clear_content()
-    
     for idx, row in df.iterrows():
         temp_doc = Document("template.docx")
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
@@ -133,7 +132,6 @@ def generate_bulk_word(df, h_name):
             final_doc.element.body.append(deepcopy(element))
         if idx < len(df) - 1:
             final_doc.add_page_break()
-            
     out = io.BytesIO()
     final_doc.save(out); out.seek(0)
     return out
