@@ -205,7 +205,7 @@ with tab_search:
                             <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
+                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير مححدد')}</td>
                             <td style="padding: 5px;"><b>💼 الوظيفة:</b> {row.get('current_job', 'غير محدد')}</td>
                         </tr>
                         <tr>
@@ -286,13 +286,6 @@ with tab_auto:
     with col_a1:
         target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
         selected_cities = st.multiselect("السحب من مناطق سكن معينة:", sorted(df_available['city'].unique()))
-        
-        # --- إضافة الزر الأول كما في الصورة ---
-        with st.expander("📍 إحصائيات المناطق المتاحة"):
-            if selected_cities:
-                st.write(df_available[df_available['city'].isin(selected_cities)]['city'].value_counts())
-            else:
-                st.write(df_available['city'].value_counts())
     
     pool_stats = df_available
     if selected_cities:
@@ -317,11 +310,6 @@ with tab_auto:
     with col_a2:
         df_auto_pool = pool_stats[pool_stats['ability'] == 'يصلح']
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=1)
-        
-        # --- إضافة الزر الثاني كما في الصورة ---
-        with st.expander("💡 إحصائيات حسب الرغبة"):
-            st.write(pool_stats['preference'].value_counts())
-
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True):
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
@@ -395,7 +383,10 @@ with tab_manage:
     st.download_button("📥 تحميل كافة المعلمين (إكسل معدل)", data=output_all.getvalue(), file_name=f"كشف_المعلمين_المعدل_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.divider()
-    assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
+    # التعديل: فلترة القاعات لتظهر فقط التي تحتوي على معلمين مكلفين
+    # نقوم باستخراج القاعات التي لها قيمة نصية (طولها أكبر من صفر) وليست nan
+    assigned_halls_df = df_all_teachers[df_all_teachers['hall'].astype(str).apply(lambda x: len(x.strip()) > 0 and x.lower() != 'nan')]
+    assigned_halls = sorted(assigned_halls_df['hall'].unique().tolist())
     
     if assigned_halls:
         h_choice = st.selectbox("اختر قاعة لعرض الكادر (يظهر فقط القاعات التي بها موظفون):", [""] + assigned_halls)
