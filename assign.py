@@ -41,15 +41,22 @@ def login():
 if not login():
     st.stop()
 
+# =====================================
+# 2. إعدادات الحالة والتبديل
+# =====================================
 if 'popover_counter' not in st.session_state:
     st.session_state['popover_counter'] = 0
 
 if 'system_mode' not in st.session_state:
     st.session_state['system_mode'] = "tawjihi"
 
-# =====================================
-# 2. إعدادات الواجهة وقاعدة البيانات
-# =====================================
+# دالة التبديل لضمان تنظيف الذاكرة ومنع تداخل البيانات
+def switch_system(mode):
+    st.session_state['system_mode'] = mode
+    st.cache_data.clear()  # مسح الكاش لضمان تحديث الأرقام والبيانات
+    st.rerun()
+
+# تحديد المتغيرات بناءً على النظام النشط
 if st.session_state['system_mode'] == "tawjihi":
     DB_NAME = "data_system_v26.db"
     TEMPLATE_NAME = "template.docx"
@@ -65,6 +72,7 @@ else:
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
 
+# (تنسيقات CSS الخاصة بك كما هي)
 st.markdown("""
     <style>
     .main, .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
@@ -87,28 +95,29 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# فتح الاتصال بقاعدة البيانات الصحيحة
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول مع الأعمدة الجديدة
+# إنشاء الجداول والتأكد من الأعمدة
 c.execute(f'''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
              preference TEXT, current_job TEXT, ability TEXT,
              relative TEXT, relative_exam TEXT)''')
 
-# كود إضافي للتأكد من وجود الأعمدة الجديدة في قواعد البيانات الحالية
 try:
     c.execute("ALTER TABLE teachers ADD COLUMN relative TEXT DEFAULT ''")
     c.execute("ALTER TABLE teachers ADD COLUMN relative_exam TEXT DEFAULT ''")
 except:
-    pass # الأعمدة موجودة بالفعل
+    pass 
 
 c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
 conn.commit()
 
+# دالات الكاش
 @st.cache_data(ttl=60)
 def get_cached_teachers():
     return pd.read_sql("SELECT * FROM teachers", conn)
@@ -125,7 +134,7 @@ def add_log(action, details):
     st.cache_data.clear()
 
 # =====================================
-# 3. وظائف معالجة الملفات
+# 3. وظائف معالجة الملفات (كما هي بدون تغيير)
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -204,12 +213,10 @@ with header_col1:
     btn_col1, btn_col2, btn_spacer = st.columns([1, 1, 2])
     with btn_col1:
         if st.button("📝 الثانوية العامة", use_container_width=True, type="primary" if st.session_state.system_mode=="tawjihi" else "secondary"):
-            st.session_state.system_mode = "tawjihi"
-            st.rerun()
+            switch_system("tawjihi")
     with btn_col2:
         if st.button("👨‍🏫 امتحان التوظيف", use_container_width=True, type="primary" if st.session_state.system_mode=="tawzif" else "secondary"):
-            st.session_state.system_mode = "tawzif"
-            st.rerun()
+            switch_system("tawzif")
 
 with header_col2:
     if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
@@ -218,6 +225,7 @@ with header_col2:
 
 st.divider()
 
+# التبويبات (كما هي بدون تغيير في المنطق)
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
@@ -340,7 +348,7 @@ with tab_search:
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
-    hall_map = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
+    hall_map_auto = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
     
     df_qualified = df_all[
         (df_all['ability'] == 'يصلح') & 
@@ -365,11 +373,11 @@ with tab_auto:
     </div>
     """, unsafe_allow_html=True)
 
-    available_cities = sorted(df_qualified['city'].unique().tolist())
+    available_cities = sorted(df_qualified['city'].unique().tolist()) if not df_qualified.empty else []
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
-        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
+        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map_auto.keys()), key="auto_target_h")
         selected_cities = st.multiselect("السحب من مناطق سكن محددة (اختياري):", available_cities)
         
     with col_a2:
@@ -379,13 +387,13 @@ with tab_auto:
             df_pool = df_qualified
             
         st.info(f"عدد المعلمين المتاحين للسحب الآن: {len(df_pool)}")
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool), value=0)
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
 
         if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
             selected_sample = df_pool.sample(n=int(num_to_assign))
             for _, r in selected_sample.iterrows():
                 c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
-                          (target_h, hall_map[target_h], r['id']))
+                          (target_h, hall_map_auto[target_h], r['id']))
             conn.commit()
             add_log("توزيع تلقائي", f"توزيع {num_to_assign} معلم على قاعة {target_h}")
             st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
@@ -416,6 +424,7 @@ with tab_upload:
             
             add_log("تحديث بيانات", "تحديث من جوجل شيت")
             st.success("تم التحديث بنجاح")
+            st.cache_data.clear()
             st.rerun()
         except Exception as e: st.error(f"خطأ: {e}")
 
@@ -434,7 +443,6 @@ with tab_manage:
     st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
     
-    # حل مشكلة الـ ValueError: نحدد أسماء الأعمدة ديناميكياً بناءً على العدد الموجود
     arabic_cols = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب']
     df_export.columns = arabic_cols[:len(df_export.columns)]
     
