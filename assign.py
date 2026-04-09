@@ -122,6 +122,9 @@ HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14
 # =====================================
 # 3. وظائف معالجة الملفات
 # =====================================
+# =====================================
+# 3. وظائف معالجة الملفات (تم التعديل لتطابق الصورة)
+# =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
     if phone_val.startswith('5') and len(phone_val) == 9:
@@ -130,17 +133,19 @@ def process_doc(doc_obj, row, h_name, h_city):
     h_name_final = str(h_name) if h_name and str(h_name).lower() != 'nan' else "---"
     h_city_final = str(h_city) if h_city and str(h_city).lower() != 'nan' else "---"
         
+    # الربط بين رموز الصورة وبيانات الجدول
     repls = {
-        '<NAME>': str(row.get('name', '')), 
-        '<ID>': str(row.get('id', '')), 
-        '<PHONE>': phone_val, 
-        '<JOB>': str(row.get('role', '')), 
-        '<HALL_NAME>': h_name_final, 
-        '<HALL_LOCATION>': h_city_final, 
-        '<WORKPLACE>': str(row.get('school', '')), 
-        '<CITY>': str(row.get('city', ''))
+        'ZNAME': str(row.get('name', '')),      # الاسم
+        'ZID': str(row.get('id', '')),          # رقم الهوية
+        'ZPHONE': phone_val,                    # رقم الجوال
+        'ZJOB': str(row.get('role', '')),       # المهمة المكلف بها (مراقب، رئيس قاعة..)
+        'ZHALL': h_name_final,                  # اسم القاعة
+        'ZLOC': h_city_final,                   # مدينة/قرية القاعة
+        'ZWORK': str(row.get('school', '')),    # مقر العمل الأصلي (المدرسة)
+        'ZCITY': str(row.get('city', ''))       # مكان السكن
     }
 
+    # استبدال النصوص في الفقرات
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
             if k in p.text:
@@ -149,6 +154,7 @@ def process_doc(doc_obj, row, h_name, h_city):
                         run.text = run.text.replace(k, v)
                         run.bold = True
 
+    # استبدال النصوص داخل الجداول إن وجدت
     for table in doc_obj.tables:
         for r in table.rows:
             for cell in r.cells:
