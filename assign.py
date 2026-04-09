@@ -304,10 +304,12 @@ with tab_auto:
         if selected_cities:
             pool_stats = pool_stats[pool_stats['city'].isin(selected_cities)]
             
-        # ========================================================
-        # التعديل المطلوب: التصفية بناءً على الصلاحية والرغبة معاً
-        # ========================================================
-        df_auto_pool = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')]
+        # فلترة المعلمين فقط الذين يصلحون ويرغبون
+        df_auto_pool = pool_stats[
+            (pool_stats['ability'] == 'يصلح') & 
+            (pool_stats['preference'] == 'يرغب') & 
+            (pool_stats['current_job'] == 'معلم')
+        ]
         
         num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=1, max_value=max(1, len(df_auto_pool)), value=min(1, len(df_auto_pool)))
 
@@ -315,29 +317,29 @@ with tab_auto:
             if not target_h:
                 st.error("الرجاء اختيار قاعة أولاً")
             elif len(df_auto_pool) < num_to_assign:
-                st.error(f"العدد المتاح ممن يرغبون ويصلحون ({len(df_auto_pool)}) أقل من المطلوب.")
+                st.error(f"العدد المتاح من المعلمين المستوفين للشروط ({len(df_auto_pool)}) أقل من المطلوب.")
             else:
                 selected_sample = df_auto_pool.sample(n=int(num_to_assign))
                 for _, r in selected_sample.iterrows():
                     c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
                               (target_h, hall_map[target_h], r['id']))
                 conn.commit()
-                add_log("توزيع تلقائي", f"توزيع {num_to_assign} مراقب (يرغبون) على قاعة {target_h}")
+                add_log("توزيع تلقائي", f"توزيع {num_to_assign} معلم على قاعة {target_h}")
                 st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
                 time.sleep(1)
                 st.rerun()
 
-    can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')])
-    can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')])
+    can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب') & (pool_stats['current_job'] == 'معلم')])
+    can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب') & (pool_stats['current_job'] == 'معلم')])
     
     st.markdown(f"""
     <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
         <div class="stat-card stat-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">يصلح ويرغب (في المناطق المختارة)</span><br>
+            <span style="color: #bbb; font-size: 0.9rem;">معلم (يصلح ويرغب)</span><br>
             <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
         </div>
         <div class="stat-card stat-no-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">يصلح ولا يرغب (في المناطق المختارة)</span><br>
+            <span style="color: #bbb; font-size: 0.9rem;">معلم (يصلح ولا يرغب)</span><br>
             <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
         </div>
     </div>
@@ -345,15 +347,15 @@ with tab_auto:
 
     col_exp1, col_exp2 = st.columns(2)
     with col_exp1:
-        with st.expander("📍 تفاصيل (يصلح ويرغب) لكل منطقة"):
-            df_w_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب')]
+        with st.expander("📍 تفاصيل المعلمين (يصلح ويرغب)"):
+            df_w_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب') & (pool_stats['current_job'] == 'معلم')]
             if not df_w_sub.empty:
                 st.write(df_w_sub['city'].value_counts())
             else: st.info("لا توجد بيانات")
             
     with col_exp2:
-        with st.expander("📍 تفاصيل (يصلح ولا يرغب) لكل منطقة"):
-            df_nw_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب')]
+        with st.expander("📍 تفاصيل المعلمين (يصلح ولا يرغب)"):
+            df_nw_sub = pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب') & (pool_stats['current_job'] == 'معلم')]
             if not df_nw_sub.empty:
                 st.write(df_nw_sub['city'].value_counts())
             else: st.info("لا توجد بيانات")
