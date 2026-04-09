@@ -426,7 +426,8 @@ with tab_manage:
                 }).set_table_styles([
                     dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
                 ])
-                st.write(styled_df, use_container_width=True)
+                # التعديل هنا لحل الخطأ:
+                st.markdown(styled_df.to_html(), unsafe_allow_html=True)
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
