@@ -441,7 +441,7 @@ with tab_manage:
                 
                 # 4. العرض باستخدام st.write (سيتعرف عليه كجدول منسق)
                 st.write(styled_df, use_container_width=True)
-            else:
+        else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
             col_btns1, col_btns2, col_spacer = st.columns([1, 1.5, 2.5])
