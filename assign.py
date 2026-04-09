@@ -168,25 +168,34 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                # --- تعديل البيانات الأساسية مع إغلاق تلقائي عبر rerun ---
-                with st.popover("📝 تعديل البيانات الأساسية"):
-                    with st.form(key=f"edit_base_{row['id']}"):
+                # --- تعديل البيانات الأساسية (تم تصحيح آلية الإغلاق) ---
+                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}"):
+                    with st.form(key=f"edit_form_{row['id']}"):
                         st.write(f"تعديل بيانات: {row['name']}")
-                        u_name = st.text_input("الاسم", value=row['name'])
-                        u_phone = st.text_input("رقم الجوال", value=row['phone'])
-                        u_school = st.text_input("المدرسة", value=row['school'])
-                        u_city = st.text_input("السكن", value=row['city'])
-                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'])
-                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
-                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
+                        u_name = st.text_input("الاسم", value=row['name'], key=f"in_n_{row['id']}")
+                        u_phone = st.text_input("رقم الجوال", value=row['phone'], key=f"in_p_{row['id']}")
+                        u_school = st.text_input("المدرسة", value=row['school'], key=f"in_s_{row['id']}")
+                        u_city = st.text_input("السكن", value=row['city'], key=f"in_c_{row['id']}")
+                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"in_j_{row['id']}")
+                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], 
+                                             index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2),
+                                             key=f"in_pr_{row['id']}")
+                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], 
+                                              index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2),
+                                              key=f"in_ab_{row['id']}")
                         
-                        if st.form_submit_button("💾 تحديث وحفظ"):
-                            # تنفيذ التحديث
+                        btn_update = st.form_submit_button("💾 تحديث وحفظ")
+                        
+                        if btn_update:
+                            # 1. تحديث قاعدة البيانات
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                             conn.commit()
+                            # 2. إضافة لوج
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات المعلم {u_name}")
-                            # إعادة تشغيل الصفحة ستؤدي لإغلاق الـ popover تلقائياً
+                            # 3. إشعار سريع
+                            st.toast(f"✅ تم تحديث {u_name}")
+                            # 4. إعادة تحميل الصفحة (هذا يغلق الـ popover حتماً)
                             st.rerun()
 
                 st.divider()
@@ -276,7 +285,7 @@ with tab_manage:
             
             c_exc, c_wrd = st.columns(2)
             with c_exc:
-                st.write("استخدم زر التصدير الشامل أعلاه للحصول على أحدث البيانات.")
+                st.write("استخدم زر التصدير الشامل أعلاه.")
             
             with c_wrd:
                 bulk_f = generate_bulk_word(df_hall_details, h_choice)
