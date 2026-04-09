@@ -228,27 +228,25 @@ with tab_search:
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
                 with st.popover("📝 تعديل البيانات الأساسية"):
-                    # إنشاء مساحة للرسالة داخل البوب أوفر
                     msg_placeholder = st.empty()
-                    with st.form(key=f"edit_base_{row['id']}"):
-                        u_name = st.text_input("الاسم", value=row['name'])
-                        u_phone = st.text_input("رقم الجوال", value=display_phone)
-                        u_school = st.text_input("المدرسة", value=row['school'])
-                        u_city = st.text_input("السكن", value=row['city'])
-                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'])
-                        u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2))
-                        u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2))
+                    # تم إزالة st.form لضمان الإغلاق المباشر عند rerun
+                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}")
+                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}")
+                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}")
+                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row['id']}")
+                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row['id']}")
+                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{row['id']}")
+                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{row['id']}")
+                    
+                    if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}"):
+                        c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
+                                     WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
+                        conn.commit()
+                        add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                         
-                        if st.form_submit_button("💾 تحديث وحفظ"):
-                            c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
-                                         WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
-                            conn.commit()
-                            add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                            
-                            # إظهار الرسالة ثم الانتظار ثم التحديث للإغلاق
-                            msg_placeholder.success("✅ تم التحديث بنجاح")
-                            time.sleep(1)
-                            st.rerun()
+                        msg_placeholder.success("✅ تم التحديث بنجاح")
+                        time.sleep(1)
+                        st.rerun()
 
                 st.divider()
                 c1, c2 = st.columns(2)
