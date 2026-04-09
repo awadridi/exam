@@ -423,8 +423,24 @@ with tab_manage:
             # 5. توزيع الكادر في قاعة للجهة المقابلة
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
-            if not df_hall_details.empty:
-                st.table(df_hall_details[['name', 'role', 'school', 'city', 'phone']])
+           if not df_hall_details.empty:
+                # 1. تحديد الأعمدة المطلوب عرضها
+                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
+                
+                # 2. تغيير أسماء الأعمدة للعربية (اختياري ليكون الشكل أجمل)
+                df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
+                
+                # 3. استخدام Styler لضبط المحاذاة والاتجاه
+                styled_df = df_to_show.style.set_properties(**{
+                    'text-align': 'right',
+                    'direction': 'rtl'
+                }).set_table_styles([
+                    # هذا الجزء لضبط عناوين الأعمدة (Header) أيضاً لليمين
+                    dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
+                ])
+                
+                # 4. العرض باستخدام st.write (سيتعرف عليه كجدول منسق)
+                st.write(styled_df, use_container_width=True)
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
