@@ -139,6 +139,60 @@ with tab_search:
         results = df_teachers[df_teachers['name'].str.contains(q, na=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         for _, row in results.iterrows():
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
+                with tab_search:
+    st.subheader("إدارة الموظفين")
+    df_h_data = pd.read_sql("SELECT * FROM halls", conn)
+    hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
+    
+    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
+    if q:
+        df_teachers = pd.read_sql("SELECT * FROM teachers", conn)
+        results = df_teachers[df_teachers['name'].str.contains(q, na=False) | 
+                               df_teachers['id'].astype(str).str.contains(q) | 
+                               df_teachers['phone'].astype(str).str.contains(q)]
+        
+        for _, row in results.iterrows():
+            with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
+                
+                # --- الإضافة الجديدة هنا (لا تحذف ما تحتها) ---
+                st.markdown(f"""
+                <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
+                    <table style="width:100%; color: white; border: none; direction: rtl;">
+                        <tr>
+                            <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
+                            <td style="padding: 5px;"><b>📱 الجوال:</b> {row.get('phone', '---')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
+                            <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
+                            <td style="padding: 5px;"><b>💼 الوظيفة الحالية:</b> {row.get('current_job', 'غير محدد')}</td>
+                        </tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
+                # --- نهاية الإضافة ---
+
+                st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
+                
+                c1, c2 = st.columns(2)
+                with c1:
+                    sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), index=(list(hall_map.keys()).index(row['hall'])+1 if row['hall'] in hall_map else 0), key=f"q_h_{row['id']}")
+                    sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], index=0, key=f"q_r_{row['id']}")
+                with c2:
+                    if st.button("💾 حفظ", key=f"btn_save_{row['id']}"):
+                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
+                        add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
+                        conn.commit(); st.success("تم الحفظ"); st.rerun()
+                    if row['hall']:
+                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
+                            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", (st.session_state.username, row['id']))
+                            add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
+                            conn.commit(); st.rerun()
+                        f_word = generate_single_doc(row)
+                        if f_word: st.download_button("📥 تحميل الكتاب", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{row['id']}")
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 with c1:
