@@ -54,14 +54,15 @@ st.markdown("""
     button[key^="del_"] { background-color: #dc3545 !important; color: white !important; }
     .stDownloadButton button { background-color: #007bff !important; color: white !important; }
     .editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
-    [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
+    [data-testid="stMetricValue"] { font-size: 1.5rem !important; color: #00ffcc !important; }
+    .not-willing { color: #ff4b4b !important; font-size: 0.85rem; }
     </style>
     """, unsafe_allow_html=True)
 
 conn = sqlite3.connect("data_system_v26.db", check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول إذا لم تكن موجودة
+# التأكد من وجود الجداول
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
@@ -114,45 +115,35 @@ def generate_bulk_word(df, h_name):
 # =====================================
 # 4. الواجهة والتابات
 # =====================================
-st.sidebar.markdown(f"### 👤 الموظف: **{st.session_state.username}**")
-if st.sidebar.button("🚪 خروج"):
-    st.session_state.logged_in = False
-    st.rerun()
-
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
     "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
 ])
 
 # --- تبويب البحث ---
 with tab_search:
-    st.subheader("إدارة الموظفين والتعيين اليدوي")
-    # (كود البحث والتعيين اليدوي يبقى كما هو في النسخ المستقرة)
+    st.subheader("إدارة الموظفين")
+    # (كود البحث والتعيين اليدوي التقليدي يوضع هنا)
 
-# --- تبويب التوزيع التلقائي (المعدل: الإحصائيات في الأسفل داخل Expander) ---
+# --- تبويب التوزيع التلقائي (المعدل مع إحصائية لا يرغب) ---
 with tab_auto:
     st.subheader("🤖 التوزيع التلقائي للمراقبين")
     
-    # تحضير البيانات
     df_h_data_auto = pd.read_sql("SELECT * FROM halls", conn)
     hall_map_auto = {r['hall_name']: r['city'] for _, r in df_h_data_auto.iterrows()}
     
-    query_avail = """
-        SELECT * FROM teachers 
-        WHERE current_job = 'معلم' 
-        AND preference = 'يرغب' 
-        AND ability = 'يصلح' 
-        AND (hall = '' OR hall IS NULL OR hall = 'nan')
-    """
-    df_avail = pd.read_sql(query_avail, conn)
+    # جلب المتاحين (يرغب)
+    df_avail = pd.read_sql("SELECT * FROM teachers WHERE current_job = 'معلم' AND preference = 'يرغب' AND ability = 'يصلح' AND (hall = '' OR hall IS NULL OR hall = 'nan')", conn)
+    
+    # جلب الموظفين (لا يرغب + يصلح + معلم)
+    df_not_willing = pd.read_sql("SELECT * FROM teachers WHERE current_job = 'معلم' AND preference = 'لا يرغب' AND ability = 'يصلح' AND (hall = '' OR hall IS NULL OR hall = 'nan')", conn)
 
-    # 1. قسم أدوات التوزيع (في الأعلى)
     col_a1, col_a2 = st.columns(2)
     with col_a1:
-        target_hall = st.selectbox("اختر القاعة المستهدفة للتوزيع:", [""] + list(hall_map_auto.keys()), key="auto_h")
-        selected_cities = st.multiselect("اختر مناطق سكن المعلمين:", options=sorted(df_avail['city'].unique().tolist()) if not df_avail.empty else [])
+        target_hall = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map_auto.keys()), key="auto_h")
+        selected_cities = st.multiselect("اختر مناطق السحب:", options=sorted(df_avail['city'].unique().tolist()) if not df_avail.empty else [])
     
     with col_a2:
-        req_proctors = st.number_input("العدد المطلوب من المراقبين:", min_value=1, value=10)
+        req_proctors = st.number_input("العدد المطلوب:", min_value=1, value=10)
         if st.button("🚀 تنفيذ التوزيع العشوائي", use_container_width=True):
             if target_hall and selected_cities:
                 pool = df_avail[df_avail['city'].isin(selected_cities)].sample(frac=1).reset_index(drop=True).head(req_proctors)
@@ -162,59 +153,47 @@ with tab_auto:
                                   (target_hall, "مراقب", hall_map_auto.get(target_hall, ""), st.session_state.username, t['id']))
                     conn.commit()
                     st.session_state.last_assigned_proctors = pool[['name', 'id', 'city', 'school']]
-                    add_log("توزيع تلقائي", f"توزيع {len(pool)} مراقب على قاعة {target_hall}")
-                    st.success(f"✅ تم توزيع {len(pool)} مراقب بنجاح")
                     st.rerun()
-                else:
-                    st.error("❌ لا يوجد موظفون متاحون في المناطق المختارة")
 
-    # 2. عرض الموزعين حالياً (بعد الضغط على الزر)
     if 'last_assigned_proctors' in st.session_state and st.session_state.last_assigned_proctors is not None:
         st.divider()
-        st.markdown(f"### 📋 الموزعون حالياً في قاعة: {target_hall}")
+        st.markdown(f"### 📋 الموزعون حالياً في: {target_hall}")
         st.dataframe(st.session_state.last_assigned_proctors, use_container_width=True, hide_index=True)
-        if st.button("🧹 مسح هذا الكشف"):
-            st.session_state.last_assigned_proctors = None
-            st.rerun()
 
     st.divider()
 
-    # 3. إحصائيات المتاحين حسب السكن (في الأسفل داخل Expander كما طلبت)
-    with st.expander("📊 عرض أعداد المعلمين المتاحين في كل منطقة سكنية"):
-        if not df_avail.empty:
-            city_stats = df_avail['city'].value_counts().reset_index()
-            city_stats.columns = ['المنطقة السكنية', 'عدد المتاحين']
-            
-            # عرضها بشكل مربعات صغيرة (Metrics)
+    # الإحصائيات في الأسفل داخل Expander (يرغب VS لا يرغب)
+    with st.expander("📊 عرض إحصائيات الموظفين حسب المنطقة (يصلح للمراقبة)"):
+        # جلب قائمة جميع المدن الموجودة في النظام
+        all_cities = sorted(set(df_avail['city'].unique()) | set(df_not_willing['city'].unique()))
+        
+        if all_cities:
             cols = st.columns(4)
-            for i, row in city_stats.iterrows():
-                cols[i % 4].metric(row['المنطقة السكنية'], f"{row['عدد المتاحين']} معلم")
+            for i, city in enumerate(all_cities):
+                count_yes = len(df_avail[df_avail['city'] == city])
+                count_no = len(df_not_willing[df_not_willing['city'] == city])
+                
+                with cols[i % 4]:
+                    st.metric(label=f"📍 {city}", value=f"{count_yes} (يرغب)")
+                    st.markdown(f"<span class='not-willing'>⚠️ {count_no} (لا يرغب)</span>", unsafe_allow_html=True)
         else:
-            st.write("لا يوجد معلمون متاحون حالياً وفق الشروط.")
+            st.write("لا توجد بيانات متاحة حالياً.")
 
-# --- تبويب الإدارة (مع ميزة حذف المراقبين فقط) ---
+# --- تبويب الإدارة (مع زر الحذف) ---
 with tab_manage:
-    st.subheader("📊 إدارة القاعات المنجزة")
+    st.subheader("📊 إدارة القاعات")
     df_active = pd.read_sql("SELECT DISTINCT hall FROM teachers WHERE hall != '' AND hall IS NOT NULL", conn)
     if not df_active.empty:
-        h_choice = st.selectbox("اختر قاعة للعرض والإدارة:", [""] + sorted(df_active['hall'].tolist()))
+        h_choice = st.selectbox("اختر قاعة لإدارتها:", [""] + sorted(df_active['hall'].tolist()))
         if h_choice:
             df_hall_details = pd.read_sql("SELECT * FROM teachers WHERE hall = ?", conn, params=(h_choice,))
-            
             c_man1, c_man2 = st.columns(2)
             with c_man1:
-                # زر حذف المراقبين فقط (يستثني الإدارة والآذنة)
                 proctors_count = len(df_hall_details[df_hall_details['role'] == 'مراقب'])
-                if st.button(f"🗑️ حذف تكليف ({proctors_count}) مراقب من {h_choice}", type="secondary", use_container_width=True):
-                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=? AND role='مراقب'", (st.session_state.username, h_choice))
-                    conn.commit()
-                    add_log("حذف مراقبين", f"إزالة مراقبي قاعة {h_choice}")
-                    st.success("تم الحذف بنجاح")
-                    st.rerun()
+                if st.button(f"🗑️ حذف ({proctors_count}) مراقب من قاعة {h_choice}", use_container_width=True):
+                    c.execute("UPDATE teachers SET hall='', role='', hall_city='' WHERE hall=? AND role='مراقب'", (h_choice,))
+                    conn.commit(); st.success("تم الحذف"); st.rerun()
             with c_man2:
                 bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                if bulk_f: st.download_button(f"📄 تحميل كتب قاعة {h_choice}", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx", use_container_width=True)
-            
+                if bulk_f: st.download_button("📥 تحميل كتب القاعة", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx", use_container_width=True)
             st.dataframe(df_hall_details[['name', 'role', 'school', 'city']], use_container_width=True)
-
-# (باقي التابات: الرفع والسجلات تبقى كما هي)
