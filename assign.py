@@ -427,20 +427,23 @@ with tab_manage:
             st.markdown(f'<h4 class="move-to-right">📊 توزيع الكادر في قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             
             if not df_hall_details.empty:
-                # العرض على الشاشة (بدون الترقيم لإبقاء الواجهة نظيفة)
-                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']]
-                df_to_show.columns = ['الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
+                # تجهيز البيانات للعرض مع إضافة الترقيم
+                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']].copy()
+                df_to_show.insert(0, 'م', range(1, 1 + len(df_to_show))) # إضافة عمود الترقيم هنا
+                df_to_show.columns = ['م', 'الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
                 
                 styled_df = df_to_show.style.set_properties(**{
                     'text-align': 'right',
                     'direction': 'rtl'
                 }).set_table_styles([
                     dict(selector='th', props=[('text-align', 'right'), ('direction', 'rtl')])
-                ])
+                ]).hide(axis="index") # إخفاء الفهرس الافتراضي لإظهار الترقيم اليدوي فقط
+                
                 st.markdown(styled_df.to_html(), unsafe_allow_html=True)
             else:
                 st.info("لا يوجد موظفون مكلفون في هذه القاعة حالياً.")
 
+            st.markdown("<br>", unsafe_allow_html=True)
             col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
             
             with col_btns1:
@@ -465,38 +468,28 @@ with tab_manage:
             with col_btns3:
                 # توليد ملف الإكسل المنسق للطباعة
                 output_hall_excel = io.BytesIO()
-                # تجهيز البيانات المطلوبة بالترتيب
                 df_hall_excel = df_hall_details.copy()
                 df_hall_excel.insert(0, 'م', range(1, 1 + len(df_hall_excel))) # الترقيم
                 
-                # اختيار وتسمية الأعمدة المطلوبة بدقة
                 df_final_export = df_hall_excel[['م', 'name', 'id', 'phone', 'school', 'role', 'city']]
                 df_final_export.columns = ['م', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'اسم المدرسة (مكان العمل)', 'طبيعة العمل في القاعة', 'العنوان']
 
                 with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
-                    df_final_export.to_excel(writer, index=False, sheet_name='كشف القاعة')
+                    df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة')
                     workbook = writer.book
-                    worksheet = writer.sheets['كشف القاعة']
-                    
-                    # تنسيق المحاذاة والاتجاه
+                    worksheet = writer.sheets['كشف_القاعة']
                     worksheet.right_to_left()
+                    worksheet.set_landscape() 
+                    worksheet.set_paper(9)    
+                    worksheet.fit_to_pages(1, 0) 
                     
-                    # إعدادات الصفحة للطباعة (أفقي، احتواء كافة الأعمدة)
-                    worksheet.set_landscape() # ورقة أفقية
-                    worksheet.set_paper(9)    # A4
-                    worksheet.fit_to_pages(1, 0) # احتواء كل الأعمدة في صفحة واحدة عرضاً
-                    
-                    # تنسيقات الخلايا
                     header_format = workbook.add_format({'bold': True, 'bg_color': '#E2EFDA', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
                     cell_format = workbook.add_format({'border': 1, 'align': 'right', 'valign': 'vcenter'})
                     
-                    # تطبيق التنسيقات وعرض الأعمدة
                     for col_num, value in enumerate(df_final_export.columns.values):
                         worksheet.write(0, col_num, value, header_format)
-                        
-                    # تعيين حدود وتنسيق لجميع الخلايا
+                    
                     worksheet.set_column(1, len(df_final_export.columns)-1, 20, cell_format)
-                    # تطبيق الحدود والخصائص لعمود الترقيم "م" بشكل خاص
                     worksheet.set_column(0, 0, 5, cell_format) 
 
                 st.download_button(f"📊 كشف إكسل {h_choice}", 
