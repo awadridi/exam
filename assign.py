@@ -47,6 +47,15 @@ if not login():
 # =====================================
 st.set_page_config(page_title="نظام تكليف المراقبة", layout="wide")
 
+# عرض اسم المستخدم وزر تسجيل الخروج في الشريط الجانبي (الذي كان مفقوداً)
+with st.sidebar:
+    st.markdown(f"### 👤 المستخدم: {st.session_state.username}")
+    if st.button("🚪 تسجيل الخروج"):
+        st.session_state['logged_in'] = False
+        st.session_state['username'] = ""
+        st.rerun()
+    st.markdown("---")
+
 st.markdown("""
     <style>
     .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
@@ -230,6 +239,5 @@ with tab_upload:
         with open("template.docx", "wb") as f: f.write(up_docx.getbuffer())
         st.success("تم تحديث القالب.")
     
-    if st.button("🔄 مزامنة من Google Sheets (الرابط المبرمج)"):
+    if st.button("🔄 مزامنة من Google Sheets"):
         st.warning("هذه العملية ستقوم بتحديث قاعدة البيانات بالكامل.")
-        # هنا يمكن إضافة كود pd.read_csv المباشر من الروابط التي كانت في الكود السابق
