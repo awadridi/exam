@@ -44,7 +44,7 @@ if not login():
 # =====================================
 # 2. إعدادات الواجهة وقاعدة البيانات
 # =====================================
-st.set_page_config(page_title="نظام التكليفات 2026", layout="wide")
+st.set_page_config(page_title="نظام تكليف المراقبة", layout="wide")
 
 st.markdown("""
     <style>
