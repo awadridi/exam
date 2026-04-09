@@ -243,31 +243,28 @@ with tab_search:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                # 1. تنظيف البيانات من قيم nan لضمان عرض نظيف
-                def clean_val(v, default="---"):
-                    val = str(v).strip()
-                    return default if val.lower() in ['nan', 'none', ''] else val
+               # 1. تنظيف البيانات
+                v_id = str(row.get('id', '---'))
+                v_city = str(row.get('city', '---'))
+                v_school = str(row.get('school', '---'))
+                v_pref = str(row.get('preference', 'غير محدد'))
+                v_job = str(row.get('current_job', 'غير محدد'))
+                v_abil = str(row.get('ability', 'لم تحدد'))
+                v_rel = str(row.get('relative', 'لا يوجد'))
+                v_relex = str(row.get('relative_exam', '---'))
 
-                v_id = clean_val(row.get('id'))
-                v_city = clean_val(row.get('city'))
-                v_school = clean_val(row.get('school'))
-                v_pref = clean_val(row.get('preference'), "غير محدد")
-                v_job = clean_val(row.get('current_job'), "غير محدد")
-                v_abil = clean_val(row.get('ability'), "لم تحدد")
-                v_rel = clean_val(row.get('relative'), "لا يوجد")
-                v_relex = clean_val(row.get('relative_exam'))
+                # معالجة قيم nan المزعجة
+                vars_to_clean = [v_id, v_city, v_school, v_pref, v_job, v_abil, v_rel, v_relex]
+                v_id, v_city, v_school, v_pref, v_job, v_abil, v_rel, v_relex = [
+                    "---" if x.lower() == 'nan' else x for x in vars_to_clean
+                ]
 
-                # 2. تجهيز جزء الأقارب كمتغير نصي نظيف
-                rel_html_row = ""
+                # 2. تجهيز صف الأقارب (بدون علامات تنصيص زائدة تكسر الكود)
+                rel_row_html = ""
                 if st.session_state.system_mode == "tawzif":
-                    rel_html_row = f"""
-                    <tr>
-                        <td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td>
-                        <td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td>
-                    </tr>
-                    """
+                    rel_row_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td></tr>'
 
-                # 3. عرض الجدول (كتلة واحدة محكمة الإغلاق)
+                # 3. عرض الجدول (كتلة واحدة تبدأ بـ f""" وتنتهي بـ """)
                 st.markdown(f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
@@ -283,7 +280,7 @@ with tab_search:
                             <td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td>
                             <td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td>
                         </tr>
-                        {rel_html_row}
+                        {rel_row_html}
                         <tr>
                             <td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;">
                                 <b>⚠️ صلاحية المراقبة:</b> {v_abil}
