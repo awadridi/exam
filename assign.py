@@ -197,8 +197,15 @@ with tab_search:
                             # تغيير قيمة المفتاح لإجبار الـ Popover على الاختفاء
                             st.session_state[update_count_key] += 1
                             
-                            st.toast("✅ تم التحديث بنجاح")
-                            st.rerun()
+                            # عرض رسالة نجاح واضحة
+                        st.success("✅ تم التحديث بنجاح!")
+                        
+                        # تأخير لمدة ثانيتين لضمان رؤية الرسالة
+                        import time
+                        time.sleep(2)
+                        
+                        # الآن قم بعمل إعادة تشغيل لإغلاق القائمة
+                        st.rerun()
 
                 st.divider()
                 c1, c2 = st.columns(2)
