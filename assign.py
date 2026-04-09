@@ -193,7 +193,7 @@ with tab_search:
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state[update_count_key] += 1
                             st.success("✅ تم التحديث بنجاح!")
-                            time.sleep(2)
+                            time.sleep(1)
                             st.rerun()
 
                 st.divider()
