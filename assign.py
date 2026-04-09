@@ -239,15 +239,15 @@ with tab_search:
         results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         # تأكد أن السطر الذي يسبق هذا ليس فيه علامات تنصيص مفتوحة
         for _, row in results.iterrows():
-            # تحسين عرض رقم الجوال
-           # 1. تجهيز المتغيرات (انسخ هذا الجزء كما هو)
-            display_phone = str(row['phone'])
+            # 1. تنسيق رقم الجوال
+            display_phone = str(row.get('phone', '---'))
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
 
-            with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
+            # 2. فتح القائمة المنسدلة
+            with st.expander(f"👤 {row.get('name', 'اسم غير معروف')} | القاعة: {row.get('hall') or 'غير مكلف'}"):
                 
-                # دالة جلب البيانات
+                # دالة داخلية لجلب البيانات بأمان
                 def safe_get(key):
                     v = str(row.get(key, '---')).strip()
                     return '---' if v.lower() in ['nan', 'none', ''] else v
@@ -259,18 +259,17 @@ with tab_search:
                 v_abil = safe_get('ability')
                 v_pref = safe_get('preference')
 
-                # 2. منطق الأقارب (نص عادي)
+                # 3. منطق الأقارب (نص فارغ لنظام التوجيهي)
                 rel_html = ''
                 if st.session_state.system_mode == 'tawzif':
                     v_rel = safe_get('relative')
                     v_relex = safe_get('relative_exam')
                     rel_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 الامتحان:</b> {v_relex}</td></tr>'
 
-                # 3. بناء الجدول النهائي (لاحظ استخدمت f' ثم HTML)
-                # هذا السطر يبدأ بـ f وينتهي بـ '
-                table_code = f'<div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;"><table style="width:100%; color: white; border: none;"><tr><td style="padding: 5px;"><b>🆔 الهوية:</b> {v_id}</td><td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td></tr><tr><td style="padding: 5px;"><b>🏡 السكن:</b> {v_city}</td><td style="padding: 5px;"><b>🏫 المدرسة:</b> {v_school}</td></tr><tr><td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td><td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td></tr>{rel_html}<tr><td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;"><b>⚠️ صلاحية المراقبة:</b> {v_abil}</td></tr></table></div>'
+                # 4. بناء متغير full_table (سطر واحد لتجنب المشاكل)
+                full_table = f'<div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;"><table style="width:100%; color: white; border: none;"><tr><td style="padding: 5px;"><b>🆔 الهوية:</b> {v_id}</td><td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td></tr><tr><td style="padding: 5px;"><b>🏡 السكن:</b> {v_city}</td><td style="padding: 5px;"><b>🏫 المدرسة:</b> {v_school}</td></tr><tr><td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td><td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td></tr>{rel_html}<tr><td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;"><b>⚠️ صلاحية المراقبة:</b> {v_abil}</td></tr></table></div>'
                 
-                # العرض
+                # سطر العرض (الموجود عندك أصلاً)
                 st.markdown(full_table, unsafe_allow_html=True)
                 
                 # هنا يكمل باقي الكود الخاص بـ آخر تعديل والـ popover...
