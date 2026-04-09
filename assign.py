@@ -72,7 +72,7 @@ else:
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
 
-# (تنسيقات CSS الخاصة بك كما هي)
+# (تنسيقات CSS)
 st.markdown("""
     <style>
     .main, .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
@@ -95,12 +95,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# فتح الاتصال بقاعدة البيانات الصحيحة
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول والتأكد من الأعمدة
-c.execute(f'''CREATE TABLE IF NOT EXISTS teachers 
+c.execute('''CREATE TABLE IF NOT EXISTS teachers 
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
              preference TEXT, current_job TEXT, ability TEXT,
@@ -117,7 +115,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS logs
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
 conn.commit()
 
-# دالات الكاش
 @st.cache_data(ttl=60)
 def get_cached_teachers():
     return pd.read_sql("SELECT * FROM teachers", conn)
@@ -134,7 +131,7 @@ def add_log(action, details):
     st.cache_data.clear()
 
 # =====================================
-# 3. وظائف معالجة الملفات (كما هي بدون تغيير)
+# 3. وظائف معالجة الملفات
 # =====================================
 def process_doc(doc_obj, row, h_name, h_city):
     phone_val = str(row.get('phone', ''))
@@ -225,7 +222,6 @@ with header_col2:
 
 st.divider()
 
-# التبويبات (كما هي بدون تغيير في المنطق)
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
 with tab_search:
@@ -237,17 +233,13 @@ with tab_search:
     if q:
         df_teachers = get_cached_teachers()
         results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
-        # تأكد أن السطر الذي يسبق هذا ليس فيه علامات تنصيص مفتوحة
+        
         for _, row in results.iterrows():
-            # 1. تنسيق رقم الجوال
             display_phone = str(row.get('phone', '---'))
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
 
-            # 2. فتح القائمة المنسدلة
             with st.expander(f"👤 {row.get('name', 'اسم غير معروف')} | القاعة: {row.get('hall') or 'غير مكلف'}"):
-                
-                # دالة داخلية لجلب البيانات بأمان
                 def safe_get(key):
                     v = str(row.get(key, '---')).strip()
                     return '---' if v.lower() in ['nan', 'none', ''] else v
@@ -259,36 +251,31 @@ with tab_search:
                 v_abil = safe_get('ability')
                 v_pref = safe_get('preference')
 
-                # 3. منطق الأقارب (نص فارغ لنظام التوجيهي)
                 rel_html = ''
                 if st.session_state.system_mode == 'tawzif':
                     v_rel = safe_get('relative')
                     v_relex = safe_get('relative_exam')
                     rel_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 الامتحان:</b> {v_relex}</td></tr>'
 
-                # 4. بناء متغير full_table (سطر واحد لتجنب المشاكل)
                 full_table = f'<div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;"><table style="width:100%; color: white; border: none;"><tr><td style="padding: 5px;"><b>🆔 الهوية:</b> {v_id}</td><td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td></tr><tr><td style="padding: 5px;"><b>🏡 السكن:</b> {v_city}</td><td style="padding: 5px;"><b>🏫 المدرسة:</b> {v_school}</td></tr><tr><td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td><td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td></tr>{rel_html}<tr><td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;"><b>⚠️ صلاحية المراقبة:</b> {v_abil}</td></tr></table></div>'
-                
-                # سطر العرض (الموجود عندك أصلاً)
                 st.markdown(full_table, unsafe_allow_html=True)
-                
-                # هنا يكمل باقي الكود الخاص بـ آخر تعديل والـ popover...
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
-                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}")
-                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}")
-                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}")
-                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row['id']}")
-                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row['id']}")
-                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{row['id']}")
-                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{row['id']}")
+                # --- التعديل لحل مشكلة التكرار ---
+                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{st.session_state.system_mode}_{row['id']}_{st.session_state.popover_counter}"):
+                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}")
+                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}")
+                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}")
+                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{st.session_state.system_mode}_{row['id']}")
+                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{st.session_state.system_mode}_{row['id']}")
+                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{st.session_state.system_mode}_{row['id']}")
+                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{st.session_state.system_mode}_{row['id']}")
                     
                     if st.session_state.system_mode == "tawzif":
-                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}")
-                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row['id']}")
+                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{st.session_state.system_mode}_{row['id']}")
+                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{st.session_state.system_mode}_{row['id']}")
 
-                    if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}"):
+                    if st.button("💾 تحديث وحفظ", key=f"save_base_{st.session_state.system_mode}_{row['id']}"):
                         if st.session_state.system_mode == "tawzif":
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
@@ -308,13 +295,13 @@ with tab_search:
                     current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), 
                                          index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0), 
-                                         key=f"q_h_{row['id']}")
+                                         key=f"q_h_{st.session_state.system_mode}_{row['id']}")
                     
                     sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
                                          index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                                         key=f"q_r_{row['id']}")
+                                         key=f"q_r_{st.session_state.system_mode}_{row['id']}")
                 with c2:
-                    if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}"):
+                    if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}"):
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
@@ -327,19 +314,19 @@ with tab_search:
                     is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
                     
                     if is_assigned:
-                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row['id']}"):
+                        if st.button("❌ إلغاء التكليف", key=f"del_search_{st.session_state.system_mode}_{row['id']}"):
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", 
                                       (st.session_state.username, row['id']))
                             conn.commit()
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             st.rerun()
                         
-                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row['id']}"):
+                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{st.session_state.system_mode}_{row['id']}"):
                             f_word = generate_single_doc(row)
                             if f_word: 
                                 st.download_button("📥 تحميل الآن", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
-                                               key=f"dl_s_{row['id']}")
+                                               key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
 
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
