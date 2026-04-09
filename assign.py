@@ -155,25 +155,25 @@ with tab_search:
                             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
                 
                 # --- الإضافة الجديدة هنا (لا تحذف ما تحتها) ---
-                st.markdown(f"""
-                <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
-                    <table style="width:100%; color: white; border: none; direction: rtl;">
-                        <tr>
-                            <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
-                            <td style="padding: 5px;"><b>📱 الجوال:</b> {row.get('phone', '---')}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
-                            <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
-                            <td style="padding: 5px;"><b>💼 الوظيفة الحالية:</b> {row.get('current_job', 'غير محدد')}</td>
-                        </tr>
-                    </table>
-                </div>
-                """, unsafe_allow_html=True)
-                # --- نهاية الإضافة ---
+                    st.markdown(f"""
+                    <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right;">
+                        <table style="width:100%; color: white; border: none; direction: rtl;">
+                            <tr>
+                                <td style="padding: 5px;"><b>🆔 الهوية:</b> {row.get('id', '---')}</td>
+                                <td style="padding: 5px;"><b>📱 الجوال:</b> {row.get('phone', '---')}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;"><b>🏡 السكن:</b> {row.get('city', '---')}</td>
+                                <td style="padding: 5px;"><b>🏫 المدرسة:</b> {row.get('school', '---')}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;"><b>📝 الرغبة:</b> {row.get('preference', 'غير محدد')}</td>
+                                <td style="padding: 5px;"><b>💼 الوظيفة الحالية:</b> {row.get('current_job', 'غير محدد')}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    # --- نهاية الإضافة ---
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
