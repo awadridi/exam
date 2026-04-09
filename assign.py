@@ -237,37 +237,40 @@ with tab_search:
     if q:
         df_teachers = get_cached_teachers()
         results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
+        # تأكد أن السطر الذي يسبق هذا ليس فيه علامات تنصيص مفتوحة
         for _, row in results.iterrows():
-            # --- بداية التنظيف الشامل ---
+            # تحسين عرض رقم الجوال
             display_phone = str(row['phone'])
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row['name']} | القاعة: {row['hall'] or 'غير مكلف'}"):
-                # 1. تنظيف البيانات
-                def get_val(key, default="---"):
-                    try:
-                        val = str(row.get(key, default)).strip()
-                        return default if val.lower() in ['nan', 'none', ''] else val
-                    except:
-                        return default
+                
+                # دالة جلب القيم بأمان
+                def safe_get(key):
+                    v = str(row.get(key, '---')).strip()
+                    return '---' if v.lower() in ['nan', 'none', ''] else v
 
-                v_id = get_val('id')
-                v_city = get_val('city')
-                v_school = get_val('school')
-                v_pref = get_val('preference', "غير محدد")
-                v_job = get_val('current_job', "غير محدد")
-                v_abil = get_val('ability', "لم تحدد")
+                v_id = safe_get('id')
+                v_city = safe_get('city')
+                v_school = safe_get('school')
+                v_job = safe_get('current_job')
+                v_abil = safe_get('ability')
+                v_pref = safe_get('preference')
 
-                # 2. منطق الأقارب (منع ظهور الأكواد في التوجيهي)
-                rel_row_html = ""
+                # بناء صف الأقارب فقط لنظام التوظيف
+                rel_html = ""
                 if st.session_state.system_mode == "tawzif":
-                    v_rel = get_val('relative', "لا يوجد")
-                    v_relex = get_val('relative_exam', "---")
-                    rel_row_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب مباشر:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 امتحان القريب:</b> {v_relex}</td></tr>'
+                    v_rel = safe_get('relative')
+                    v_relex = safe_get('relative_exam')
+                    rel_html = f"""
+                    <tr>
+                        <td style='padding: 5px; color: #ffc107;'><b>🔗 قريب:</b> {v_rel}</td>
+                        <td style='padding: 5px; color: #ffc107;'><b>📝 الامتحان:</b> {v_relex}</td>
+                    </tr>"""
 
-                # 3. عرض الجدول (تأكد من عدم وجود أي " قبل هذا السطر)
-                st.markdown(f"""
+                # عرض الجدول النهائي
+                full_table = f"""
                 <div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;">
                     <table style="width:100%; color: white; border: none;">
                         <tr>
@@ -282,7 +285,7 @@ with tab_search:
                             <td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td>
                             <td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td>
                         </tr>
-                        {rel_row_html}
+                        {rel_html}
                         <tr>
                             <td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;">
                                 <b>⚠️ صلاحية المراقبة:</b> {v_abil}
@@ -290,8 +293,10 @@ with tab_search:
                         </tr>
                     </table>
                 </div>
-                """, unsafe_allow_html=True)
-                # --- نهاية التنظيف الشامل ---
+                """
+                st.markdown(full_table, unsafe_allow_html=True)
+                
+                # هنا يكمل باقي الكود الخاص بـ آخر تعديل والـ popover...
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
