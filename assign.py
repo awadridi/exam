@@ -149,7 +149,6 @@ if st.sidebar.button("🚪 خروج"):
     st.session_state.logged_in = False
     st.rerun()
 
-# تعديل الـ Tabs لإضافة التوزيع التلقائي
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
     "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"
 ])
@@ -195,10 +194,6 @@ with tab_search:
 
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                update_count_key = f"update_tick_{row['id']}"
-                if update_count_key not in st.session_state:
-                    st.session_state[update_count_key] = 0
-                
                 with st.popover("📝 تعديل البيانات الأساسية"):
                     with st.form(key=f"edit_base_{row['id']}"):
                         u_name = st.text_input("الاسم", value=row['name'])
@@ -214,7 +209,6 @@ with tab_search:
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                            st.session_state[update_count_key] += 1
                             st.success("✅ تم التحديث بنجاح!")
                             time.sleep(1)
                             st.rerun()
@@ -258,16 +252,18 @@ with tab_search:
                                                key=f"dl_s_{row['id']}")
 
 # =====================================
-# الإضافة الجديدة: التوزيع التلقائي
+# 5. التوزيع التلقائي (المعدل: مراقبين فقط مع ميزة الكشف المباشر)
 # =====================================
 with tab_auto:
-    st.subheader("🤖 التوزيع التلقائي على القاعات")
+    st.subheader("🤖 التوزيع التلقائي للمراقبين")
     
-    # جلب بيانات القاعات والمدن
+    # تهيئة حالة الجلسة لمشاهدة الموزعين
+    if 'last_assigned_proctors' not in st.session_state:
+        st.session_state.last_assigned_proctors = None
+
     df_h_data_auto = pd.read_sql("SELECT * FROM halls", conn)
     hall_map_auto = {r['hall_name']: r['city'] for _, r in df_h_data_auto.iterrows()}
     
-    # جلب المعلمين المتاحين فقط (معلم + يرغب + يصلح + غير مكلف حالياً)
     query_avail = """
         SELECT * FROM teachers 
         WHERE current_job = 'معلم' 
@@ -281,9 +277,8 @@ with tab_auto:
     
     with col_a1:
         st.markdown("##### 📍 إعدادات القاعة والمناطق")
-        target_hall = st.selectbox("اختر القاعة المراد توزيعها:", [""] + list(hall_map_auto.keys()))
+        target_hall = st.selectbox("اختر القاعة المراد توزيع المراقبين عليها:", [""] + list(hall_map_auto.keys()), key="auto_hall_sel")
         
-        # اختيار المناطق المتاحة (فقط المناطق التي بها معلمون يحققون الشروط)
         available_cities = sorted(df_avail['city'].unique().tolist())
         selected_cities = st.multiselect(
             "اختر مناطق سكن الموظفين (حتى 5 مناطق):", 
@@ -298,44 +293,47 @@ with tab_auto:
                 st.write(f"• {city}: {c_count} معلم")
 
     with col_a2:
-        st.markdown("##### 👥 الأعداد المطلوبة")
-        req_assistants = st.number_input("عدد مساعدي رئيس القاعة المطلوب:", min_value=0, max_value=5, value=1)
-        req_proctors = st.number_input("عدد المراقبين المطلوبين:", min_value=0, max_value=100, value=10)
+        st.markdown("##### 👥 العدد المطلوب")
+        req_proctors = st.number_input("عدد المراقبين المطلوبين لهذه القاعة:", min_value=1, max_value=100, value=10)
         
-        if st.button("🚀 تنفيذ التوزيع العشوائي", use_container_width=True):
+        if st.button("🚀 تنفيذ التوزيع العشوائي للمراقبين", use_container_width=True):
             if not target_hall or not selected_cities:
-                st.error("⚠️ يرجى تحديد القاعة والمناطق السكنية")
+                st.error("⚠️ يرجى تحديد القاعة والمناطق السكنية أولاً")
             else:
-                # تصفية الموظفين من المناطق المختارة وخلطهم عشوائياً
                 pool = df_avail[df_avail['city'].isin(selected_cities)].sample(frac=1).reset_index(drop=True)
-                total_needed = req_assistants + req_proctors
                 
-                if len(pool) < total_needed:
-                    st.warning(f"⚠️ المتاح ({len(pool)}) أقل من المطلوب ({total_needed}). سيتم توزيع المتاح فقط.")
+                if len(pool) < req_proctors:
+                    st.warning(f"⚠️ المتاح ({len(pool)}) أقل من المطلوب ({req_proctors}). سيتم توزيع المتاح فقط.")
+                    actual_to_assign = len(pool)
+                else:
+                    actual_to_assign = req_proctors
                 
-                # تنفيذ التوزيع
                 assigned_count = 0
                 h_city_val = hall_map_auto.get(target_hall, "")
                 
-                # توزيع المساعدين أولاً
-                assistants = pool.head(req_assistants)
-                for _, t in assistants.iterrows():
-                    c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
-                              (target_hall, "مساعد رئيس قاعة", h_city_val, st.session_state.username, t['id']))
-                    assigned_count += 1
+                # تعيين المراقبين فقط وحفظ القائمة للعرض
+                proctors_to_assign = pool.head(actual_to_assign)
                 
-                # توزيع المراقبين من المتبقي
-                proctors = pool.iloc[req_assistants : req_assistants + req_proctors]
-                for _, t in proctors.iterrows():
+                for _, t in proctors_to_assign.iterrows():
                     c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
                               (target_hall, "مراقب", h_city_val, st.session_state.username, t['id']))
                     assigned_count += 1
                 
                 conn.commit()
-                add_log("توزيع تلقائي", f"توزيع عشوائي لـ {assigned_count} موظف على قاعة {target_hall}")
-                st.success(f"✅ تم التوزيع بنجاح! تم تعيين {assigned_count} موظف.")
-                time.sleep(1)
-                st.rerun()
+                # حفظ القائمة في الجلسة ليتم عرضها بالأسفل
+                st.session_state.last_assigned_proctors = proctors_to_assign[['name', 'id', 'city', 'school']]
+                
+                add_log("توزيع تلقائي", f"توزيع عشوائي لـ {assigned_count} مراقب على قاعة {target_hall}")
+                st.success(f"✅ تم التوزيع بنجاح! تم تعيين {assigned_count} مراقب.")
+
+    # ميزة العرض: إظهار الموزعين في القاعة الحالية
+    if st.session_state.last_assigned_proctors is not None:
+        st.divider()
+        st.markdown(f"### 📋 كشف المراقبين الذين تم توزيعهم للتو على قاعة: **{target_hall}**")
+        st.dataframe(st.session_state.last_assigned_proctors, use_container_width=True, hide_index=True)
+        if st.button("🧹 إخفاء الجدول والبدء من جديد"):
+            st.session_state.last_assigned_proctors = None
+            st.rerun()
 
     st.divider()
     with st.expander("🌍 كشف المتبقي في كافة المناطق السكنية (معلم + يرغب + يصلح)"):
@@ -347,7 +345,7 @@ with tab_auto:
             st.write("لا يوجد معلمون متاحون حالياً.")
 
 # =====================================
-# بقية الأقسام الأصلية
+# 6. بقية الأقسام (رفع البيانات، الإدارة، السجل)
 # =====================================
 with tab_upload:
     st.subheader("تحديث القالب والبيانات")
