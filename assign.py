@@ -64,7 +64,6 @@ st.markdown("""
         display: inline-block;
         float: right;
     }
-    /* تنسيق المعداد الإحصائي */
     .counter-card {
         background-color: #1a1c23;
         padding: 10px;
@@ -202,7 +201,6 @@ def generate_bulk_word(df, h_name):
 # =====================================
 # 4. الواجهة الرئيسية
 # =====================================
-
 header_col1, header_col2 = st.columns([4, 1])
 
 with header_col1:
@@ -324,39 +322,55 @@ with tab_search:
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
     
-    # 1. جلب البيانات وتحديد المعلمين المتاحين (غير المكلفين) فقط
+    # 1. جلب البيانات
     df_all = get_cached_teachers()
-    df_available = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
+    hall_map = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
     
-    # 2. تصفية المعلمين المؤهلين (يصلح + يرغب + معلم)
-    df_qualified = df_available[
-        (df_available['ability'] == 'يصلح') & 
-        (df_available['preference'] == 'يرغب') & 
-        (df_available['current_job'] == 'معلم')
+    # 2. تصفية المعلمين المؤهلين والمتاحين فقط (يصلح + يرغب + معلم + غير مكلف)
+    df_qualified = df_all[
+        (df_all['ability'] == 'يصلح') & 
+        (df_all['preference'] == 'يرغب') & 
+        (df_all['current_job'] == 'معلم') &
+        ((df_all['hall'] == '') | (df_all['hall'].isna()))
     ]
 
-    # 3. استخراج المدن التي يتوفر فيها معلمون مؤهلون فقط (لاختفاء المدن الفارغة)
+    # الإحصائيات العلوية
+    can_and_wants = len(df_qualified)
+    can_not_wants = len(df_all[(df_all['ability'] == 'يصلح') & (df_all['preference'] == 'لا يرغب') & (df_all['current_job'] == 'معلم') & ((df_all['hall'] == '') | (df_all['hall'].isna()))])
+    
+    st.markdown(f"""
+    <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
+        <div class="stat-card stat-wants">
+            <span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ويرغب)</span><br>
+            <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
+        </div>
+        <div class="stat-card stat-no-wants">
+            <span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ولا يرغب)</span><br>
+            <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 3. استخراج المناطق التي يتوفر بها معلمون مستوفون للشروط فقط
     available_cities = sorted(df_qualified['city'].unique().tolist())
     
     col_a1, col_a2 = st.columns(2)
     with col_a1:
-        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h_unique")
-        selected_cities = st.multiselect("السحب من مناطق سكن يتوفر بها معلمون (يصلح ويرغب):", available_cities)
+        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map.keys()), key="auto_target_h")
+        selected_cities = st.multiselect("السحب من مناطق سكن محددة (اختياري):", available_cities)
         
     with col_a2:
-        # تصفية المجمع بناءً على المدن المختارة
+        # تصفية الـ Pool بناءً على المناطق المختارة
         if selected_cities:
-            df_auto_pool = df_qualified[df_qualified['city'].isin(selected_cities)]
+            df_pool = df_qualified[df_qualified['city'].isin(selected_cities)]
         else:
-            df_auto_pool = df_qualified
+            df_pool = df_qualified
             
-        max_val = len(df_auto_pool)
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=max_val, value=0, key="num_input_unique")
+        st.info(f"عدد المعلمين المتاحين للسحب الآن: {len(df_pool)}")
+        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool), value=0)
 
-        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, key="btn_auto_unique", 
-                     disabled=(num_to_assign == 0 or not target_h)):
-            # اختيار عينة عشوائية
-            selected_sample = df_auto_pool.sample(n=int(num_to_assign))
+        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
+            selected_sample = df_pool.sample(n=int(num_to_assign))
             for _, r in selected_sample.iterrows():
                 c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
                           (target_h, hall_map[target_h], r['id']))
@@ -365,66 +379,6 @@ with tab_auto:
             st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
             time.sleep(1)
             st.rerun()
-
-    # 4. عرض الإحصائيات (البطاقات الملونة)
-    can_and_wants = len(df_auto_pool) # المعلمون في المناطق المختارة
-    # حساب "يصلح ولا يرغب" للمناطق المختارة فقط كمعلومة إضافية
-    if selected_cities:
-        pool_no_wants = df_available[(df_available['city'].isin(selected_cities)) & (df_available['ability'] == 'يصلح') & (df_available['preference'] == 'لا يرغب') & (df_available['current_job'] == 'معلم')]
-    else:
-        pool_no_wants = df_available[(df_available['ability'] == 'يصلح') & (df_available['preference'] == 'لا يرغب') & (df_available['current_job'] == 'معلم')]
-    
-    can_not_wants = len(pool_no_wants)
-
-    st.markdown(f"""
-    <div style="display: flex; gap: 15px; margin-top: 20px; direction: rtl;">
-        <div class="stat-card stat-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">معلم جاهز للتوزيع (يصلح ويرغب)</span><br>
-            <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
-        </div>
-        <div class="stat-card stat-no-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">معلم (يصلح ولا يرغب) في المنطقة</span><br>
-            <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # إحصائيات سريعة للمنطقة المختارة
-    st.info(f"عدد المعلمين الجاهزين (يصلح ويرغب) في المناطق المختارة: {len(df_auto_pool)}")
-        
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_auto_pool), value=0)
-
-        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or num_to_assign > len(df_auto_pool))):
-            if not target_h:
-                st.error("الرجاء اختيار قاعة أولاً")
-            elif len(df_auto_pool) < num_to_assign:
-                st.error(f"العدد المتاح من المعلمين المستوفين للشروط ({len(df_auto_pool)}) أقل من المطلوب.")
-            else:
-                selected_sample = df_auto_pool.sample(n=int(num_to_assign))
-                for _, r in selected_sample.iterrows():
-                    c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
-                              (target_h, hall_map[target_h], r['id']))
-                conn.commit()
-                add_log("توزيع تلقائي", f"توزيع {num_to_assign} معلم على قاعة {target_h}")
-                st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
-                time.sleep(1)
-                st.rerun()
-
-    can_and_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'يرغب') & (pool_stats['current_job'] == 'معلم')])
-    can_not_wants = len(pool_stats[(pool_stats['ability'] == 'يصلح') & (pool_stats['preference'] == 'لا يرغب') & (pool_stats['current_job'] == 'معلم')])
-    
-    st.markdown(f"""
-    <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
-        <div class="stat-card stat-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">معلم (يصلح ويرغب)</span><br>
-            <strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong>
-        </div>
-        <div class="stat-card stat-no-wants">
-            <span style="color: #bbb; font-size: 0.9rem;">معلم (يصلح ولا يرغب)</span><br>
-            <strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 with tab_upload:
     st.markdown('<h2 class="move-to-right">تحديث القالب والبيانات</h2>', unsafe_allow_html=True)
@@ -490,7 +444,6 @@ with tab_manage:
         if h_choice:
             df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice].copy()
             
-            # --- إضافة المعداد الإحصائي المطلوب ---
             st.markdown(f'<h4 class="move-to-right">🔢 معداد قاعة: {h_choice}</h4>', unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             with m1: st.markdown(f'<div class="counter-card"><div class="counter-label">رئيس قاعة</div><div class="counter-value">{len(df_hall_details[df_hall_details["role"] == "رئيس قاعة"])}</div></div>', unsafe_allow_html=True)
@@ -516,7 +469,6 @@ with tab_manage:
             col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
             
             with col_btns1:
-                # --- زر حذف السجل (تفريغ القاعة) ---
                 if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
                     c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
                     conn.commit()
@@ -549,7 +501,6 @@ with tab_manage:
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     
-    # زر الحذف في الأعلى
     if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
         try:
             c.execute("DELETE FROM logs")
@@ -562,10 +513,8 @@ with tab_logs:
 
     st.divider()
 
-    # جلب البيانات من قاعدة البيانات
     df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
     
-    # عرض الجدول لمرة واحدة فقط
     if not df_l.empty:
         st.dataframe(df_l, use_container_width=True)
     else:
