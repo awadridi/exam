@@ -7,12 +7,12 @@ import time
 import copy
 from datetime import datetime
 
-# المكتبات الخاصة بالـ Word (تحتاجها فقط إذا كنت ستستمر في دعم تحميل ملفات الوورد)
+# مكتبات الـ Word
 from docx import Document
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-# المكتبات الجديدة للـ PDF ودعم اللغة العربية
+# مكتبات الـ PDF والعربية
 from xhtml2pdf import pisa
 from arabic_reshape import reshape
 from bidi.algorithm import get_display
