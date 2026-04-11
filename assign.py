@@ -9,6 +9,7 @@ from datetime import datetime
 import copy
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+import copy
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
