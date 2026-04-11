@@ -1,8 +1,7 @@
 streamlit
 pandas
-python-docx
-aspose-words
 xlsxwriter
-xhtml2pdf
+python-docx
 arabic-reshaper
 python-bidi
+xhtml2pdf
