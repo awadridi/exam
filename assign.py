@@ -382,11 +382,13 @@ with tab_search:
                             st.rerun()
                         
                         if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row_key}"):
-                            # خيار 1: PDF (الحل الجديد)
-                            pdf_data = generate_pdf_via_html(row, row['hall'], row['hall_city'])
-                            st.download_button("📥 تحميل PDF", data=pdf_data, 
-                                               file_name=f"تكليف_{row['name']}.pdf", 
-                                               mime="application/pdf", key=f"dl_pdf_{row_key}")
+                            pdf_bytes = generate_pdf_via_html(row, row['hall'], row['hall_city'])
+                            if pdf_bytes:
+                            st.download_button("📥 تحميل PDF", 
+                           data=pdf_bytes, 
+                           file_name=f"تكليف_{row['name']}.pdf", 
+                           mime="application/pdf", 
+                           key=f"dl_pdf_{row_key}")
                             
                             # خيار 2: Word (الحل القديم إذا كنت لا تزال تريده)
                             f_word = generate_single_doc(row)
