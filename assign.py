@@ -488,10 +488,28 @@ with tab_manage:
                     st.rerun()
             
             with col_btns2:
-                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
-                    bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                    if bulk_f: 
-                        st.download_button("📥 تحميل الوورد", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
+    if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+        bulk_f = generate_bulk_word(df_hall_details, h_choice)
+        if bulk_f:
+            docx_bytes = bulk_f.getvalue()
+            
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
+                st.download_button(
+                    "📥 تحميل Word",
+                    data=docx_bytes,
+                    file_name=f"تكليفات_{h_choice}.docx"
+                )
+            with col_dl2:
+                with st.spinner("جاري تحويل PDF..."):
+                    pdf_bytes = convert_docx_to_pdf(docx_bytes)
+                if pdf_bytes:
+                    st.download_button(
+                        "📄 تحميل PDF",
+                        data=pdf_bytes,
+                        file_name=f"تكليفات_{h_choice}.pdf",
+                        mime="application/pdf"
+                    )
             
             with col_btns3:
                 output_hall_excel = io.BytesIO()
