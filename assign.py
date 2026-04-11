@@ -6,6 +6,11 @@ import io
 import os
 import time
 from datetime import datetime
+import subprocess
+import tempfile
+import copy
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
