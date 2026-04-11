@@ -3,3 +3,6 @@ pandas
 python-docx
 aspose-words
 xlsxwriter
+xhtml2pdf
+arabic-reshaper
+python-bidi
