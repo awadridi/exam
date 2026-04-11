@@ -187,16 +187,59 @@ def generate_single_doc(row):
     return bio
 
 def generate_bulk_word(df, h_name):
-    if not os.path.exists(TEMPLATE_NAME): return None
-    final_doc = Document(TEMPLATE_NAME); final_doc._body.clear_content()
-    for idx, row in df.iterrows():
+    if not os.path.exists(TEMPLATE_NAME):
+        return None
+    final_doc = Document(TEMPLATE_NAME)
+    final_doc._body.clear_content()
+    rows_list = list(df.iterrows())
+    for i, (idx, row) in enumerate(rows_list):
         temp_doc = Document(TEMPLATE_NAME)
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
-        if idx > 0: final_doc.add_page_break()
-        for element in temp_doc.element.body:
-            if not element.tag.endswith('sectPr'): final_doc.element.body.append(element)
-    out = io.BytesIO(); final_doc.save(out); out.seek(0)
+        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+        while elements:
+            last = elements[-1]
+            if last.tag.endswith('}p'):
+                text = ''.join(t.text or '' for t in last.iter(qn('w:t')))
+                if not text.strip():
+                    elements.pop()
+                    continue
+            break
+        for element in elements:
+            final_doc.element.body.append(copy.deepcopy(element))
+        if i < len(rows_list) - 1:
+            p = OxmlElement('w:p')
+            r = OxmlElement('w:r')
+            br = OxmlElement('w:br')
+            br.set(qn('w:type'), 'page')
+            r.append(br)
+            p.append(r)
+            final_doc.element.body.append(p)
+    out = io.BytesIO()
+    final_doc.save(out)
+    out.seek(0)
     return out
+
+def convert_docx_to_pdf(docx_bytes):
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            docx_path = os.path.join(tmpdir, "document.docx")
+            with open(docx_path, 'wb') as f:
+                f.write(docx_bytes)
+            result = subprocess.run(
+                ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmpdir, docx_path],
+                capture_output=True, timeout=60
+            )
+            pdf_path = os.path.join(tmpdir, "document.pdf")
+            if os.path.exists(pdf_path):
+                with open(pdf_path, 'rb') as f:
+                    return f.read()
+            else:
+                st.error(f"فشل التحويل: {result.stderr.decode()}")
+                return None
+    except Exception as e:
+        st.error(f"خطأ: {e}")
+        return None
+
 
 # =====================================
 # 4. الواجهة الرئيسية
@@ -492,29 +535,23 @@ with tab_manage:
                     time.sleep(0.5)
                     st.rerun()
             
-            with col_btns2:
-    if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
-        bulk_f = generate_bulk_word(df_hall_details, h_choice)
-        if bulk_f:
-            docx_bytes = bulk_f.getvalue()
-            
-            col_dl1, col_dl2 = st.columns(2)
-            with col_dl1:
-                st.download_button(
-                    "📥 تحميل Word",
-                    data=docx_bytes,
-                    file_name=f"تكليفات_{h_choice}.docx"
-                )
-            with col_dl2:
-                with st.spinner("جاري تحويل PDF..."):
-                    pdf_bytes = convert_docx_to_pdf(docx_bytes)
-                if pdf_bytes:
-                    st.download_button(
-                        "📄 تحميل PDF",
-                        data=pdf_bytes,
-                        file_name=f"تكليفات_{h_choice}.pdf",
-                        mime="application/pdf"
-                    )
+                        with col_btns2:
+                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+                    bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                    if bulk_f:
+                        docx_bytes = bulk_f.getvalue()
+                        col_dl1, col_dl2 = st.columns(2)
+                        with col_dl1:
+                            st.download_button("📥 تحميل Word", data=docx_bytes,
+                                file_name=f"تكليفات_{h_choice}.docx")
+                        with col_dl2:
+                            with st.spinner("جاري تحويل PDF..."):
+                                pdf_bytes = convert_docx_to_pdf(docx_bytes)
+                            if pdf_bytes:
+                                st.download_button("📄 تحميل PDF", data=pdf_bytes,
+                                    file_name=f"تكليفات_{h_choice}.pdf",
+                                    mime="application/pdf")
+
             
             with col_btns3:
                 output_hall_excel = io.BytesIO()
