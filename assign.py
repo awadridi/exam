@@ -11,6 +11,10 @@ import tempfile
 import copy
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from xhtml2pdf import pisa
+from arabic_reshape import reshape
+from bidi.algorithm import get_display
+# ... (باقي الاستيرادات الموجودة عندك)
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
@@ -219,42 +223,49 @@ def generate_bulk_word(df, h_name):
     out.seek(0)
     return out
 
-def convert_docx_to_pdf(docx_bytes):
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            docx_path = os.path.join(tmpdir, "document.docx")
-            
-            with open(docx_path, 'wb') as f:
-                f.write(docx_bytes)
-            
-            # محاولة تشغيل LibreOffice
-            cmd = [
-                'libreoffice',
-                '--headless',
-                '--convert-to',
-                'pdf',
-                '--outdir', tmpdir,
-                docx_path
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-            
-            # البحث عن الملف الناتج (لأن LibreOffice يغير الاسم أحياناً)
-            pdf_path = os.path.join(tmpdir, "document.pdf")
-            
-            if os.path.exists(pdf_path):
-                with open(pdf_path, 'rb') as f:
-                    return f.read()
-            else:
-                st.error("⚠️ لم يتم العثور على ملف PDF. تأكد من تثبيت LibreOffice على السيرفر.")
-                if result.stderr:
-                    st.code(result.stderr) # لإظهار الخطأ التقني لك
-                return None
-                
-    except Exception as e:
-        st.error(f"❌ خطأ تقني في التحويل: {e}")
-        return None
+def generate_pdf_via_html(row, h_name, h_city):
+    """توليد PDF مباشرة باستخدام HTML لدعم العربية بشكل مثالي"""
+    def ar(text):
+        if not text or str(text).lower() == 'nan': return "---"
+        return get_display(reshape(str(text)))
 
+    # تصميم القالب (يمكنك تعديل الـ CSS هنا لتغيير شكل الكتاب)
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            @page {{ size: A4; margin: 2cm; }}
+            body {{ font-family: 'Arial', sans-serif; direction: rtl; text-align: right; }}
+            .title {{ text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; }}
+            .content-table {{ width: 100%; margin-top: 20px; }}
+            .label {{ font-weight: bold; width: 30%; }}
+            .footer {{ margin-top: 50px; text-align: left; padding-left: 50px; }}
+        </style>
+    </head>
+    <body>
+        <div class="title">{ar("بطاقة تكليف بمهمة عمل")}</div>
+        <hr>
+        <table class="content-table">
+            <tr><td>{ar("الاسم الكامل:")}</td><td>{ar(row.get('name'))}</td></tr>
+            <tr><td>{ar("رقم الهوية:")}</td><td>{row.get('id')}</td></tr>
+            <tr><td>{ar("القاعة المكلف بها:")}</td><td>{ar(h_name)}</td></tr>
+            <tr><td>{ar("الموقع:")}</td><td>{ar(h_city)}</td></tr>
+            <tr><td>{ar("المهمة:")}</td><td>{ar(row.get('role'))}</td></tr>
+        </table>
+        <div style="margin-top: 40px;">
+            {ar("يرجى التواجد في مكان العمل قبل الموعد بـ 30 دقيقة.")}
+        </div>
+        <div class="footer">
+            <p>{ar("توقيع المدير العام")}</p>
+            <p>___________</p>
+        </div>
+    </body>
+    </html>
+    """
+    result = io.BytesIO()
+    pisa.CreatePDF(html_content, dest=result, encoding='utf-8')
+    result.seek(0)
+    return result.read()
 
 # =====================================
 # 4. الواجهة الرئيسية
