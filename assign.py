@@ -223,22 +223,35 @@ def convert_docx_to_pdf(docx_bytes):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             docx_path = os.path.join(tmpdir, "document.docx")
+            pdf_path = os.path.join(tmpdir, "document.pdf")
+            
             with open(docx_path, 'wb') as f:
                 f.write(docx_bytes)
-            result = subprocess.run(
-                ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', tmpdir, docx_path],
-                capture_output=True, timeout=60
-            )
-            pdf_path = os.path.join(tmpdir, "document.pdf")
+            
+            # إعدادات LibreOffice المتقدمة للحفاظ على التنسيق (صفحة واحدة، هوامش أصلية)
+            cmd = [
+                'libreoffice',
+                '--headless',
+                '--invisible',
+                '--convert-to',
+                'pdf:writer_pdf_Export:PageRange=1-1,SelectPdfVersion=1.4,UseLosslessCompression=true,ExportFormFields=false',
+                f'--outdir={tmpdir}',
+                docx_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            
             if os.path.exists(pdf_path):
                 with open(pdf_path, 'rb') as f:
                     return f.read()
             else:
-                st.error(f"فشل التحويل: {result.stderr.decode()}")
+                st.error(f"فشل: {result.stderr[:200]}...")
                 return None
+                
     except Exception as e:
         st.error(f"خطأ: {e}")
         return None
+
 
 
 # =====================================
