@@ -224,40 +224,36 @@ def generate_bulk_word(df, h_name):
     return out
 
 def generate_pdf_via_html(row, h_name, h_city):
-    """توليد PDF مباشرة باستخدام HTML لدعم العربية بشكل مثالي"""
     def ar(text):
         if not text or str(text).lower() == 'nan': return "---"
         return get_display(reshape(str(text)))
 
-    # تصميم القالب (يمكنك تعديل الـ CSS هنا لتغيير شكل الكتاب)
+    # هنا نضع كود الـ CSS الذي سألته عنه داخل الـ HTML
     html_content = f"""
     <html>
     <head>
         <style>
-            @page {{ size: A4; margin: 2cm; }}
-            body {{ font-family: 'Arial', sans-serif; direction: rtl; text-align: right; }}
-            .title {{ text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; }}
-            .content-table {{ width: 100%; margin-top: 20px; }}
-            .label {{ font-weight: bold; width: 30%; }}
-            .footer {{ margin-top: 50px; text-align: left; padding-left: 50px; }}
+            @font-face {{
+                font-family: 'Amiri';
+                src: url('Amiri-Regular.ttf'); /* تأكد أن ملف الخط موجود بجانب ملف الكود بنفس الاسم */
+            }}
+            @page {{ size: A4; margin: 1cm; }}
+            body {{ 
+                font-family: 'Amiri', serif; /* نستخدم اسم الخط هنا */
+                direction: rtl; 
+                text-align: right; 
+            }}
+            .header {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
+            .content {{ margin-top: 30px; font-size: 16px; }}
         </style>
     </head>
     <body>
-        <div class="title">{ar("بطاقة تكليف بمهمة عمل")}</div>
-        <hr>
-        <table class="content-table">
-            <tr><td>{ar("الاسم الكامل:")}</td><td>{ar(row.get('name'))}</td></tr>
-            <tr><td>{ar("رقم الهوية:")}</td><td>{row.get('id')}</td></tr>
-            <tr><td>{ar("القاعة المكلف بها:")}</td><td>{ar(h_name)}</td></tr>
-            <tr><td>{ar("الموقع:")}</td><td>{ar(h_city)}</td></tr>
-            <tr><td>{ar("المهمة:")}</td><td>{ar(row.get('role'))}</td></tr>
-        </table>
-        <div style="margin-top: 40px;">
-            {ar("يرجى التواجد في مكان العمل قبل الموعد بـ 30 دقيقة.")}
+        <div class="header">
+            <h2>{ar("بطاقة تكليف بمهمة")}</h2>
         </div>
-        <div class="footer">
-            <p>{ar("توقيع المدير العام")}</p>
-            <p>___________</p>
+        <div class="content">
+            <p><b>{ar("الاسم:")}</b> {ar(row.get('name'))}</p>
+            <p><b>{ar("القاعة:")}</b> {ar(h_name)}</p>
         </div>
     </body>
     </html>
@@ -266,7 +262,6 @@ def generate_pdf_via_html(row, h_name, h_city):
     pisa.CreatePDF(html_content, dest=result, encoding='utf-8')
     result.seek(0)
     return result.read()
-
 # =====================================
 # 4. الواجهة الرئيسية
 # =====================================
