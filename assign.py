@@ -535,22 +535,46 @@ with tab_manage:
                     time.sleep(0.5)
                     st.rerun()
             
+                        # =====================================
+            # داخل tab_manage عند جزء أزرار القاعة
+            # =====================================
+            
             with col_btns2:
-                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
-                    bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                    if bulk_f:
-                        docx_bytes = bulk_f.getvalue()
-                        col_dl1, col_dl2 = st.columns(2)
-                        with col_dl1:
-                            st.download_button("📥 تحميل Word", data=docx_bytes,
-                                file_name=f"تكليفات_{h_choice}.docx")
-                        with col_dl2:
-                            with st.spinner("جاري تحويل PDF..."):
-                                pdf_bytes = convert_docx_to_pdf(docx_bytes)
+                # مفتاح فريد لتخزين حالة الملف لهذه القاعة بالذات
+                bulk_key = f"bulk_file_{h_choice}"
+                
+                if st.button(f"📄 تجهيز كتب قاعة {h_choice}", key=f"prepare_{h_choice}"):
+                    with st.spinner("جاري تجهيز الملفات..."):
+                        bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                        if bulk_f:
+                            # حفظ الملف في السيشين ستيت ليبقى متاحاً
+                            st.session_state[bulk_key] = bulk_f.getvalue()
+                            st.success("✅ تم تجهيز الملف بنجاح!")
+            
+                # إذا كان الملف موجوداً في الذاكرة، أظهر أزرار التحميل
+                if bulk_key in st.session_state:
+                    docx_bytes = st.session_state[bulk_key]
+                    
+                    st.download_button(
+                        label="📥 تحميل Word",
+                        data=docx_bytes,
+                        file_name=f"تكليفات_{h_choice}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key=f"dl_word_{h_choice}"
+                    )
+                    
+                    # زر الـ PDF (اختياري إذا كنت تملك LibreOffice على السيرفر)
+                    if st.button(f"📄 تحويل إلى PDF", key=f"to_pdf_{h_choice}"):
+                        with st.spinner("جاري التحويل..."):
+                            pdf_bytes = convert_docx_to_pdf(docx_bytes)
                             if pdf_bytes:
-                                st.download_button("📄 تحميل PDF", data=pdf_bytes,
+                                st.download_button(
+                                    label="📥 تحميل PDF الآن",
+                                    data=pdf_bytes,
                                     file_name=f"تكليفات_{h_choice}.pdf",
-                                    mime="application/pdf")
+                                    mime="application/pdf",
+                                    key=f"dl_pdf_{h_choice}"
+                                )
 
             
             with col_btns3:
