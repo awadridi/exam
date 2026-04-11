@@ -6,6 +6,9 @@ import io
 import os
 import time
 from datetime import datetime
+import copy
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
@@ -182,15 +185,45 @@ def generate_single_doc(row):
     return bio
 
 def generate_bulk_word(df, h_name):
-    if not os.path.exists(TEMPLATE_NAME): return None
-    final_doc = Document(TEMPLATE_NAME); final_doc._body.clear_content()
-    for idx, row in df.iterrows():
+    if not os.path.exists(TEMPLATE_NAME):
+        return None
+        
+    final_doc = Document(TEMPLATE_NAME)
+    final_doc._body.clear_content()
+    rows_list = list(df.iterrows())
+    
+    for i, (idx, row) in enumerate(rows_list):
         temp_doc = Document(TEMPLATE_NAME)
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
-        if idx > 0: final_doc.add_page_break()
-        for element in temp_doc.element.body:
-            if not element.tag.endswith('sectPr'): final_doc.element.body.append(element)
-    out = io.BytesIO(); final_doc.save(out); out.seek(0)
+        
+        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+        
+        # حذف الفقرات الفارغة من نهاية كل كتاب
+        while elements:
+            last = elements[-1]
+            if last.tag.endswith('}p'):
+                text = ''.join(t.text or '' for t in last.iter(qn('w:t')))
+                if not text.strip():
+                    elements.pop()
+                    continue
+            break
+        
+        for element in elements:
+            final_doc.element.body.append(copy.deepcopy(element))
+        
+        # page break بعد كل كتاب إلا الأخير
+        if i < len(rows_list) - 1:
+            p = OxmlElement('w:p')
+            r = OxmlElement('w:r')
+            br = OxmlElement('w:br')
+            br.set(qn('w:type'), 'page')
+            r.append(br)
+            p.append(r)
+            final_doc.element.body.append(p)
+    
+    out = io.BytesIO()
+    final_doc.save(out)
+    out.seek(0)
     return out
 
 # =====================================
