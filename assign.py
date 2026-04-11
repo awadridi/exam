@@ -535,7 +535,7 @@ with tab_manage:
                     time.sleep(0.5)
                     st.rerun()
             
-                        with col_btns2:
+            with col_btns2:
                 if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
                     bulk_f = generate_bulk_word(df_hall_details, h_choice)
                     if bulk_f:
