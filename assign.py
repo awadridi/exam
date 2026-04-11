@@ -1,21 +1,11 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+from docx import Document
 import io
 import os
 import time
-import copy
 from datetime import datetime
-
-# مكتبات الـ Word
-from docx import Document
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
-
-# مكتبات الـ PDF والعربية
-from xhtml2pdf import pisa
-from arabic_reshape import reshape
-from bidi.algorithm import get_display
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
@@ -192,63 +182,17 @@ def generate_single_doc(row):
     return bio
 
 def generate_bulk_word(df, h_name):
-    if not os.path.exists(TEMPLATE_NAME):
-        return None
-    final_doc = Document(TEMPLATE_NAME)
-    final_doc._body.clear_content()
-    rows_list = list(df.iterrows())
-    for i, (idx, row) in enumerate(rows_list):
+    if not os.path.exists(TEMPLATE_NAME): return None
+    final_doc = Document(TEMPLATE_NAME); final_doc._body.clear_content()
+    for idx, row in df.iterrows():
         temp_doc = Document(TEMPLATE_NAME)
         temp_doc = process_doc(temp_doc, row, h_name, row['hall_city'])
-        elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
-        while elements:
-            last = elements[-1]
-            if last.tag.endswith('}p'):
-                text = ''.join(t.text or '' for t in last.iter(qn('w:t')))
-                if not text.strip():
-                    elements.pop()
-                    continue
-            break
-        for element in elements:
-            final_doc.element.body.append(copy.deepcopy(element))
-        if i < len(rows_list) - 1:
-            p = OxmlElement('w:p')
-            r = OxmlElement('w:r')
-            br = OxmlElement('w:br')
-            br.set(qn('w:type'), 'page')
-            r.append(br)
-            p.append(r)
-            final_doc.element.body.append(p)
-    out = io.BytesIO()
-    final_doc.save(out)
-    out.seek(0)
+        if idx > 0: final_doc.add_page_break()
+        for element in temp_doc.element.body:
+            if not element.tag.endswith('sectPr'): final_doc.element.body.append(element)
+    out = io.BytesIO(); final_doc.save(out); out.seek(0)
     return out
 
-def generate_pdf_via_html(row, h_name, h_city):
-    def ar(text):
-        if not text or str(text).lower() == 'nan': return "---"
-        return get_display(reshape(str(text)))
-
-    html_content = f"""
-    <html dir="rtl">
-    <head>
-        <style>
-            @page {{ size: A4; margin: 1.5cm; }}
-            body {{ font-family: sans-serif; text-align: right; }}
-            .header {{ text-align: center; border-bottom: 1px solid #000; }}
-        </style>
-    </head>
-    <body>
-        <div class="header"><h2>{ar("بطاقة تكليف")}</h2></div>
-        <p><b>{ar("الاسم:")}</b> {ar(row.get('name'))}</p>
-        <p><b>{ar("القاعة:")}</b> {ar(h_name)}</p>
-    </body>
-    </html>
-    """
-    result = io.BytesIO()
-    pisa.CreatePDF(html_content, dest=result, encoding='utf-8')
-    result.seek(0)
-    return result.read()
 # =====================================
 # 4. الواجهة الرئيسية
 # =====================================
@@ -285,21 +229,17 @@ with tab_search:
     df_h_data = get_cached_halls()
     hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
     
-    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال", key=f"search_{st.session_state.system_mode}")
+    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
     if q:
         df_teachers = get_cached_teachers()
         results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         
-        # التعديل: استخدمنا reset_index للحصول على idx فريد لكل سطر في نتائج البحث
-        for idx, row in results.reset_index().iterrows():
+        for _, row in results.iterrows():
             display_phone = str(row.get('phone', '---'))
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
 
-            # مفتاح فريد جداً يجمع الوضع + الهوية + العداد + ترتيب السطر
-            row_key = f"{st.session_state.system_mode}_{row['id']}_{idx}_{st.session_state.popover_counter}"
-
-            with st.expander(f"👤 {row.get('name', 'اسم غير معروف')} | القاعة: {row.get('hall') or 'غير مكلف'}", key=f"exp_{row_key}"):
+            with st.expander(f"👤 {row.get('name', 'اسم غير معروف')} | القاعة: {row.get('hall') or 'غير مكلف'}"):
                 def safe_get(key):
                     v = str(row.get(key, '---')).strip()
                     return '---' if v.lower() in ['nan', 'none', ''] else v
@@ -321,21 +261,21 @@ with tab_search:
                 st.markdown(full_table, unsafe_allow_html=True)
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                # تم تحسين المفتاح (key) ليكون فريداً عند التنقل
-                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row_key}"):
-                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row_key}")
-                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row_key}")
-                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row_key}")
-                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row_key}")
-                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row_key}")
-                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{row_key}")
-                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{row_key}")
+                # --- التعديل لحل مشكلة التكرار ---
+                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{st.session_state.system_mode}_{row['id']}_{st.session_state.popover_counter}"):
+                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}")
+                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}")
+                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}")
+                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{st.session_state.system_mode}_{row['id']}")
+                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{st.session_state.system_mode}_{row['id']}")
+                    u_pref = st.selectbox("الرغبة", ["يرغب", "لا يرغب", "غير محدد"], index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), key=f"upr_{st.session_state.system_mode}_{row['id']}")
+                    u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), key=f"uab_{st.session_state.system_mode}_{row['id']}")
                     
                     if st.session_state.system_mode == "tawzif":
-                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row_key}")
-                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row_key}")
+                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{st.session_state.system_mode}_{row['id']}")
+                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{st.session_state.system_mode}_{row['id']}")
 
-                    if st.button("💾 تحديث وحفظ", key=f"save_base_{row_key}"):
+                    if st.button("💾 تحديث وحفظ", key=f"save_base_{st.session_state.system_mode}_{row['id']}"):
                         if st.session_state.system_mode == "tawzif":
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
@@ -355,13 +295,13 @@ with tab_search:
                     current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
                     sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), 
                                          index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0), 
-                                         key=f"q_h_{row_key}")
+                                         key=f"q_h_{st.session_state.system_mode}_{row['id']}")
                     
                     sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
                                          index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                                         key=f"q_r_{row_key}")
+                                         key=f"q_r_{st.session_state.system_mode}_{row['id']}")
                 with c2:
-                    if st.button("💾 حفظ التكليف", key=f"btn_save_{row_key}"):
+                    if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}"):
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
@@ -374,28 +314,20 @@ with tab_search:
                     is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
                     
                     if is_assigned:
-                        if st.button("❌ إلغاء التكليف", key=f"del_search_{row_key}"):
+                        if st.button("❌ إلغاء التكليف", key=f"del_search_{st.session_state.system_mode}_{row['id']}"):
                             c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?", 
                                       (st.session_state.username, row['id']))
                             conn.commit()
                             add_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}")
                             st.rerun()
                         
-                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row_key}"):
-                            pdf_bytes = generate_pdf_via_html(row, row['hall'], row['hall_city'])
-                            if pdf_bytes:
-                            st.download_button("📥 تحميل PDF", 
-                           data=pdf_bytes, 
-                           file_name=f"تكليف_{row['name']}.pdf", 
-                           mime="application/pdf", 
-                           key=f"dl_pdf_{row_key}")
-                            
-                            # خيار 2: Word (الحل القديم إذا كنت لا تزال تريده)
+                        if st.button("📥 إنشاء الكتاب", key=f"gen_s_{st.session_state.system_mode}_{row['id']}"):
                             f_word = generate_single_doc(row)
                             if f_word: 
-                                st.download_button("📥 تحميل Word", data=f_word, 
+                                st.download_button("📥 تحميل الآن", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
-                                               key=f"dl_word_{row_key}")
+                                               key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
+
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
@@ -551,47 +483,11 @@ with tab_manage:
                     time.sleep(0.5)
                     st.rerun()
             
-                        # =====================================
-            # داخل tab_manage عند جزء أزرار القاعة
-            # =====================================
-            
             with col_btns2:
-                # مفتاح فريد لتخزين حالة الملف لهذه القاعة بالذات
-                bulk_key = f"bulk_file_{h_choice}"
-                
-                if st.button(f"📄 تجهيز كتب قاعة {h_choice}", key=f"prepare_{h_choice}"):
-                    with st.spinner("جاري تجهيز الملفات..."):
-                        bulk_f = generate_bulk_word(df_hall_details, h_choice)
-                        if bulk_f:
-                            # حفظ الملف في السيشين ستيت ليبقى متاحاً
-                            st.session_state[bulk_key] = bulk_f.getvalue()
-                            st.success("✅ تم تجهيز الملف بنجاح!")
-            
-                # إذا كان الملف موجوداً في الذاكرة، أظهر أزرار التحميل
-                if bulk_key in st.session_state:
-                    docx_bytes = st.session_state[bulk_key]
-                    
-                    st.download_button(
-                        label="📥 تحميل Word",
-                        data=docx_bytes,
-                        file_name=f"تكليفات_{h_choice}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key=f"dl_word_{h_choice}"
-                    )
-                    
-                    # زر الـ PDF (اختياري إذا كنت تملك LibreOffice على السيرفر)
-                    if st.button(f"📄 تحويل إلى PDF", key=f"to_pdf_{h_choice}"):
-                        with st.spinner("جاري التحويل..."):
-                            pdf_bytes = convert_docx_to_pdf(docx_bytes)
-                            if pdf_bytes:
-                                st.download_button(
-                                    label="📥 تحميل PDF الآن",
-                                    data=pdf_bytes,
-                                    file_name=f"تكليفات_{h_choice}.pdf",
-                                    mime="application/pdf",
-                                    key=f"dl_pdf_{h_choice}"
-                                )
-
+                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+                    bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                    if bulk_f: 
+                        st.download_button("📥 تحميل الوورد", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
             
             with col_btns3:
                 output_hall_excel = io.BytesIO()
