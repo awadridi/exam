@@ -229,33 +229,19 @@ def generate_pdf_via_html(row, h_name, h_city):
         if not text or str(text).lower() == 'nan': return "---"
         return get_display(reshape(str(text)))
 
-    # هنا نضع كود الـ CSS الذي سألته عنه داخل الـ HTML
     html_content = f"""
-    <html>
+    <html dir="rtl">
     <head>
         <style>
-            @font-face {{
-                font-family: 'Amiri';
-                src: url('Amiri-Regular.ttf'); /* تأكد أن ملف الخط موجود بجانب ملف الكود بنفس الاسم */
-            }}
-            @page {{ size: A4; margin: 1cm; }}
-            body {{ 
-                font-family: 'Amiri', serif; /* نستخدم اسم الخط هنا */
-                direction: rtl; 
-                text-align: right; 
-            }}
-            .header {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
-            .content {{ margin-top: 30px; font-size: 16px; }}
+            @page {{ size: A4; margin: 1.5cm; }}
+            body {{ font-family: sans-serif; text-align: right; }}
+            .header {{ text-align: center; border-bottom: 1px solid #000; }}
         </style>
     </head>
     <body>
-        <div class="header">
-            <h2>{ar("بطاقة تكليف بمهمة")}</h2>
-        </div>
-        <div class="content">
-            <p><b>{ar("الاسم:")}</b> {ar(row.get('name'))}</p>
-            <p><b>{ar("القاعة:")}</b> {ar(h_name)}</p>
-        </div>
+        <div class="header"><h2>{ar("بطاقة تكليف")}</h2></div>
+        <p><b>{ar("الاسم:")}</b> {ar(row.get('name'))}</p>
+        <p><b>{ar("القاعة:")}</b> {ar(h_name)}</p>
     </body>
     </html>
     """
