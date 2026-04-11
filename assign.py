@@ -1,20 +1,21 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from docx import Document
 import io
 import os
 import time
-from datetime import datetime
-import subprocess
-import tempfile
 import copy
+from datetime import datetime
+
+# المكتبات الخاصة بالـ Word (تحتاجها فقط إذا كنت ستستمر في دعم تحميل ملفات الوورد)
+from docx import Document
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+
+# المكتبات الجديدة للـ PDF ودعم اللغة العربية
 from xhtml2pdf import pisa
 from arabic_reshape import reshape
 from bidi.algorithm import get_display
-# ... (باقي الاستيرادات الموجودة عندك)
 
 # =====================================
 # 1. نظام تسجيل الدخول باستخدام Secrets
