@@ -400,12 +400,18 @@ with tab_search:
                             st.rerun()
                         
                         if st.button("📥 إنشاء الكتاب", key=f"gen_s_{row_key}"):
+                            # خيار 1: PDF (الحل الجديد)
+                            pdf_data = generate_pdf_via_html(row, row['hall'], row['hall_city'])
+                            st.download_button("📥 تحميل PDF", data=pdf_data, 
+                                               file_name=f"تكليف_{row['name']}.pdf", 
+                                               mime="application/pdf", key=f"dl_pdf_{row_key}")
+                            
+                            # خيار 2: Word (الحل القديم إذا كنت لا تزال تريده)
                             f_word = generate_single_doc(row)
                             if f_word: 
-                                st.download_button("📥 تحميل الآن", data=f_word, 
+                                st.download_button("📥 تحميل Word", data=f_word, 
                                                file_name=f"تكليف_{row['name']}.docx", 
-                                               key=f"dl_s_{row_key}")
-
+                                               key=f"dl_word_{row_key}")
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
     df_all = get_cached_teachers()
