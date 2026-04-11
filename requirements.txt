@@ -1,7 +1,4 @@
 streamlit
 pandas
-xlsxwriter
 python-docx
-arabic-reshaper
-python-bidi
-xhtml2pdf
+xlsxwriter
