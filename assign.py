@@ -612,21 +612,19 @@ with tab_upload:
             """)
         
             
-            dfh = pd.read_csv(HALLS_URL)
-            dfh.to_sql('halls', conn, if_exists='replace', index=False)
-            
-            time.sleep(1)
-            try:
+            conn.commit()
+        
+                dfh = pd.read_csv(HALLS_URL)
+                dfh.to_sql('halls', conn, if_exists='replace', index=False)
+                conn.commit()
+                
                 c.execute("DROP TABLE IF EXISTS teachers_temp")
                 conn.commit()
-            except:
-                pass
-            conn.commit()
-            
-            add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
-            st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
-            st.cache_data.clear()
-            st.rerun()
+                
+                add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
+                st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
+                st.cache_data.clear()
+                st.rerun()
             
         except Exception as e:
             st.error(f"خطأ أثناء التحديث: {e}")
