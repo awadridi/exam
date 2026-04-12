@@ -107,7 +107,7 @@ st.markdown("""
     
     <div class="custom-header">
         <div style="font-weight: bold; font-size: 1.2rem;">إعداد وتصميم : عوض نعمان ريده</div>
-        <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات مديرية التربية والتعليم جنوب نابلس</div>
+        <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
     </div>
     """, unsafe_allow_html=True)
 # (تنسيقات CSS)
