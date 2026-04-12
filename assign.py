@@ -507,46 +507,46 @@ with tab_auto:
             with col_r2:
                 st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
-    if target_h2:
-        col_s1, col_s2, col_s3 = st.columns(3)
-        
-        with col_s1:
-            sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), key="sel_manager")
-        with col_s2:
-            sel_secretary = st.selectbox("📋 مساعد الرئيس (سكرتير):", [""] + df_secretaries['name'].tolist(), key="sel_secretary")
-        with col_s3:
-            sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), key="sel_janitor")
-        
-        if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
-            saved = []
+        if target_h2:
+            col_s1, col_s2, col_s3 = st.columns(3)
             
-            if sel_manager:
-                manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
-                c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                          (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
-                saved.append(f"رئيس قاعة: {sel_manager}")
+            with col_s1:
+                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), key="sel_manager")
+            with col_s2:
+                sel_secretary = st.selectbox("📋 مساعد الرئيس (سكرتير):", [""] + df_secretaries['name'].tolist(), key="sel_secretary")
+            with col_s3:
+                sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), key="sel_janitor")
             
-            if sel_secretary:
-                secretary_id = df_secretaries[df_secretaries['name'] == sel_secretary]['id'].values[0]
-                c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                          (target_h2, hall_map_auto[target_h2], st.session_state.username, secretary_id))
-                saved.append(f"مساعد رئيس: {sel_secretary}")
-            
-            if sel_janitor:
-                janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
-                c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
-                          (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
-                saved.append(f"آذن: {sel_janitor}")
-            
-            if saved:
-                conn.commit()
-                add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
-                st.success(f"✅ تم الحفظ: {' | '.join(saved)}")
-                time.sleep(0.5)
-                st.cache_data.clear()
-                st.rerun()
-            else:
-                st.warning("⚠️ لم تختر أي شخص!")
+            if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
+                saved = []
+                
+                if sel_manager:
+                    manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
+                    c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                              (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
+                    saved.append(f"رئيس قاعة: {sel_manager}")
+                
+                if sel_secretary:
+                    secretary_id = df_secretaries[df_secretaries['name'] == sel_secretary]['id'].values[0]
+                    c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                              (target_h2, hall_map_auto[target_h2], st.session_state.username, secretary_id))
+                    saved.append(f"مساعد رئيس: {sel_secretary}")
+                
+                if sel_janitor:
+                    janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
+                    c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
+                              (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
+                    saved.append(f"آذن: {sel_janitor}")
+                
+                if saved:
+                    conn.commit()
+                    add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
+                    st.success(f"✅ تم الحفظ: {' | '.join(saved)}")
+                    time.sleep(0.5)
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("⚠️ لم تختر أي شخص!")
 
 with tab_upload:
     st.markdown(f'<h2 class="move-to-right">تحديث القالب والبيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
