@@ -351,23 +351,23 @@ with tab_search:
                             key=f"uab_{row['id']}_{time.time()}"
                         )
     
-                if st.session_state.system_mode == "tawzif":
-                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{st.session_state.system_mode}_{row['id']}")
-                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{st.session_state.system_mode}_{row['id']}")
-
-                    if st.button("💾 تحديث وحفظ", key=f"save_base_{st.session_state.system_mode}_{row['id']}"):
                         if st.session_state.system_mode == "tawzif":
+                            u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{st.session_state.system_mode}_{row['id']}")
+                            u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{st.session_state.system_mode}_{row['id']}")
+
+                        if st.button("💾 تحديث وحفظ", key=f"save_base_{st.session_state.system_mode}_{row['id']}"):
+                            if st.session_state.system_mode == "tawzif":
                             c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
-                        else:
-                            c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
+                            else:
+                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
-                        conn.commit()
-                        add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                        st.session_state.popover_counter += 1
-                        st.success("✅ تم الحفظ")
-                        time.sleep(0.5)
-                        st.rerun()
+                            conn.commit()
+                            add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
+                            st.session_state.popover_counter += 1
+                            st.success("✅ تم الحفظ")
+                            time.sleep(0.5)
+                            st.rerun()
 
                 st.divider()
                 c1, c2 = st.columns(2)
