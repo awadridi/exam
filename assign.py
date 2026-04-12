@@ -605,12 +605,12 @@ with tab_upload:
                         relative = t.relative, relative_exam = t.relative_exam
                     FROM teachers_temp t WHERE teachers.id = t.id
                 """)
-            c.execute("""
-                INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam)
-                SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam
-                FROM teachers_temp
-            """)
-        
+                c.execute("""
+                    INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam)
+                    SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam
+                    FROM teachers_temp
+                """)
+            
             
             conn.commit()
         
