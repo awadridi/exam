@@ -499,60 +499,46 @@ with tab_manage:
     
     output_all = io.BytesIO()
     
-    # 1. القاموس الصحيح لربط الاسم البرمجي بالاسم العربي
-    column_mapping = {
-        'id': 'رقم الهوية',
-        'name': 'الاسم كامل',
-        'phone': 'رقم الجوال',
-        'school': 'المدرسة',
-        'city': 'السكن',
-        'current_job': 'المهمة/الوظيفة',
-        'hall': 'القاعة',
-        'preference': 'الرغبة',
-        'ability': 'الصلاحية'
-    }
-    
-    # 2. تحديد الأعمدة المطلوبة بالترتيب (فقط الموجود منها في df_export)
-    desired_order = ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability']
-    existing_cols = [c for c in desired_order if c in df_export.columns]
-    
-    # إعادة ترتيب البيانات
-    df_export_ordered = df_export[existing_cols].copy()
-
-    # 3. تسمية الأعمدة بالعربية بناءً على القاموس (هنا لن يحدث ValueError أبداً)
-    df_export_ordered.rename(columns=column_mapping, inplace=True)
-
-    with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
-        df_export_ordered.to_excel(writer, index=False, sheet_name='الموظفين')
-        workbook = writer.book
-        worksheet = writer.sheets['الموظفين']
+    # تأكد أن البيانات ليست فارغة قبل البدء
+    if df_export is not None and not df_export.empty:
+        # سنستخدم البيانات كما هي لضمان عدم خروج ملف فارغ
+        df_final = df_export.copy()
         
-        # تنسيق الرأس (14 بولد)
-        h_fmt = workbook.add_format({
-            'bold': True, 'font_size': 14, 'border': 1, 
-            'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
-        })
-        # تنسيق البيانات (14 بولد)
-        c_fmt = workbook.add_format({
-            'bold': True, 'font_size': 14, 'border': 1, 
-            'align': 'right', 'valign': 'vcenter'
-        })
-        
-        worksheet.right_to_left()
-        worksheet.set_landscape()
-        worksheet.fit_to_pages(1, 0)
-        
-        # 4. ضبط عرض الأعمدة تلقائياً
-        for col_num, col_name in enumerate(df_export_ordered.columns):
-            worksheet.write(0, col_num, col_name, h_fmt)
+        with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
+            df_final.to_excel(writer, index=False, sheet_name='الموظفين')
+            workbook = writer.book
+            worksheet = writer.sheets['الموظفين']
             
-            # حساب الطول بأمان
-            column_data = df_export_ordered[col_name].astype(str).str.len()
-            max_data_len = column_data.max() if not column_data.empty else 0
+            # 1. تنسيق الرأس (14 بولد)
+            h_fmt = workbook.add_format({
+                'bold': True, 'font_size': 14, 'border': 1, 
+                'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
+            })
             
-            # العرض المناسب مع مراعاة الخط 14 العريض
-            actual_width = max(max_data_len, len(str(col_name))) + 7
-            worksheet.set_column(col_num, col_num, min(actual_width, 50), c_fmt)
+            # 2. تنسيق البيانات (14 بولد)
+            c_fmt = workbook.add_format({
+                'bold': True, 'font_size': 14, 'border': 1, 
+                'align': 'right', 'valign': 'vcenter'
+            })
+            
+            # 3. إعدادات الصفحة
+            worksheet.right_to_left()
+            worksheet.set_landscape()
+            worksheet.fit_to_pages(1, 0)
+            
+            # 4. ضبط العرض تلقائياً وتطبيق التنسيق
+            for col_num, col_name in enumerate(df_final.columns):
+                # كتابة العنوان
+                worksheet.write(0, col_num, col_name, h_fmt)
+                
+                # حساب الطول
+                column_data = df_final[col_name].astype(str).str.len()
+                max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 6
+                
+                # تطبيق التنسيق والعرض
+                worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
+    else:
+        st.error("لا توجد بيانات لتصديرها!")
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
