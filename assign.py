@@ -133,7 +133,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
 c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS teachers 
@@ -573,6 +573,9 @@ with tab_upload:
             st.error(f"خطأ: {e}")
     if st.button("🔄 تحديث من Google Sheets"):
         try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.commit()
+        
             dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
             dft.columns = dft.columns.str.strip().str.lower()
             if 'id_number' in dft.columns:
