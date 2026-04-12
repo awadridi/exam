@@ -331,7 +331,7 @@ with tab_search:
                 
                 # --- التعديل لحل مشكلة التكرار ---
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{time.time()}"):
-                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}")
+                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}_{time.time()}")
                     u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}")
                     u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}")
                     u_city = st.text_input("السكن", value=row['city'], key=f"uc_{st.session_state.system_mode}_{row['id']}")
