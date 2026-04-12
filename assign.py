@@ -648,15 +648,24 @@ with tab_manage:
                 df_final_export.columns = ['الرقم', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'المدرسة', 'المهمة', 'العنوان']
 
                 with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
-                    df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة')
+                    # تعديل: بدأ كتابة الجدول من السطر الثاني (startrow=1) لترك مكان للعنوان
+                    df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة', startrow=1)
+                    
                     workbook = writer.book
                     worksheet = writer.sheets['كشف_القاعة']
                     
-                    # 1. تعريف التنسيقات
+                    # 1. تعريف التنسيقات (نفس تنسيقاتك مع إضافة تنسيق العنوان)
+                    # تنسيق العنوان المدمج الجديد
+                    title_fmt = workbook.add_format({
+                        'bold': True, 'font_size': 20, 'border': 1,
+                        'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
+                    })
+                    
                     h_fmt = workbook.add_format({
                         'bold': True, 'font_size': 14, 'border': 1, 
                         'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
                     })
+                    
                     c_fmt = workbook.add_format({
                         'bold': True, 'font_size': 14, 'border': 1,
                         'align': 'right', 'valign': 'vcenter'
@@ -667,22 +676,25 @@ with tab_manage:
                     worksheet.set_landscape()
                     worksheet.fit_to_pages(1, 0)
                     
-                    # 3. تطبيق التنسيق وضبط عرض الأعمدة تلقائياً
+                    # 3. دمج الخلايا B, C, D, E في السطر الأول (السطر 0)
+                    # الأعمدة: B=1, C=2, D=3, E=4
+                    worksheet.merge_range(0, 1, 0, 4, f"بيانات قاعة: {h_choice}", title_fmt)
+                    worksheet.set_row(0, 30) # زيادة ارتفاع السطر الأول ليتناسب مع الخط الكبير
+
+                    # 4. تطبيق التنسيق وضبط عرض الأعمدة تلقائياً
                     for col_num, col_name in enumerate(df_final_export.columns):
-                        # كتابة العنوان بتنسيق الرأس
-                        worksheet.write(0, col_num, col_name, h_fmt)
+                        # تعديل: كتابة أسماء الأعمدة في السطر الثاني (رقم 1)
+                        worksheet.write(1, col_num, col_name, h_fmt)
                         
-                        # حساب أقصى طول في العمود الحالي (بين اسم العمود والبيانات)
                         column_length = max(
                             df_final_export[col_name].astype(str).map(len).max(),
                             len(str(col_name))
-                        ) + 4 # زيادة بسيطة للهامش
+                        ) + 4
                         
-                        # ضبط عرض العمود بناءً على الطول المحسوب وتطبيق التنسيق
-                        # ... نهاية بلوك التنسيق داخل الـ loop ...
+                        # ضبط العرض وتطبيق التنسيق على العمود بالكامل (بدءاً من السطر 1)
                         worksheet.set_column(col_num, col_num, column_length, c_fmt)
 
-                    # لاحظ هنا: خرجنا من بلوك الـ ExcelWriter (الإزاحة لليمين)
+            # خارج بلوك الـ ExcelWriter
             add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
             
             st.download_button(
@@ -690,7 +702,7 @@ with tab_manage:
                 data=output_hall_excel.getvalue(),
                 file_name=f"كشف_{h_choice}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"dl_xl_{h_choice}_export" 
+                key=f"dl_xl_{h_choice}_export"
             )
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
