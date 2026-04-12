@@ -395,14 +395,19 @@ with tab_search:
                 with c2:
                     # تعديل مفتاح زر الحفظ ليطابق نفس النمط
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
-                        h_city_val = hall_map.get(sel_h, "")
-                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
-                                  (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
-                        conn.commit()
-                        add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
-                        st.success("✅ تم الحفظ")
-                        time.sleep(0.5)
-                        st.rerun()
+                        if row['preference'] == 'لا يرغب':
+                            st.error("⚠️ هذا المعلم لا يرغب في التكليف، يرجى تغيير حالته أولاً")
+                        elif row['ability'] == 'لا يصلح':
+                            st.error("⚠️ هذا المعلم لا يصلح للمراقبة، يرجى تغيير حالته أولاً")
+                        else:
+                            h_city_val = hall_map.get(sel_h, "")
+                            c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
+                                      (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
+                            conn.commit()
+                            add_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}")
+                            st.success("✅ تم الحفظ")
+                            time.sleep(0.5)
+                            st.rerun()
                     
                     is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
                     
