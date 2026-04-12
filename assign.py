@@ -613,7 +613,12 @@ with tab_upload:
             dfh = pd.read_csv(HALLS_URL)
             dfh.to_sql('halls', conn, if_exists='replace', index=False)
             
-            c.execute("DROP TABLE IF EXISTS teachers_temp")
+            time.sleep(1)
+            try:
+                c.execute("DROP TABLE IF EXISTS teachers_temp")
+                conn.commit()
+            except:
+                pass
             conn.commit()
             
             add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
