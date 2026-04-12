@@ -392,7 +392,7 @@ with tab_search:
                         "المهمة", 
                         ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
                         index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                        key=f"search_r_{st.session_state.system_mode}_{row['id']}"
+                        key=f"search_r_{st.session_state.system_mode}_{row['id']}_{idx}"
                     )
                 with c2:
                     # تعديل مفتاح زر الحفظ ليطابق نفس النمط
