@@ -499,7 +499,7 @@ with tab_manage:
     
     output_all = io.BytesIO()
     
-    # 1. القاموس لربط الأسماء البرمجية بالعربية (تأكد أن الأسماء تطابق ملف teachers)
+    # 1. ترتيب الأعمدة برمجياً لضمان عدم حدوث خلط في البيانات
     column_mapping = {
         'id': 'رقم الهوية',
         'name': 'الاسم كامل',
@@ -512,7 +512,7 @@ with tab_manage:
         'ability': 'الصلاحية'
     }
     
-    # 2. تحديد الترتيب المطلوب
+    # الترتيب الذي تريده أن يظهر في ملف الإكسل
     desired_order = ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability']
     existing_cols = [c for c in desired_order if c in df_export.columns]
     df_final = df_export[existing_cols].copy()
@@ -523,6 +523,7 @@ with tab_manage:
         workbook = writer.book
         worksheet = writer.sheets['الموظفين']
         
+        # التنسيقات (خط 14 عريض)
         h_fmt = workbook.add_format({
             'bold': True, 'font_size': 14, 'border': 1, 
             'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
@@ -532,22 +533,21 @@ with tab_manage:
             'align': 'right', 'valign': 'vcenter'
         })
         
+        # إعدادات الصفحة
         worksheet.right_to_left()
         worksheet.set_landscape()
         worksheet.fit_to_pages(1, 0)
         
-        # --- انتبه للمسافات هنا (داخل حلقة for) ---
+        # حلقة التنسيق (تأكد من إزاحة الأسطر التالية بشكل صحيح)
         for col_num, col_name in enumerate(df_final.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             
-            # حساب الطول
+            # حساب العرض التلقائي
             column_data = df_final[col_name].astype(str).str.len()
             max_data_len = column_data.max() if not column_data.empty else 0
-            
-            # تحديد العرض
             max_len = max(max_data_len, len(str(col_name))) + 7
             
-            # هذا السطر الذي كان يسبب الخطأ، الآن مسافته صحيحة
+            # السطر الذي كان يحتوي على الخطأ
             worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
                 
                 # تطبيق التنسيق والعرض
