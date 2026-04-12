@@ -355,7 +355,7 @@ with tab_search:
                             u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}_{time.time()}")
                             u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row['id']}_{time.time()}")
 
-                        if st.button("💾 تحديث وحفظ", key=f"save_base_{st.session_state.system_mode}_{row['id']}"):
+                        if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}_{time.time()}"):
                             if st.session_state.system_mode == "tawzif":
                                 c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
