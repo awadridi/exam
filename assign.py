@@ -331,25 +331,25 @@ with tab_search:
                 
                 # --- التعديل لحل مشكلة التكرار ---
                 with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{time.time()}"):
-            u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}_{time.time()}")
-            u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}_{time.time()}")
-            u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}_{time.time()}")
-            u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row['id']}_{time.time()}")
-            u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row['id']}_{time.time()}")
-            
-            u_pref = st.selectbox(
-                "الرغبة", 
-                ["يرغب", "لا يرغب", "غير محدد"], 
-                index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), 
-                key=f"upr_{row['id']}_{time.time()}"
-            )
-            
-            u_abil = st.selectbox(
-                "صلاحية المراقبة", 
-                ["يصلح", "لا يصلح", "لم تحدد"], 
-                index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
-                key=f"uab_{row['id']}_{time.time()}"
-            )
+                        u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}_{time.time()}")
+                        u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}_{time.time()}")
+                        u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}_{time.time()}")
+                        u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row['id']}_{time.time()}")
+                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row['id']}_{time.time()}")
+                        
+                        u_pref = st.selectbox(
+                            "الرغبة", 
+                            ["يرغب", "لا يرغب", "غير محدد"], 
+                            index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), 
+                            key=f"upr_{row['id']}_{time.time()}"
+                        )
+                        
+                        u_abil = st.selectbox(
+                            "صلاحية المراقبة", 
+                            ["يصلح", "لا يصلح", "لم تحدد"], 
+                            index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
+                            key=f"uab_{row['id']}_{time.time()}"
+                        )
     
                     if st.session_state.system_mode == "tawzif":
                         u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{st.session_state.system_mode}_{row['id']}")
