@@ -583,7 +583,7 @@ with tab_upload:
             
             dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
             
-            if st.session_state.system_mode == 'tawjihi':
+            if st.session_state['system_mode'] == 'tawjihi':
                 c.execute("""
                     UPDATE teachers SET
                         name = t.name, phone = t.phone, school = t.school,
