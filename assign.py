@@ -554,8 +554,8 @@ with tab_upload:
     
     st.divider()
     if st.button("🔄 تحديث من Google Sheets"):
-    try:
-        dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
+        try:
+            dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
         dft.columns = dft.columns.str.strip().str.lower()
         if 'id_number' in dft.columns: 
             dft.rename(columns={'id_number': 'id'}, inplace=True)
