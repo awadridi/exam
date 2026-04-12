@@ -302,7 +302,7 @@ with tab_search:
         df_teachers = get_cached_teachers()
         results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
         
-        for _, row in results.iterrows():
+        for idx, row in results.iterrows():
             display_phone = str(row.get('phone', '---'))
             if display_phone.startswith('5') and len(display_phone) == 9:
                 display_phone = '0' + display_phone
@@ -330,25 +330,26 @@ with tab_search:
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
                 # --- التعديل لحل مشكلة التكرار ---
-                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{row['id']}_{time.time()}"):
-                        u_name = st.text_input("الاسم", value=row['name'], key=f"un_{row['id']}_{time.time()}")
-                        u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{row['id']}_{time.time()}")
-                        u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{row['id']}_{time.time()}")
-                        u_city = st.text_input("السكن", value=row['city'], key=f"uc_{row['id']}_{time.time()}")
-                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{row['id']}_{time.time()}")
+                # --- التعديل لضمان الثبات ومنع التكرار ---
+                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{st.session_state.system_mode}_{row['id']}_{idx}"):
+                        u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}_{idx}")
+                        u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}_{idx}")
+                        u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}_{idx}")
+                        u_city = st.text_input("السكن", value=row['city'], key=f"uc_{st.session_state.system_mode}_{row['id']}_{idx}")
+                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{st.session_state.system_mode}_{row['id']}_{idx}")
                         
                         u_pref = st.selectbox(
                             "الرغبة", 
                             ["يرغب", "لا يرغب", "غير محدد"], 
                             index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), 
-                            key=f"upr_{row['id']}_{time.time()}"
+                            key=f"upr_{st.session_state.system_mode}_{row['id']}_{idx}"
                         )
                         
                         u_abil = st.selectbox(
                             "صلاحية المراقبة", 
                             ["يصلح", "لا يصلح", "لم تحدد"], 
                             index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
-                            key=f"uab_{row['id']}_{time.time()}"
+                            key=f"uab_{st.session_state.system_mode}_{row['id']}_{idx}"
                         )
     
                         if st.session_state.system_mode == "tawzif":
