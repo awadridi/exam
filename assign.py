@@ -653,18 +653,18 @@ with tab_manage:
                         
                         # ضبط عرض العمود بناءً على الطول المحسوب وتطبيق التنسيق
                         # ... نهاية بلوك التنسيق داخل الـ loop ...
-            worksheet.set_column(col_num, col_num, column_length, c_fmt)
+                    worksheet.set_column(col_num, col_num, column_length, c_fmt)
 
                     # لاحظ هنا: خرجنا من بلوك الـ ExcelWriter (الإزاحة لليمين)
-                    add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
+                 add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
             
-                    st.download_button(
-                        label=f"📊 كشف إكسل {h_choice}",
-                        data=output_hall_excel.getvalue(),
-                        file_name=f"كشف_{h_choice}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"dl_xl_{h_choice}_{idx}" 
-                    )
+                 st.download_button(
+                    label=f"📊 كشف إكسل {h_choice}",
+                    data=output_hall_excel.getvalue(),
+                    file_name=f"كشف_{h_choice}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"dl_xl_{h_choice}_{idx}" 
+                )
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
