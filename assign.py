@@ -599,39 +599,6 @@ with tab_upload:
             
         except Exception as e:
             st.error(f"خطأ أثناء التحديث: {e}")
-        
-        c.execute(update_query)
-        
-        dfh = pd.read_csv(HALLS_URL)
-        dfh.to_sql('halls', conn, if_exists='replace', index=False)
-        
-        c.execute("DROP TABLE IF EXISTS teachers_temp")
-        conn.commit()
-        
-        add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
-        st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
-        st.cache_data.clear()
-        st.rerun()
-        
-    except Exception as e: 
-        st.error(f"خطأ أثناء التحديث: {e}")
-            c.execute(update_query)
-            
-            # تحديث القاعات (هذا الجدول يمكن استبداله لأنه مرجعي)
-            dfh = pd.read_csv(HALLS_URL)
-            dfh.to_sql('halls', conn, if_exists='replace', index=False)
-            
-            # تنظيف الجدول المؤقت
-            c.execute("DROP TABLE IF EXISTS teachers_temp")
-            
-            conn.commit()
-            add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
-            st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
-            st.cache_data.clear()
-            st.rerun()
-            
-        except Exception as e: 
-            st.error(f"خطأ أثناء التحديث: {e}")
 
 with tab_manage:
     df_all_teachers = get_cached_teachers()
