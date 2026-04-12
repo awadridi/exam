@@ -498,54 +498,68 @@ with tab_manage:
     df_export.columns = arabic_cols[:len(df_export.columns)]
     
     output_all = io.BytesIO()
+    
+    # 1. تعريف الترتيب الصحيح للأعمدة بناءً على ملاحظاتك
+    # هذا الترتيب يضمن وضع كل معلومة في مكانها الصحيح في الإكسل
+    correct_order = [
+        'id',               # رقم الهوية
+        'name',             # الاسم كامل
+        'phone',            # رقم الجوال (كان يظهر مكانه المدرسة)
+        'school',           # المدرسة (كان يظهر مكانها السكن)
+        'city',             # السكن (كان يظهر مكانه رقم الجوال)
+        'role',             # المهمة المكلف بها
+        'hall_name',        # القاعة
+        'hall_city',        # مدينة القاعة
+        'preference',       # الرغبة
+        'modified_by',      # الموظف المعدل
+        'job_title',        # الوظيفة
+        'permissions',      # الصلاحية
+        'relative',         # قريب مباشر
+        'relative_exam'     # امتحان القريب
+    ]
+    
+    # إعادة ترتيب الـ DataFrame بناءً على القائمة أعلاه
+    # ملاحظة: تأكد أن أسماء الأعمدة بالإنجليزية (id, name, etc.) تطابق الموجود في قاعدة بياناتك
+    df_export_ordered = df_export[correct_order].copy()
+
+    # 2. إعادة تسمية الأعمدة للعربية لتظهر كعناوين في ملف الإكسل
+    df_export_ordered.columns = [
+        'رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 
+        'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 
+        'الرغبة', 'الموظف المعدل', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب'
+    ]
+
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
-        # تصدير البيانات للشيت
-        df_export.to_excel(writer, index=False, sheet_name='الموظفين')
+        df_export_ordered.to_excel(writer, index=False, sheet_name='الموظفين')
         workbook = writer.book
         worksheet = writer.sheets['الموظفين']
         
-        # 1. تنسيق الرأس (خط 14، عريض، خلفية ملونة، حدود كاملة)
+        # تنسيق الرأس (14 بولد)
         h_fmt = workbook.add_format({
-            'bold': True, 
-            'font_size': 14, 
-            'border': 1, 
-            'align': 'center', 
-            'valign': 'vcenter', 
-            'bg_color': '#D7E4BC'
+            'bold': True, 'font_size': 14, 'border': 1, 
+            'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
         })
-
-        # 2. تنسيق محتوى الخلايا (خط 14، عريض، حدود كاملة)
+        # تنسيق البيانات (14 بولد)
         c_fmt = workbook.add_format({
-            'bold': True, 
-            'font_size': 14, 
-            'border': 1, 
-            'align': 'right', 
-            'valign': 'vcenter'
+            'bold': True, 'font_size': 14, 'border': 1, 
+            'align': 'right', 'valign': 'vcenter'
         })
         
-        # 3. إعدادات اتجاه الورقة والطباعة
-        worksheet.right_to_left()      # من اليمين لليسار
-        worksheet.set_landscape()      # طباعة بالعرض (Horizontal)
-        worksheet.fit_to_pages(1, 0)   # ضغط كل الأعمدة لتظهر في ورقة واحدة عند الطباعة
+        worksheet.right_to_left()
+        worksheet.set_landscape()
+        worksheet.fit_to_pages(1, 0)
         
-        # 4. حلقة لتنسيق كل عمود وضبط عرضه تلقائياً حسب المحتوى
-        for col_num, col_name in enumerate(df_export.columns):
-            # إعادة كتابة الرأس بالتنسيق الجديد
+        # ضبط عرض الأعمدة تلقائياً
+        for col_num, col_name in enumerate(df_export_ordered.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             
-            # حساب طول المحتوى بأمان (لمنع خطأ TypeError)
-            column_data = df_export[col_name].astype(str).str.len()
-            max_data_len = column_data.max() if not column_data.empty else 0
+            # حساب الطول بأمان
+            all_lengths = df_export_ordered[col_name].astype(str).str.len()
+            max_data_len = all_lengths.max() if not all_lengths.empty else 0
             
-            # حساب العرض المناسب (الأكبر بين طول البيانات وطول اسم العمود)
-            # أضفنا 6 كمتسع إضافي لأن الخط 14 Bold يأخذ مساحة أكبر
-            calculated_width = max(max_data_len, len(str(col_name))) + 6
-            
-            # تحديد حد أقصى للعرض 50 كي لا تصبح الأعمدة ضخمة جداً
-            final_width = min(calculated_width, 50)
-            
-            # تطبيق العرض والتنسيق (الحدود والخط 14) على العمود بالكامل
-            worksheet.set_column(col_num, col_num, final_width, c_fmt)
+            # العرض المناسب مع هامش إضافي للخط العريض
+            actual_width = max(max_data_len, len(str(col_name))) + 6
+            worksheet.set_column(col_num, col_num, min(actual_width, 50), c_fmt)
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
