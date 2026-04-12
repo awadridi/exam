@@ -575,7 +575,7 @@ with tab_manage:
                 output_hall_excel = io.BytesIO()
                 df_hall_excel = df_hall_details.copy()
                 df_hall_excel.insert(0, 'م', range(1, 1 + len(df_hall_excel)))
-                df_final_export = df_hall_excel[['م', 'name', 'id', 'phone', 'school', 'role', 'city']]
+                df_final_export = df_hall_excel[['الرقم', 'name', 'id', 'phone', 'school', 'role', 'city']]
                 df_final_export.columns = ['الرقم', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'المدرسة', 'المهمة', 'العنوان']
 
                 with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
