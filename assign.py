@@ -380,9 +380,12 @@ with tab_search:
                         key=f"q_h_{row['id']}_{time.time()}"
                     )
                     
-                    sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
-                                         index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                                         key=f"q_r_{st.session_state.system_mode}_{row['id']}")
+                    sel_r = st.selectbox(
+                        "المهمة", 
+                        ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
+                        index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
+                        key=f"q_r_{row['id']}_{time.time()}"
+                    )
                 with c2:
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}"):
                         h_city_val = hall_map.get(sel_h, "")
