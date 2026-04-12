@@ -585,10 +585,11 @@ with tab_manage:
                     
                     # 1. تعريف التنسيقات (الرأس والحدود)
                     h_fmt = workbook.add_format({
-                        'bold': True, 'font_size': 12, 'border': 1, 
+                        'bold': True, 'font_size': 14, 'border': 1, 
                         'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
                     })
                     c_fmt = workbook.add_format({
+                        'bold': True, 'font_size': 14, 'border': 1,
                         'border': 1, 'align': 'right', 'valign': 'vcenter'
                     })
                     
