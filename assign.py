@@ -689,7 +689,7 @@ with tab_manage:
                 data=output_hall_excel.getvalue(),
                 file_name=f"كشف_{h_choice}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"dl_xl_{h_choice}_{idx}" 
+                key=f"dl_xl_{h_choice}_export" 
             )
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
