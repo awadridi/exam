@@ -556,33 +556,49 @@ with tab_upload:
     if st.button("🔄 تحديث من Google Sheets"):
         try:
             dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
-        dft.columns = dft.columns.str.strip().str.lower()
-        if 'id_number' in dft.columns: 
-            dft.rename(columns={'id_number': 'id'}, inplace=True)
-        
-        dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
-        
-        if st.session_state.system_mode == 'tawjihi':
-            update_query = """
-                INSERT OR REPLACE INTO teachers 
-                (id, name, phone, school, city, current_job, preference, ability, hall, role, hall_city, updated_by)
-                SELECT 
-                    t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability,
-                    COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
-                FROM teachers_temp t
-                LEFT JOIN teachers old ON t.id = old.id
-            """
-        else:
-            update_query = """
-                INSERT OR REPLACE INTO teachers 
-                (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, hall, role, hall_city, updated_by)
-                SELECT 
-                    t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability,
-                    COALESCE(t.relative, ''), COALESCE(t.relative_exam, ''),
-                    COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
-                FROM teachers_temp t
-                LEFT JOIN teachers old ON t.id = old.id
-            """
+            dft.columns = dft.columns.str.strip().str.lower()
+            if 'id_number' in dft.columns:
+                dft.rename(columns={'id_number': 'id'}, inplace=True)
+            
+            dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
+            
+            if st.session_state.system_mode == 'tawjihi':
+                update_query = """
+                    INSERT OR REPLACE INTO teachers 
+                    (id, name, phone, school, city, current_job, preference, ability, hall, role, hall_city, updated_by)
+                    SELECT 
+                        t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability,
+                        COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
+                    FROM teachers_temp t
+                    LEFT JOIN teachers old ON t.id = old.id
+                """
+            else:
+                update_query = """
+                    INSERT OR REPLACE INTO teachers 
+                    (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, hall, role, hall_city, updated_by)
+                    SELECT 
+                        t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability,
+                        COALESCE(t.relative, ''), COALESCE(t.relative_exam, ''),
+                        COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
+                    FROM teachers_temp t
+                    LEFT JOIN teachers old ON t.id = old.id
+                """
+            
+            c.execute(update_query)
+            
+            dfh = pd.read_csv(HALLS_URL)
+            dfh.to_sql('halls', conn, if_exists='replace', index=False)
+            
+            c.execute("DROP TABLE IF EXISTS teachers_temp")
+            conn.commit()
+            
+            add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
+            st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
+            st.cache_data.clear()
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"خطأ أثناء التحديث: {e}")
         
         c.execute(update_query)
         
