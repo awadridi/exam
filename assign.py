@@ -569,7 +569,8 @@ with tab_upload:
                 INSERT OR REPLACE INTO teachers 
                 (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, hall, role, hall_city, updated_by)
                 SELECT 
-                    t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability, t.relative, t.relative_exam,
+                    t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability, 
+                    COALESCE(t.relative, ''), COALESCE(t.relative_exam, ''),
                     COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
                 FROM teachers_temp t
                 LEFT JOIN teachers old ON t.id = old.id
