@@ -54,13 +54,11 @@ if 'popover_counter' not in st.session_state:
 if 'system_mode' not in st.session_state:
     st.session_state['system_mode'] = "tawjihi"
 
-# دالة التبديل لضمان تنظيف الذاكرة ومنع تداخل البيانات
 def switch_system(mode):
     st.session_state['system_mode'] = mode
-    st.cache_data.clear()  # مسح الكاش لضمان تحديث الأرقام والبيانات
+    st.cache_data.clear()
     st.rerun()
 
-# تحديد المتغيرات بناءً على النظام النشط
 if st.session_state['system_mode'] == "tawjihi":
     DB_NAME = "data_system_v26.db"
     TEMPLATE_NAME = "template.docx"
@@ -75,11 +73,8 @@ else:
     PAGE_TITLE = "نظام التكليفات امتحان التوظيف"
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
-# --- إضافة الترويسة الثابتة في أعلى الصفحة ---
-# --- إضافة الترويسة الثابتة في أعلى الصفحة بصيغة مطورة ---
 st.markdown("""
     <style>
-        /* تثبيت الترويسة ومنعها من الاختفاء */
         .custom-header {
             position: fixed;
             top: 0;
@@ -89,19 +84,15 @@ st.markdown("""
             color: white;
             text-align: center;
             padding: 15px 0;
-            z-index: 999999; /* رقم عالي جداً لضمان الظهور فوق كل شيء */
+            z-index: 999999;
             border-bottom: 2px solid #00ffcc;
             line-height: 1.5;
             direction: rtl;
             box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
         }
-        
-        /* إزاحة محتوى التطبيق لأسفل لكي لا تغطيه الترويسة */
         .stApp {
             margin-top: 80px;
         }
-
-        /* إخفاء الهيدر الافتراضي لستريمليت لزيادة المساحة (اختياري) */
         header {visibility: hidden;}
     </style>
     
@@ -110,7 +101,7 @@ st.markdown("""
         <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
     </div>
     """, unsafe_allow_html=True)
-# (تنسيقات CSS)
+
 st.markdown("""
     <style>
     .main, .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
@@ -142,7 +133,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS teachers
              preference TEXT, current_job TEXT, ability TEXT,
              relative TEXT, relative_exam TEXT)''')
 
-# تأكد من وجود الأعمدة
 for col in ['relative', 'relative_exam']:
     try:
         c.execute(f"ALTER TABLE teachers ADD COLUMN {col} TEXT DEFAULT ''")
@@ -238,7 +228,6 @@ def generate_bulk_word(df, h_name):
         
         elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
         
-        # حذف الفقرات الفارغة من نهاية كل كتاب
         while elements:
             last = elements[-1]
             if last.tag.endswith('}p'):
@@ -251,7 +240,6 @@ def generate_bulk_word(df, h_name):
         for element in elements:
             final_doc.element.body.append(copy.deepcopy(element))
         
-        # page break بعد كل كتاب إلا الأخير
         if i < len(rows_list) - 1:
             p = OxmlElement('w:p')
             r = OxmlElement('w:r')
@@ -334,48 +322,45 @@ with tab_search:
                 st.markdown(full_table, unsafe_allow_html=True)
                 st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                 
-                # --- التعديل لحل مشكلة التكرار ---
-                # --- التعديل لضمان الثبات ومنع التكرار ---
                 with st.popover("📝 تعديل البيانات", key=f"pop_{row['id']}_{idx}_{st.session_state.popover_counter}"):
-                        u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}_{idx}")
-                        u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}_{idx}")
-                        u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}_{idx}")
-                        u_city = st.text_input("السكن", value=row['city'], key=f"uc_{st.session_state.system_mode}_{row['id']}_{idx}")
-                        u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{st.session_state.system_mode}_{row['id']}_{idx}")
-                        
-                        u_pref = st.selectbox(
-                            "الرغبة", 
-                            ["يرغب", "لا يرغب", "غير محدد"], 
-                            index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), 
-                            key=f"upr_{st.session_state.system_mode}_{row['id']}_{idx}"
-                        )
-                        
-                        u_abil = st.selectbox(
-                            "صلاحية المراقبة", 
-                            ["يصلح", "لا يصلح", "لم تحدد"], 
-                            index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
-                            key=f"uab_{st.session_state.system_mode}_{row['id']}_{idx}"
-                        )
-    
-                        if st.session_state.system_mode == "tawzif":
-                            # استخدمنا idx لضمان ثبات المفتاح طوال فترة الجلسة
-                            u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}_{idx}")
-                            u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row['id']}_{idx}")
+                    u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}_{idx}")
+                    u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}_{idx}")
+                    u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}_{idx}")
+                    u_city = st.text_input("السكن", value=row['city'], key=f"uc_{st.session_state.system_mode}_{row['id']}_{idx}")
+                    u_job = st.text_input("الوظيفة الأساسية", value=row['current_job'], key=f"uj_{st.session_state.system_mode}_{row['id']}_{idx}")
+                    
+                    u_pref = st.selectbox(
+                        "الرغبة", 
+                        ["يرغب", "لا يرغب", "غير محدد"], 
+                        index=0 if row['preference']=="يرغب" else (1 if row['preference']=="لا يرغب" else 2), 
+                        key=f"upr_{st.session_state.system_mode}_{row['id']}_{idx}"
+                    )
+                    
+                    u_abil = st.selectbox(
+                        "صلاحية المراقبة", 
+                        ["يصلح", "لا يصلح", "لم تحدد"], 
+                        index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
+                        key=f"uab_{st.session_state.system_mode}_{row['id']}_{idx}"
+                    )
 
-                        if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}_{idx}_{st.session_state.popover_counter}"):
-                            if st.session_state.system_mode == "tawzif":
-                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
-                                         WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
-                            else:
-                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
-                                         WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
-                            conn.commit()
-                            add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
-                            st.session_state.popover_counter += 1
-                            st.cache_data.clear()
-                            st.success("✅ تم الحفظ")
-                            time.sleep(0.5)
-                            st.rerun()
+                    if st.session_state.system_mode == "tawzif":
+                        u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}_{idx}")
+                        u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row['id']}_{idx}")
+
+                    if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}_{idx}_{st.session_state.popover_counter}"):
+                        if st.session_state.system_mode == "tawzif":
+                            c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
+                                     WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
+                        else:
+                            c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
+                                     WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
+                        conn.commit()
+                        add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
+                        st.session_state.popover_counter += 1
+                        st.cache_data.clear()
+                        st.success("✅ تم الحفظ")
+                        time.sleep(0.5)
+                        st.rerun()
 
                 st.divider()
                 c1, c2 = st.columns(2)
@@ -395,7 +380,6 @@ with tab_search:
                         key=f"q_r_{st.session_state.system_mode}_{row['id']}_{idx}"
                     )
                 with c2:
-                    # تعديل مفتاح زر الحفظ ليطابق نفس النمط
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
                         if row['preference'] == 'لا يرغب':
                             st.error("⚠️ هذا المعلم لا يرغب في التكليف، يرجى تغيير حالته أولاً")
@@ -482,71 +466,73 @@ with tab_auto:
             st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
             time.sleep(1)
             st.rerun()
-            st.divider()
-            st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
-        
-            df_managers = df_all[
-            (df_all['current_job'] == 'مدير مدرسة') &
-            (df_all['preference'] == 'يرغب') &
-            (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
-            ]
-            df_secretaries = df_all[
-            (df_all['current_job'] == 'سكرتير') &
-            (df_all['preference'] == 'يرغب') &
-            (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
-            ]
-            df_janitors = df_all[
-            (df_all['current_job'] == 'آذن') &
-            (df_all['preference'] == 'يرغب') &
-            (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
-            ]
-    
-            col_r1, col_r2 = st.columns(2)
-            with col_r1:
-                target_h2 = st.selectbox("اختر القاعة:", [""] + list(hall_map_auto.keys()), key="role_target_h")
-            with col_r2:
-                st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
-        if target_h2:
-            col_s1, col_s2, col_s3 = st.columns(3)
+    st.divider()
+    st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
+
+    df_managers = df_all[
+        (df_all['current_job'] == 'مدير مدرسة') &
+        (df_all['preference'] == 'يرغب') &
+        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+    ]
+    df_secretaries = df_all[
+        (df_all['current_job'] == 'سكرتير') &
+        (df_all['preference'] == 'يرغب') &
+        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+    ]
+    df_janitors = df_all[
+        (df_all['current_job'] == 'آذن') &
+        (df_all['preference'] == 'يرغب') &
+        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+    ]
+
+    target_h2 = ""
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        target_h2 = st.selectbox("اختر القاعة:", [""] + list(hall_map_auto.keys()), key="role_target_h")
+    with col_r2:
+        st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
+
+    if target_h2:
+        col_s1, col_s2, col_s3 = st.columns(3)
+        
+        with col_s1:
+            sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), key="sel_manager")
+        with col_s2:
+            sel_secretary = st.selectbox("📋 مساعد الرئيس (سكرتير):", [""] + df_secretaries['name'].tolist(), key="sel_secretary")
+        with col_s3:
+            sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), key="sel_janitor")
+        
+        if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
+            saved = []
             
-            with col_s1:
-                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), key="sel_manager")
-            with col_s2:
-                sel_secretary = st.selectbox("📋 مساعد الرئيس (سكرتير):", [""] + df_secretaries['name'].tolist(), key="sel_secretary")
-            with col_s3:
-                sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), key="sel_janitor")
+            if sel_manager:
+                manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
+                c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                          (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
+                saved.append(f"رئيس قاعة: {sel_manager}")
             
-            if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
-                saved = []
-                
-                if sel_manager:
-                    manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                              (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
-                    saved.append(f"رئيس قاعة: {sel_manager}")
-                
-                if sel_secretary:
-                    secretary_id = df_secretaries[df_secretaries['name'] == sel_secretary]['id'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                              (target_h2, hall_map_auto[target_h2], st.session_state.username, secretary_id))
-                    saved.append(f"مساعد رئيس: {sel_secretary}")
-                
-                if sel_janitor:
-                    janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
-                              (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
-                    saved.append(f"آذن: {sel_janitor}")
-                
-                if saved:
-                    conn.commit()
-                    add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
-                    st.success(f"✅ تم الحفظ: {' | '.join(saved)}")
-                    time.sleep(0.5)
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("⚠️ لم تختر أي شخص!")
+            if sel_secretary:
+                secretary_id = df_secretaries[df_secretaries['name'] == sel_secretary]['id'].values[0]
+                c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                          (target_h2, hall_map_auto[target_h2], st.session_state.username, secretary_id))
+                saved.append(f"مساعد رئيس: {sel_secretary}")
+            
+            if sel_janitor:
+                janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
+                c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
+                          (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
+                saved.append(f"آذن: {sel_janitor}")
+            
+            if saved:
+                conn.commit()
+                add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
+                st.success(f"✅ تم الحفظ: {' | '.join(saved)}")
+                time.sleep(0.5)
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.warning("⚠️ لم تختر أي شخص!")
 
 with tab_upload:
     st.markdown(f'<h2 class="move-to-right">تحديث القالب والبيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
@@ -574,6 +560,7 @@ with tab_upload:
             st.rerun()
         except Exception as e:
             st.error(f"خطأ: {e}")
+
     if st.button("🔄 تحديث من Google Sheets"):
         try:
             conn.execute("PRAGMA journal_mode=WAL")
@@ -614,14 +601,11 @@ with tab_upload:
                     FROM teachers_temp
                 """)
             
-            
             conn.commit()
         
             dfh = pd.read_csv(HALLS_URL)
             dfh.to_sql('halls', conn, if_exists='replace', index=False)
             conn.commit()
-            
-            dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
             
             add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
             st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
@@ -634,16 +618,16 @@ with tab_upload:
 with tab_manage:
     df_all_teachers = get_cached_teachers()
     total_count = len(df_all_teachers[
-    (df_all_teachers['ability'] == 'يصلح') & 
-    (df_all_teachers['preference'] == 'يرغب') &
-    (df_all_teachers['current_job'] == 'معلم')
-])
+        (df_all_teachers['ability'] == 'يصلح') & 
+        (df_all_teachers['preference'] == 'يرغب') &
+        (df_all_teachers['current_job'] == 'معلم')
+    ])
     assigned_count = len(df_all_teachers[
-    (df_all_teachers['ability'] == 'يصلح') & 
-    (df_all_teachers['preference'] == 'يرغب') &
-    (df_all_teachers['current_job'] == 'معلم') &
-    (df_all_teachers['hall'].astype(str).str.len() > 0)
-])
+        (df_all_teachers['ability'] == 'يصلح') & 
+        (df_all_teachers['preference'] == 'يرغب') &
+        (df_all_teachers['current_job'] == 'معلم') &
+        (df_all_teachers['hall'].astype(str).str.len() > 0)
+    ])
     remaining_count = total_count - assigned_count
 
     c_m1, c_m2, c_m3 = st.columns(3)
@@ -654,18 +638,15 @@ with tab_manage:
     st.divider()
     st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
-    # 1. إعادة ترتيب الأعمدة برمجياً لضمان تطابق البيانات مع العناوين
     original_order = [
         'id', 'name', 'phone', 'school', 'city', 'role', 
         'hall', 'hall_city', 'preference', 'modified_by', 
         'job_title', 'permissions', 'relative', 'relative_exam'
     ]
     
-    # اختيار الأعمدة الموجودة فقط في البيانات الحالية
     existing_cols = [c for c in original_order if c in df_export.columns]
     df_final = df_export[existing_cols].copy()
 
-    # 2. القاموس لترجمة العناوين للعربية
     column_mapping = {
         'id': 'رقم الهوية', 'name': 'الاسم كامل', 'phone': 'رقم الجوال',
         'school': 'المدرسة', 'city': 'السكن', 'role': 'المهمة المكلف بها',
@@ -675,7 +656,6 @@ with tab_manage:
     }
     df_final.rename(columns=column_mapping, inplace=True)
 
-    # 3. إنشاء ملف الإكسل (BytesIO) مع التنسيق (خط 14 عريض)
     output_all = io.BytesIO()
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
         df_final.to_excel(writer, index=False, sheet_name='الموظفين')
@@ -695,16 +675,12 @@ with tab_manage:
             max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 7
             worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
 
-    # 4. وضع زر التحميل هنا (بعد الانتهاء من إنشاء output_all)
     st.download_button(
         label="📥 تحميل إكسل معدل",
         data=output_all.getvalue(),
         file_name=f"كشف_عام_{datetime.now().strftime('%Y%m%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-   
-    
-   
 
     st.divider()
     assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
@@ -761,14 +737,11 @@ with tab_manage:
                 df_final_export.columns = ['الرقم', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'المدرسة', 'المهمة', 'العنوان']
 
                 with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
-                    # تعديل: بدأ كتابة الجدول من السطر الثاني (startrow=1) لترك مكان للعنوان
                     df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة', startrow=1)
                     
                     workbook = writer.book
                     worksheet = writer.sheets['كشف_القاعة']
                     
-                    # 1. تعريف التنسيقات (نفس تنسيقاتك مع إضافة تنسيق العنوان)
-                    # تنسيق العنوان المدمج الجديد
                     title_fmt = workbook.add_format({
                         'bold': True, 'font_size': 20, 'border': 1,
                         'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
@@ -784,20 +757,15 @@ with tab_manage:
                         'align': 'right', 'valign': 'vcenter'
                     })
                     
-                    # 2. إعدادات اتجاه الصفحة والطباعة
                     worksheet.right_to_left()
                     worksheet.set_landscape()
                     worksheet.fit_to_pages(1, 0)
                     
-                                        # 3. دمج الخلايا من A إلى G في السطر الأول (السطر 0)
-                    # الأعمدة: A=0, B=1, C=2, D=3, E=4, F=5, G=6
                     header_text = f"بيانات قاعة: {h_choice}"
                     worksheet.merge_range(0, 0, 0, 6, header_text, title_fmt)
-                    worksheet.set_row(0, 35) # زيادة الطول قليلاً ليعطي فخامة للعنوان
+                    worksheet.set_row(0, 35)
                    
-                    # 4. تطبيق التنسيق وضبط عرض الأعمدة تلقائياً
                     for col_num, col_name in enumerate(df_final_export.columns):
-                        # تعديل: كتابة أسماء الأعمدة في السطر الثاني (رقم 1)
                         worksheet.write(1, col_num, col_name, h_fmt)
                         
                         column_length = max(
@@ -805,19 +773,18 @@ with tab_manage:
                             len(str(col_name))
                         ) + 4
                         
-                        # ضبط العرض وتطبيق التنسيق على العمود بالكامل (بدءاً من السطر 1)
                         worksheet.set_column(col_num, col_num, column_length, c_fmt)
 
-            # خارج بلوك الـ ExcelWriter
-            add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
-            
-            st.download_button(
-                label=f"📊 كشف إكسل {h_choice}",
-                data=output_hall_excel.getvalue(),
-                file_name=f"كشف_{h_choice}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"dl_xl_{h_choice}_export"
-            )
+                add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
+                
+                st.download_button(
+                    label=f"📊 كشف إكسل {h_choice}",
+                    data=output_hall_excel.getvalue(),
+                    file_name=f"كشف_{h_choice}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"dl_xl_{h_choice}_export"
+                )
+
 with tab_logs:
     st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
     if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
