@@ -532,12 +532,21 @@ with tab_upload:
 
 with tab_manage:
     df_all_teachers = get_cached_teachers()
-    total_count = len(df_all_teachers)
-    assigned_count = len(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0])
+    total_count = len(df_all_teachers[
+    (df_all_teachers['ability'] == 'يصلح') & 
+    (df_all_teachers['preference'] == 'يرغب') &
+    (df_all_teachers['current_job'] == 'معلم')
+])
+    assigned_count = len(df_all_teachers[
+    (df_all_teachers['ability'] == 'يصلح') & 
+    (df_all_teachers['preference'] == 'يرغب') &
+    (df_all_teachers['current_job'] == 'معلم') &
+    (df_all_teachers['hall'].astype(str).str.len() > 0)
+])
     remaining_count = total_count - assigned_count
 
     c_m1, c_m2, c_m3 = st.columns(3)
-    c_m1.metric("إجمالي الموظفين", total_count)
+    c_m1.metric("إجمالي الموظفين المتاحين للمراقبة", total_count)
     c_m2.metric("تم إنجازهم", assigned_count)
     c_m3.metric("المتبقي", remaining_count)
     
