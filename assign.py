@@ -373,23 +373,23 @@ with tab_search:
                 c1, c2 = st.columns(2)
                 with c1:
                     current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
-                    # تم إزالة time.time() لضمان ثبات الاختيار وعدم اختفاء القائمة
+                    # أضفنا كلمة "search" للمفتاح لتمييزه عن أي مكان آخر يظهر فيه نفس الموظف
                     sel_h = st.selectbox(
                         "القاعة", 
                         [""] + list(hall_map.keys()),
                         index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0),
-                        key=f"q_h_{st.session_state.system_mode}_{row['id']}"
+                        key=f"search_h_{st.session_state.system_mode}_{row['id']}"
                     )
                     
                     sel_r = st.selectbox(
                         "المهمة", 
                         ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
                         index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                        key=f"q_r_{st.session_state.system_mode}_{row['id']}"
+                        key=f"search_r_{st.session_state.system_mode}_{row['id']}"
                     )
                 with c2:
-                    # زر الحفظ يحتاج لمفتاح ثابت أيضاً ليعمل بشكل صحيح بعد الاختيار
-                    if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}"):
+                    # تعديل مفتاح زر الحفظ ليطابق نفس النمط
+                    if st.button("💾 حفظ التكليف", key=f"search_btn_save_{st.session_state.system_mode}_{row['id']}"):
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
