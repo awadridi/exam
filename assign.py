@@ -75,7 +75,27 @@ else:
     PAGE_TITLE = "نظام امتحان التوظيف 2026"
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
-
+# --- إضافة الترويسة الثابتة في أعلى الصفحة ---
+st.markdown("""
+    <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: #1a1c23;
+        color: white;
+        text-align: center;
+        padding: 10px 0;
+        z-index: 9999;
+        border-bottom: 2px solid #00ffcc;
+        line-height: 1.4;
+        direction: rtl;
+    ">
+        <div style="font-weight: bold; font-size: 1.1rem;">إعداد وتصميم : عوض نعمان ريده</div>
+        <div style="font-size: 0.9rem;">قسم الامتحانات مديرية التربية والتعليم جنوب نابلس</div>
+    </div>
+    <div style="margin-top: 70px;"></div> 
+    """, unsafe_allow_html=True)
 # (تنسيقات CSS)
 st.markdown("""
     <style>
