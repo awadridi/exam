@@ -499,41 +499,58 @@ with tab_manage:
     
     output_all = io.BytesIO()
     
-    # تأكد أن البيانات ليست فارغة قبل البدء
-    if df_export is not None and not df_export.empty:
-        # سنستخدم البيانات كما هي لضمان عدم خروج ملف فارغ
-        df_final = df_export.copy()
+    # 1. تعريف القاموس لربط كل معلومة بعنوانها الصحيح (حسب ما أرسلت لي)
+    # تأكد أن الأسماء على اليمين (id, name...) هي نفس الأسماء البرمجية في جدولك
+    column_mapping = {
+        'id': 'رقم الهوية',
+        'name': 'الاسم كامل',
+        'phone': 'رقم الجوال',
+        'school': 'المدرسة',
+        'city': 'السكن',
+        'current_job': 'المهمة/الوظيفة',
+        'hall': 'القاعة',
+        'preference': 'الرغبة',
+        'ability': 'الصلاحية'
+    }
+    
+    # 2. تحديد الترتيب الذي تريده أن يظهر في الإكسل
+    desired_order = ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability']
+    
+    # تصفية الأعمدة الموجودة فعلياً لمنع الأخطاء
+    existing_cols = [c for c in desired_order if c in df_export.columns]
+    
+    # إعادة ترتيب البيانات بناءً على القائمة
+    df_final = df_export[existing_cols].copy()
+
+    # 3. إعادة تسمية الأعمدة للعربية (هذا يضمن أن رقم الجوال سيأخذ عنوان "رقم الجوال")
+    df_final.rename(columns=column_mapping, inplace=True)
+
+    with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
+        df_final.to_excel(writer, index=False, sheet_name='الموظفين')
+        workbook = writer.book
+        worksheet = writer.sheets['الموظفين']
         
-        with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
-            df_final.to_excel(writer, index=False, sheet_name='الموظفين')
-            workbook = writer.book
-            worksheet = writer.sheets['الموظفين']
-            
-            # 1. تنسيق الرأس (14 بولد)
-            h_fmt = workbook.add_format({
-                'bold': True, 'font_size': 14, 'border': 1, 
-                'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
-            })
-            
-            # 2. تنسيق البيانات (14 بولد)
-            c_fmt = workbook.add_format({
-                'bold': True, 'font_size': 14, 'border': 1, 
-                'align': 'right', 'valign': 'vcenter'
-            })
-            
-            # 3. إعدادات الصفحة
-            worksheet.right_to_left()
-            worksheet.set_landscape()
-            worksheet.fit_to_pages(1, 0)
-            
-            # 4. ضبط العرض تلقائياً وتطبيق التنسيق
-            for col_num, col_name in enumerate(df_final.columns):
-                # كتابة العنوان
-                worksheet.write(0, col_num, col_name, h_fmt)
-                
-                # حساب الطول
-                column_data = df_final[col_name].astype(str).str.len()
-                max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 6
+        # تنسيق الرأس (14 بولد)
+        h_fmt = workbook.add_format({
+            'bold': True, 'font_size': 14, 'border': 1, 
+            'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
+        })
+        # تنسيق البيانات (14 بولد)
+        c_fmt = workbook.add_format({
+            'bold': True, 'font_size': 14, 'border': 1, 
+            'align': 'right', 'valign': 'vcenter'
+        })
+        
+        worksheet.right_to_left()
+        worksheet.set_landscape()
+        worksheet.fit_to_pages(1, 0)
+        
+        # 4. ضبط العرض تلقائياً
+        for col_num, col_name in enumerate(df_final.columns):
+            worksheet.write(0, col_num, col_name, h_fmt)
+            column_data = df_final[col_name].astype(str).str.len()
+            max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 7
+            worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
                 
                 # تطبيق التنسيق والعرض
                 worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
