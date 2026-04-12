@@ -72,7 +72,7 @@ else:
     TEMPLATE_NAME = "template_tawzif.docx"
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIka1g67VWzR7UKmdR6eb79WuCFaC-qTNTeNMYbjzkz_HmBR_Qwe6o5RGbPyPqiaY_y_z3k2YdbibO/pub?gid=821672282&single=true&output=csv"
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIka1g67VWzR7UKmdR6eb79WuCFaC-qTNTeNMYbjzkz_HmBR_Qwe6o5RGbPyPqiaY_y_z3k2YdbibO/pub?gid=932943855&single=true&output=csv"
-    PAGE_TITLE = "نظام التكليفات قسم الامتحانات"
+    PAGE_TITLE = "نظام التكليفات امتحان التوظيف"
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
 # --- إضافة الترويسة الثابتة في أعلى الصفحة ---
