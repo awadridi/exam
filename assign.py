@@ -618,8 +618,7 @@ with tab_upload:
             dfh.to_sql('halls', conn, if_exists='replace', index=False)
             conn.commit()
             
-            c.execute("DROP TABLE IF EXISTS teachers_temp")
-            conn.commit()
+            dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
             
             add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
             st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
