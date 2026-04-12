@@ -482,8 +482,8 @@ with tab_auto:
             st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
             time.sleep(1)
             st.rerun()
-                st.divider()
-        st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
+            st.divider()
+    st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
 
         df_managers = df_all[
         (df_all['current_job'] == 'مدير مدرسة') &
