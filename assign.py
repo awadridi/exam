@@ -498,26 +498,49 @@ with tab_manage:
     df_export.columns = arabic_cols[:len(df_export.columns)]
     
     output_all = io.BytesIO()
+    output_all = io.BytesIO()
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
         df_export.to_excel(writer, index=False, sheet_name='الموظفين')
         workbook = writer.book
         worksheet = writer.sheets['الموظفين']
         
-        # تنسيق الرأس
+        # 1. تنسيق الرأس (خط 14، بولد، خلفية ملونة، حدود)
         h_fmt = workbook.add_format({
-            'bold': True, 'font_size': 12, 'border': 1, 
-            'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
+            'bold': True, 
+            'font_size': 14, 
+            'border': 1, 
+            'align': 'center', 
+            'valign': 'vcenter', 
+            'bg_color': '#D7E4BC'
         })
-        # تنسيق الخلايا مع الحدود
+
+        # 2. تنسيق البيانات (خط 14، بولد، حدود)
         c_fmt = workbook.add_format({
-            'font_size': 11, 'border': 1, 'align': 'right', 'valign': 'vcenter'
+            'bold': True, 
+            'font_size': 14, 
+            'border': 1, 
+            'align': 'right', 
+            'valign': 'vcenter'
         })
         
-        worksheet.right_to_left()
-        # --- إعدادات الطباعة ---
+        # 3. إعدادات الصفحة والطباعة
+        worksheet.right_to_left()      # من اليمين لليسار
         worksheet.set_landscape()      # طباعة أفقية
-        worksheet.fit_to_pages(1, 0)   # ملاءمة كافة الأعمدة في ورقة واحدة
+        worksheet.fit_to_pages(1, 0)   # احتواء كافة الأعمدة في ورقة واحدة عرضاً
         
+        # 4. ضبط عرض الأعمدة تلقائياً وتطبيق التنسيق
+        for col_num, col_name in enumerate(df_export.columns):
+            # كتابة اسم العمود في الصف الأول
+            worksheet.write(0, col_num, col_name, h_fmt)
+            
+            # حساب أطول نص في العمود (بين البيانات واسم العمود) لضبط العرض
+            max_len = max(
+                df_export[col_name].astype(str).map(len).max(),
+                len(str(col_name))
+            ) + 5  # زيادة الهامش قليلاً لأن الخط أصبح أكبر (14 بولد)
+            
+            # تطبيق العرض المحسوب والتنسيق على العمود بالكامل
+            worksheet.set_column(col_num, col_num, max_len, c_fmt)       
         for col_num, col_name in enumerate(df_export.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             worksheet.set_column(col_num, col_num, 18, c_fmt)
