@@ -387,13 +387,6 @@ with tab_search:
                         index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
                         key=f"q_r_{st.session_state.system_mode}_{row['id']}_{idx}"
                     )
-                    
-                    sel_r = st.selectbox(
-                        "المهمة", 
-                        ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
-                        index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                        key=f"search_r_{st.session_state.system_mode}_{row['id']}_{idx}"
-                    )
                 with c2:
                     # تعديل مفتاح زر الحفظ ليطابق نفس النمط
                     if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
