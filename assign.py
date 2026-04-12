@@ -499,62 +499,59 @@ with tab_manage:
     
     output_all = io.BytesIO()
     
-    # 1. الترتيب الصحيح بناءً على الأعمدة التي أرفقتها
-    # قمت بترتيبها هنا لضمان أن كل معلومة تقع تحت عنوانها العربي الصحيح
-    correct_order = [
-        'id',           # رقم الهوية
-        'name',         # الاسم كامل
-        'phone',        # رقم الجوال
-        'school',       # المدرسة
-        'city',         # السكن
-        'current_job',  # المهمة المكلف بها (أو الوظيفة الحالية)
-        'hall',         # القاعة
-        'preference',   # الرغبة
-        'ability'       # الصلاحية/القدرة
-    ]
+    # 1. القاموس الصحيح لربط الاسم البرمجي بالاسم العربي
+    column_mapping = {
+        'id': 'رقم الهوية',
+        'name': 'الاسم كامل',
+        'phone': 'رقم الجوال',
+        'school': 'المدرسة',
+        'city': 'السكن',
+        'current_job': 'المهمة/الوظيفة',
+        'hall': 'القاعة',
+        'preference': 'الرغبة',
+        'ability': 'الصلاحية'
+    }
     
-    # إعادة ترتيب البيانات بناءً على القائمة أعلاه (مع التأكد من وجود الأعمدة)
-    existing_cols = [c for c in correct_order if c in df_export.columns]
+    # 2. تحديد الأعمدة المطلوبة بالترتيب (فقط الموجود منها في df_export)
+    desired_order = ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability']
+    existing_cols = [c for c in desired_order if c in df_export.columns]
+    
+    # إعادة ترتيب البيانات
     df_export_ordered = df_export[existing_cols].copy()
 
-    # 2. تحويل أسماء الأعمدة للعربية لتظهر في ملف الإكسل بشكل صحيح
-    # تأكد أن عدد الأسماء هنا يساوي عدد الأعمدة في correct_order
-    df_export_ordered.columns = [
-        'رقم الهوية', 'الاسم الرباعي', 'رقم الجوال', 'المدرسة', 
-        'السكن', 'المهمة/الوظيفة', 'القاعة', 'الرغبة', 'الصلاحية'
-    ]
+    # 3. تسمية الأعمدة بالعربية بناءً على القاموس (هنا لن يحدث ValueError أبداً)
+    df_export_ordered.rename(columns=column_mapping, inplace=True)
 
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
         df_export_ordered.to_excel(writer, index=False, sheet_name='الموظفين')
         workbook = writer.book
         worksheet = writer.sheets['الموظفين']
         
-        # تنسيق الرأس (خط 14، بولد، خلفية ملونة)
+        # تنسيق الرأس (14 بولد)
         h_fmt = workbook.add_format({
             'bold': True, 'font_size': 14, 'border': 1, 
             'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
         })
-        # تنسيق البيانات (خط 14، بولد)
+        # تنسيق البيانات (14 بولد)
         c_fmt = workbook.add_format({
             'bold': True, 'font_size': 14, 'border': 1, 
             'align': 'right', 'valign': 'vcenter'
         })
         
-        # إعدادات الصفحة
         worksheet.right_to_left()
         worksheet.set_landscape()
         worksheet.fit_to_pages(1, 0)
         
-        # ضبط عرض الأعمدة تلقائياً
+        # 4. ضبط عرض الأعمدة تلقائياً
         for col_num, col_name in enumerate(df_export_ordered.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             
-            # حساب طول البيانات بأمان
+            # حساب الطول بأمان
             column_data = df_export_ordered[col_name].astype(str).str.len()
             max_data_len = column_data.max() if not column_data.empty else 0
             
-            # عرض العمود (طول المحتوى + هامش)
-            actual_width = max(max_data_len, len(str(col_name))) + 6
+            # العرض المناسب مع مراعاة الخط 14 العريض
+            actual_width = max(max_data_len, len(str(col_name))) + 7
             worksheet.set_column(col_num, col_num, min(actual_width, 50), c_fmt)
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
