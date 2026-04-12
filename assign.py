@@ -142,11 +142,13 @@ c.execute('''CREATE TABLE IF NOT EXISTS teachers
              preference TEXT, current_job TEXT, ability TEXT,
              relative TEXT, relative_exam TEXT)''')
 
-try:
-    c.execute("ALTER TABLE teachers ADD COLUMN relative TEXT DEFAULT ''")
-    c.execute("ALTER TABLE teachers ADD COLUMN relative_exam TEXT DEFAULT ''")
-except:
-    pass 
+# تأكد من وجود الأعمدة
+for col in ['relative', 'relative_exam']:
+    try:
+        c.execute(f"ALTER TABLE teachers ADD COLUMN {col} TEXT DEFAULT ''")
+        conn.commit()
+    except:
+        pass
 
 c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
