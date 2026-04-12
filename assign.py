@@ -500,13 +500,27 @@ with tab_manage:
     output_all = io.BytesIO()
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
         df_export.to_excel(writer, index=False, sheet_name='الموظفين')
-        workbook, worksheet = writer.book, writer.sheets['الموظفين']
-        h_fmt = workbook.add_format({'bold':True,'font_size':12,'border':1,'align':'center','bg_color':'#D7E4BC'})
-        c_fmt = workbook.add_format({'font_size':11,'border':1,'align':'right'})
+        workbook = writer.book
+        worksheet = writer.sheets['الموظفين']
+        
+        # تنسيق الرأس
+        h_fmt = workbook.add_format({
+            'bold': True, 'font_size': 12, 'border': 1, 
+            'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
+        })
+        # تنسيق الخلايا مع الحدود
+        c_fmt = workbook.add_format({
+            'font_size': 11, 'border': 1, 'align': 'right', 'valign': 'vcenter'
+        })
+        
         worksheet.right_to_left()
+        # --- إعدادات الطباعة ---
+        worksheet.set_landscape()      # طباعة أفقية
+        worksheet.fit_to_pages(1, 0)   # ملاءمة كافة الأعمدة في ورقة واحدة
+        
         for col_num, col_name in enumerate(df_export.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
-            worksheet.set_column(col_num, col_num, 22, c_fmt)
+            worksheet.set_column(col_num, col_num, 18, c_fmt)
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
@@ -568,7 +582,25 @@ with tab_manage:
                     df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة')
                     workbook = writer.book
                     worksheet = writer.sheets['كشف_القاعة']
-                    worksheet.right_to_left()
+                    
+                    # 1. تعريف التنسيقات (الرأس والحدود)
+                    h_fmt = workbook.add_format({
+                        'bold': True, 'font_size': 12, 'border': 1, 
+                        'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
+                    })
+                    c_fmt = workbook.add_format({
+                        'border': 1, 'align': 'right', 'valign': 'vcenter'
+                    })
+                    
+                    # 2. إعدادات اتجاه الصفحة والطباعة
+                    worksheet.right_to_left()      # من اليمين لليسار
+                    worksheet.set_landscape()      # طباعة أفقية
+                    worksheet.fit_to_pages(1, 0)   # احتواء الأعمدة في ورقة واحدة
+                    
+                    # 3. تطبيق التنسيق على العناوين والأعمدة
+                    for col_num, col_name in enumerate(df_final_export.columns):
+                        worksheet.write(0, col_num, col_name, h_fmt)
+                        worksheet.set_column(col_num, col_num, 20, c_fmt)
                 
                 st.download_button(f"📊 كشف إكسل {h_choice}", data=output_hall_excel.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
 
