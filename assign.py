@@ -553,6 +553,22 @@ with tab_upload:
         st.success("تم تحديث قالب الوورد بنجاح")
     
     st.divider()
+    if st.button("🗑️ مسح البيانات المكررة"):
+        try:
+            c.execute("""
+                DELETE FROM teachers 
+                WHERE rowid NOT IN (
+                    SELECT MIN(rowid) 
+                    FROM teachers 
+                    GROUP BY id
+                )
+            """)
+            conn.commit()
+            st.cache_data.clear()
+            st.success("✅ تم مسح التكرار بنجاح")
+            st.rerun()
+        except Exception as e:
+            st.error(f"خطأ: {e}")
     if st.button("🔄 تحديث من Google Sheets"):
         try:
             dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
@@ -563,26 +579,32 @@ with tab_upload:
             dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
             
             if st.session_state.system_mode == 'tawjihi':
-                update_query = """
-                    INSERT OR REPLACE INTO teachers 
-                    (id, name, phone, school, city, current_job, preference, ability, hall, role, hall_city, updated_by)
-                    SELECT 
-                        t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability,
-                        COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
-                    FROM teachers_temp t
-                    LEFT JOIN teachers old ON t.id = old.id
-                """
-            else:
-                update_query = """
-                    INSERT OR REPLACE INTO teachers 
-                    (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, hall, role, hall_city, updated_by)
-                    SELECT 
-                        t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability,
-                        COALESCE(t.relative, ''), COALESCE(t.relative_exam, ''),
-                        COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
-                    FROM teachers_temp t
-                    LEFT JOIN teachers old ON t.id = old.id
-                """
+            c.execute("""
+                UPDATE teachers SET
+                    name = t.name, phone = t.phone, school = t.school,
+                    city = t.city, current_job = t.current_job,
+                    preference = t.preference, ability = t.ability
+                FROM teachers_temp t WHERE teachers.id = t.id
+            """)
+            c.execute("""
+                INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability)
+                SELECT id, name, phone, school, city, current_job, preference, ability
+                FROM teachers_temp
+            """)
+        else:
+            c.execute("""
+                UPDATE teachers SET
+                    name = t.name, phone = t.phone, school = t.school,
+                    city = t.city, current_job = t.current_job,
+                    preference = t.preference, ability = t.ability,
+                    relative = t.relative, relative_exam = t.relative_exam
+                FROM teachers_temp t WHERE teachers.id = t.id
+            """)
+            c.execute("""
+                INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam)
+                SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam
+                FROM teachers_temp
+            """)
             
             c.execute(update_query)
             
