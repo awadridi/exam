@@ -351,7 +351,7 @@ with tab_search:
                             key=f"uab_{row['id']}_{time.time()}"
                         )
     
-                    if st.session_state.system_mode == "tawzif":
+                if st.session_state.system_mode == "tawzif":
                         u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{st.session_state.system_mode}_{row['id']}")
                         u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{st.session_state.system_mode}_{row['id']}")
 
