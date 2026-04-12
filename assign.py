@@ -387,7 +387,7 @@ with tab_search:
                         key=f"q_r_{row['id']}_{time.time()}"
                     )
                 with c2:
-                    if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}"):
+                    if st.button("💾 حفظ التكليف", key=f"btn_save_{row['id']}_{time.time()}"):
                         h_city_val = hall_map.get(sel_h, "")
                         c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
                                   (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
