@@ -579,27 +579,27 @@ with tab_upload:
             dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
             
             if st.session_state.system_mode == 'tawjihi':
-            c.execute("""
-                UPDATE teachers SET
-                    name = t.name, phone = t.phone, school = t.school,
-                    city = t.city, current_job = t.current_job,
-                    preference = t.preference, ability = t.ability
-                FROM teachers_temp t WHERE teachers.id = t.id
-            """)
-            c.execute("""
-                INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability)
-                SELECT id, name, phone, school, city, current_job, preference, ability
-                FROM teachers_temp
-            """)
-        else:
-            c.execute("""
-                UPDATE teachers SET
-                    name = t.name, phone = t.phone, school = t.school,
-                    city = t.city, current_job = t.current_job,
-                    preference = t.preference, ability = t.ability,
-                    relative = t.relative, relative_exam = t.relative_exam
-                FROM teachers_temp t WHERE teachers.id = t.id
-            """)
+                c.execute("""
+                    UPDATE teachers SET
+                        name = t.name, phone = t.phone, school = t.school,
+                        city = t.city, current_job = t.current_job,
+                        preference = t.preference, ability = t.ability
+                    FROM teachers_temp t WHERE teachers.id = t.id
+                """)
+                c.execute("""
+                    INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability)
+                    SELECT id, name, phone, school, city, current_job, preference, ability
+                    FROM teachers_temp
+                """)
+            else:
+                c.execute("""
+                    UPDATE teachers SET
+                        name = t.name, phone = t.phone, school = t.school,
+                        city = t.city, current_job = t.current_job,
+                        preference = t.preference, ability = t.ability,
+                        relative = t.relative, relative_exam = t.relative_exam
+                    FROM teachers_temp t WHERE teachers.id = t.id
+                """)
             c.execute("""
                 INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam)
                 SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam
