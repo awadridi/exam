@@ -549,7 +549,7 @@ with tab_manage:
             
             # السطر الذي كان يحتوي على الخطأ
             worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
-        else:
+    else:
             st.error("لا توجد بيانات لتصديرها!")
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
