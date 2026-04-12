@@ -497,59 +497,29 @@ with tab_manage:
     arabic_cols = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب']
     df_export.columns = arabic_cols[:len(df_export.columns)]
     
-    output_all = io.BytesIO()
+    رقم الهوية صحيح
 
-    # 1. القاموس المرن (يحاول الربط بالاسم البرمجي أو العربي)
-    column_mapping = {
-        'id': 'رقم الهوية', 'name': 'الاسم كامل', 'phone': 'رقم الجوال',
-        'school': 'المدرسة', 'city': 'السكن', 'current_job': 'المهمة/الوظيفة',
-        'hall': 'القاعة', 'preference': 'الرغبة', 'ability': 'الصلاحية'
-    }
+الاسم صحيح
 
-    # 2. فحص الأعمدة المتاحة فعلياً
-    actual_cols = df_export.columns.tolist()
-    
-    # إذا كانت الأعمدة فارغة تماماً، نستخدم الأعمدة الموجودة في df_export كما هي
-    existing_cols = [c for c in ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability'] if c in actual_cols]
-    
-    if not existing_cols:
-        # إذا لم يجد الأسماء الإنجليزية، نأخذ البيانات كما هي (بالعربية) لضمان عدم خروج ملف فارغ
-        df_final = df_export.copy()
-    else:
-        df_final = df_export[existing_cols].copy()
-        df_final.rename(columns=column_mapping, inplace=True)
+رقم الجوال مكانه انت حاط المدرسة
 
-    # 3. كتابة الملف وتنسيقه
-    with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
-        df_final.to_excel(writer, index=False, sheet_name='الموظفين')
-        workbook = writer.book
-        worksheet = writer.sheets['الموظفين']
-        
-        # التنسيقات (خط 14 عريض)
-        h_fmt = workbook.add_format({
-            'bold': True, 'font_size': 14, 'border': 1, 
-            'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
-        })
-        c_fmt = workbook.add_format({
-            'bold': True, 'font_size': 14, 'border': 1, 
-            'align': 'right', 'valign': 'vcenter'
-        })
-        
-        worksheet.right_to_left()
-        worksheet.set_landscape()
-        worksheet.fit_to_pages(1, 0)
-        
-        # حلقة التنسيق (تأكد من بقاء المسافات هكذا)
-        for col_num, col_name in enumerate(df_final.columns):
-            worksheet.write(0, col_num, col_name, h_fmt)
-            
-            # حساب العرض التلقائي بأمان
-            column_data = df_final[col_name].astype(str).str.len()
-            max_data_len = column_data.max() if not column_data.empty else 0
-            max_len = max(max_data_len, len(str(col_name))) + 8
-            
-            # ضبط عرض العمود
-            worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
+المدرسة حاط مكان السكن بدالها
+
+السكن حاط مكانه رقم الجوال
+
+مدينة القاعة حاط فيها الرغبة
+
+الموظف المعدل حاط فيها الصلاحية
+
+الرغبة حاط فيها المهمة المكلف بها
+
+الوظيفة حاط فيها مدينة القاعة
+
+الصلاحية حاط فيها المووظف المعدل
+
+المهمة المكلف بها حاط فيها الوظيفة
+
+
    
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
