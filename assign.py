@@ -499,8 +499,7 @@ with tab_manage:
     
     output_all = io.BytesIO()
     
-    # 1. تعريف القاموس لربط كل معلومة بعنوانها الصحيح (حسب ما أرسلت لي)
-    # تأكد أن الأسماء على اليمين (id, name...) هي نفس الأسماء البرمجية في جدولك
+    # 1. القاموس لربط الأسماء البرمجية بالعربية (تأكد أن الأسماء تطابق ملف teachers)
     column_mapping = {
         'id': 'رقم الهوية',
         'name': 'الاسم كامل',
@@ -513,16 +512,10 @@ with tab_manage:
         'ability': 'الصلاحية'
     }
     
-    # 2. تحديد الترتيب الذي تريده أن يظهر في الإكسل
+    # 2. تحديد الترتيب المطلوب
     desired_order = ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability']
-    
-    # تصفية الأعمدة الموجودة فعلياً لمنع الأخطاء
     existing_cols = [c for c in desired_order if c in df_export.columns]
-    
-    # إعادة ترتيب البيانات بناءً على القائمة
     df_final = df_export[existing_cols].copy()
-
-    # 3. إعادة تسمية الأعمدة للعربية (هذا يضمن أن رقم الجوال سيأخذ عنوان "رقم الجوال")
     df_final.rename(columns=column_mapping, inplace=True)
 
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
@@ -530,12 +523,10 @@ with tab_manage:
         workbook = writer.book
         worksheet = writer.sheets['الموظفين']
         
-        # تنسيق الرأس (14 بولد)
         h_fmt = workbook.add_format({
             'bold': True, 'font_size': 14, 'border': 1, 
             'align': 'center', 'valign': 'vcenter', 'bg_color': '#D7E4BC'
         })
-        # تنسيق البيانات (14 بولد)
         c_fmt = workbook.add_format({
             'bold': True, 'font_size': 14, 'border': 1, 
             'align': 'right', 'valign': 'vcenter'
@@ -545,11 +536,18 @@ with tab_manage:
         worksheet.set_landscape()
         worksheet.fit_to_pages(1, 0)
         
-        # 4. ضبط العرض تلقائياً
+        # --- انتبه للمسافات هنا (داخل حلقة for) ---
         for col_num, col_name in enumerate(df_final.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
+            
+            # حساب الطول
             column_data = df_final[col_name].astype(str).str.len()
-            max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 7
+            max_data_len = column_data.max() if not column_data.empty else 0
+            
+            # تحديد العرض
+            max_len = max(max_data_len, len(str(col_name))) + 7
+            
+            # هذا السطر الذي كان يسبب الخطأ، الآن مسافته صحيحة
             worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
                 
                 # تطبيق التنسيق والعرض
