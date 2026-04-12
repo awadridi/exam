@@ -486,17 +486,20 @@ with tab_auto:
     st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
 
     df_managers = df_all[
-        (df_all['current_job'] == 'مدير مدرسة') &
-        ((df_all['hall'] == '') | (df_all['hall'].isna()))
-    ]
-    df_secretaries = df_all[
-        (df_all['current_job'] == 'سكرتير') &
-        ((df_all['hall'] == '') | (df_all['hall'].isna()))
-    ]
-    df_janitors = df_all[
-        (df_all['current_job'] == 'آذن') &
-        ((df_all['hall'] == '') | (df_all['hall'].isna()))
-    ]
+    (df_all['current_job'] == 'مدير مدرسة') &
+    (df_all['preference'] == 'يرغب') &
+    (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+]
+df_secretaries = df_all[
+    (df_all['current_job'] == 'سكرتير') &
+    (df_all['preference'] == 'يرغب') &
+    (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+]
+df_janitors = df_all[
+    (df_all['current_job'] == 'آذن') &
+    (df_all['preference'] == 'يرغب') &
+    (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+]
 
     col_r1, col_r2 = st.columns(2)
     with col_r1:
