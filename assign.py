@@ -66,7 +66,7 @@ if st.session_state['system_mode'] == "tawjihi":
     TEMPLATE_NAME = "template.docx"
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
-    PAGE_TITLE = "نظام التوجيهي 2026"
+    PAGE_TITLE = "نظام التكليفات امتحان الثانوية العامة "
 else:
     DB_NAME = "data_tawzif.db"
     TEMPLATE_NAME = "template_tawzif.docx"
