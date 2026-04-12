@@ -653,7 +653,7 @@ with tab_manage:
                         
                         # ضبط عرض العمود بناءً على الطول المحسوب وتطبيق التنسيق
                         # ... نهاية بلوك التنسيق داخل الـ loop ...
-                    worksheet.set_column(col_num, col_num, column_length, c_fmt)
+                        worksheet.set_column(col_num, col_num, column_length, c_fmt)
 
                     # لاحظ هنا: خرجنا من بلوك الـ ExcelWriter (الإزاحة لليمين)
                  add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
