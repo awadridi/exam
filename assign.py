@@ -213,7 +213,9 @@ def process_doc(doc_obj, row, h_name, h_city):
     return doc_obj
 
 def generate_single_doc(row):
-    if not os.path.exists(TEMPLATE_NAME): return None
+    if not os.path.exists(TEMPLATE_NAME):
+        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود، يرجى رفعه من تبويب 'رفع البيانات'")
+        return None
     doc = Document(TEMPLATE_NAME)
     doc = process_doc(doc, row, row['hall'], row['hall_city'])
     bio = io.BytesIO(); doc.save(bio); bio.seek(0)
@@ -221,6 +223,7 @@ def generate_single_doc(row):
 
 def generate_bulk_word(df, h_name):
     if not os.path.exists(TEMPLATE_NAME):
+        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود، يرجى رفعه من تبويب 'رفع البيانات'")
         return None
         
     final_doc = Document(TEMPLATE_NAME)
