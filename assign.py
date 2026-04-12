@@ -484,21 +484,47 @@ with tab_upload:
     st.divider()
     if st.button("🔄 تحديث من Google Sheets"):
         try:
+            # 1. قراءة البيانات من جوجل
             dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str}) 
             dft.columns = dft.columns.str.strip().str.lower()
             if 'id_number' in dft.columns: dft.rename(columns={'id_number': 'id'}, inplace=True)
-            for col in ['phone', 'role', 'hall', 'hall_city', 'updated_by', 'preference', 'current_job', 'ability', 'relative', 'relative_exam']: 
-                if col not in dft.columns: dft[col] = ""
-            dft.to_sql('teachers', conn, if_exists='replace', index=False)
             
+            # 2. رفع البيانات لجدول مؤقت في قاعدة البيانات
+            dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
+            
+            # 3. تحديث البيانات الأساسية فقط والحفاظ على القاعات والتكليفات
+            # هذا الاستعلام يضيف الموظفين الجدد ويحدث بيانات الموجودين دون المساس بـ (hall, role, hall_city)
+            update_query = """
+                INSERT INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam)
+                SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam FROM teachers_temp
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    phone = excluded.phone,
+                    school = excluded.school,
+                    city = excluded.city,
+                    current_job = excluded.current_job,
+                    preference = excluded.preference,
+                    ability = excluded.ability,
+                    relative = excluded.relative,
+                    relative_exam = excluded.relative_exam
+            """
+            c.execute(update_query)
+            
+            # تحديث القاعات (هذا الجدول يمكن استبداله لأنه مرجعي)
             dfh = pd.read_csv(HALLS_URL)
             dfh.to_sql('halls', conn, if_exists='replace', index=False)
             
-            add_log("تحديث بيانات", "تحديث من جوجل شيت")
-            st.success("تم التحديث بنجاح")
+            # تنظيف الجدول المؤقت
+            c.execute("DROP TABLE IF EXISTS teachers_temp")
+            
+            conn.commit()
+            add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
+            st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
             st.cache_data.clear()
             st.rerun()
-        except Exception as e: st.error(f"خطأ: {e}")
+            
+        except Exception as e: 
+            st.error(f"خطأ أثناء التحديث: {e}")
 
 with tab_manage:
     df_all_teachers = get_cached_teachers()
