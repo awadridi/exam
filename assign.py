@@ -550,8 +550,7 @@ with tab_manage:
             # السطر الذي كان يحتوي على الخطأ
             worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
                 
-                # تطبيق التنسيق والعرض
-                worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
+    
     else:
         st.error("لا توجد بيانات لتصديرها!")
     
