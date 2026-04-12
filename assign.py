@@ -49,7 +49,7 @@ if not login():
 # 2. إعدادات الحالة والتبديل
 # =====================================
 if 'popover_counter' not in st.session_state:
-    st.session_state['popover_counter'] = 0
+    st.session_state.popover_counter = 0
 
 if 'system_mode' not in st.session_state:
     st.session_state['system_mode'] = "tawjihi"
@@ -331,7 +331,7 @@ with tab_search:
                 
                 # --- التعديل لحل مشكلة التكرار ---
                 # --- التعديل لضمان الثبات ومنع التكرار ---
-                with st.popover("📝 تعديل البيانات", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
+                with st.popover("📝 تعديل البيانات", key=f"pop_{row['id']}_{idx}_{st.session_state.popover_counter}"):
                         u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}_{idx}")
                         u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}_{idx}")
                         u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}_{idx}")
@@ -357,7 +357,7 @@ with tab_search:
                             u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}_{idx}")
                             u_relex = st.text_input("اسم امتحان القريب", value=row.get('relative_exam', ''), key=f"urex_{row['id']}_{idx}")
 
-                        if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}_{idx}"):
+                        if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}_{idx}_{st.session_state.popover_counter}"):
                             if st.session_state.system_mode == "tawzif":
                                 c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
