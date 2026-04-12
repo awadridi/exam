@@ -498,26 +498,28 @@ with tab_manage:
     df_export.columns = arabic_cols[:len(df_export.columns)]
     
     output_all = io.BytesIO()
-    
-    # 1. ترتيب الأعمدة برمجياً لضمان عدم حدوث خلط في البيانات
-    column_mapping = {
-        'id': 'رقم الهوية',
-        'name': 'الاسم كامل',
-        'phone': 'رقم الجوال',
-        'school': 'المدرسة',
-        'city': 'السكن',
-        'current_job': 'المهمة/الوظيفة',
-        'hall': 'القاعة',
-        'preference': 'الرغبة',
-        'ability': 'الصلاحية'
-    }
-    
-    # الترتيب الذي تريده أن يظهر في ملف الإكسل
-    desired_order = ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability']
-    existing_cols = [c for c in desired_order if c in df_export.columns]
-    df_final = df_export[existing_cols].copy()
-    df_final.rename(columns=column_mapping, inplace=True)
 
+    # 1. القاموس المرن (يحاول الربط بالاسم البرمجي أو العربي)
+    column_mapping = {
+        'id': 'رقم الهوية', 'name': 'الاسم كامل', 'phone': 'رقم الجوال',
+        'school': 'المدرسة', 'city': 'السكن', 'current_job': 'المهمة/الوظيفة',
+        'hall': 'القاعة', 'preference': 'الرغبة', 'ability': 'الصلاحية'
+    }
+
+    # 2. فحص الأعمدة المتاحة فعلياً
+    actual_cols = df_export.columns.tolist()
+    
+    # إذا كانت الأعمدة فارغة تماماً، نستخدم الأعمدة الموجودة في df_export كما هي
+    existing_cols = [c for c in ['id', 'name', 'phone', 'school', 'city', 'current_job', 'hall', 'preference', 'ability'] if c in actual_cols]
+    
+    if not existing_cols:
+        # إذا لم يجد الأسماء الإنجليزية، نأخذ البيانات كما هي (بالعربية) لضمان عدم خروج ملف فارغ
+        df_final = df_export.copy()
+    else:
+        df_final = df_export[existing_cols].copy()
+        df_final.rename(columns=column_mapping, inplace=True)
+
+    # 3. كتابة الملف وتنسيقه
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
         df_final.to_excel(writer, index=False, sheet_name='الموظفين')
         workbook = writer.book
@@ -533,21 +535,20 @@ with tab_manage:
             'align': 'right', 'valign': 'vcenter'
         })
         
-        # إعدادات الصفحة
         worksheet.right_to_left()
         worksheet.set_landscape()
         worksheet.fit_to_pages(1, 0)
         
-        # حلقة التنسيق (تأكد من إزاحة الأسطر التالية بشكل صحيح)
+        # حلقة التنسيق (تأكد من بقاء المسافات هكذا)
         for col_num, col_name in enumerate(df_final.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             
-            # حساب العرض التلقائي
+            # حساب العرض التلقائي بأمان
             column_data = df_final[col_name].astype(str).str.len()
             max_data_len = column_data.max() if not column_data.empty else 0
-            max_len = max(max_data_len, len(str(col_name))) + 7
+            max_len = max(max_data_len, len(str(col_name))) + 8
             
-            # السطر الذي كان يحتوي على الخطأ
+            # ضبط عرض العمود
             worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
    
     
