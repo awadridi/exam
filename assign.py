@@ -373,9 +373,12 @@ with tab_search:
                 c1, c2 = st.columns(2)
                 with c1:
                     current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
-                    sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()), 
-                                         index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0), 
-                                         key=f"q_h_{st.session_state.system_mode}_{row['id']}")
+                    sel_h = st.selectbox(
+                        "القاعة", 
+                        [""] + list(hall_map.keys()),
+                        index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0),
+                        key=f"q_h_{row['id']}_{time.time()}"
+                    )
                     
                     sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"], 
                                          index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
