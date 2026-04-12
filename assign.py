@@ -610,8 +610,7 @@ with tab_upload:
                 SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam
                 FROM teachers_temp
             """)
-            
-            c.execute(update_query)
+        
             
             dfh = pd.read_csv(HALLS_URL)
             dfh.to_sql('halls', conn, if_exists='replace', index=False)
