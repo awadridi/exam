@@ -367,6 +367,7 @@ with tab_search:
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state.popover_counter += 1
+                            st.cache_data.clear()
                             st.success("✅ تم الحفظ")
                             time.sleep(0.5)
                             st.rerun()
