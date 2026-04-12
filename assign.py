@@ -357,7 +357,7 @@ with tab_search:
 
                         if st.button("💾 تحديث وحفظ", key=f"save_base_{st.session_state.system_mode}_{row['id']}"):
                             if st.session_state.system_mode == "tawzif":
-                            c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
+                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? 
                                          WHERE id=?""", (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
                             else:
                                 c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? 
