@@ -529,21 +529,24 @@ with tab_manage:
         worksheet.fit_to_pages(1, 0)   # احتواء كافة الأعمدة في ورقة واحدة عرضاً
         
         # 4. ضبط عرض الأعمدة تلقائياً وتطبيق التنسيق
+        # 4. ضبط عرض الأعمدة تلقائياً وتطبيق التنسيق
         for col_num, col_name in enumerate(df_export.columns):
             # كتابة اسم العمود في الصف الأول
             worksheet.write(0, col_num, col_name, h_fmt)
             
-            # حساب أطول نص في العمود (بين البيانات واسم العمود) لضبط العرض
-            max_len = max(
-                df_export[col_name].astype(str).map(len).max(),
-                len(str(col_name))
-            ) + 5  # زيادة الهامش قليلاً لأن الخط أصبح أكبر (14 بولد)
+            # حساب طول البيانات في العمود بأمان
+            # نقوم بتحويل العمود لنصوص، ثم نحسب الطول، وإذا كان العمود فارغاً نضع 0
+            all_lengths = df_export[col_name].astype(str).str.len()
+            max_data_length = all_lengths.max() if not all_lengths.empty else 0
             
-            # تطبيق العرض المحسوب والتنسيق على العمود بالكامل
-            worksheet.set_column(col_num, col_num, max_len, c_fmt)       
-        for col_num, col_name in enumerate(df_export.columns):
-            worksheet.write(0, col_num, col_name, h_fmt)
-            worksheet.set_column(col_num, col_num, 18, c_fmt)
+            # مقارنة طول البيانات مع طول اسم العمود
+            max_len = max(max_data_length, len(str(col_name))) + 5
+            
+            # تحديد حد أقصى للعرض (مثلاً 50) حتى لا يتوسع العمود بشكل مبالغ فيه إذا كان النص طويلاً جداً
+            final_width = min(max_len, 50)
+            
+            # تطبيق العرض والتنسيق
+            worksheet.set_column(col_num, col_num, final_width, c_fmt)
     
     st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
