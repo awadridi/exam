@@ -493,11 +493,57 @@ with tab_manage:
     st.divider()
     st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
     df_export = df_all_teachers.copy()
+    # 1. إعادة ترتيب الأعمدة برمجياً لضمان تطابق البيانات مع العناوين
+    original_order = [
+        'id', 'name', 'phone', 'school', 'city', 'role', 
+        'hall', 'hall_city', 'preference', 'modified_by', 
+        'job_title', 'permissions', 'relative', 'relative_exam'
+    ]
     
-    arabic_cols = ['رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 'الموظف المعدل', 'الرغبة', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب']
-    df_export.columns = arabic_cols[:len(df_export.columns)]
+    # اختيار الأعمدة الموجودة فقط في البيانات الحالية
+    existing_cols = [c for c in original_order if c in df_export.columns]
+    df_final = df_export[existing_cols].copy()
+
+    # 2. القاموس لترجمة العناوين للعربية
+    column_mapping = {
+        'id': 'رقم الهوية', 'name': 'الاسم كامل', 'phone': 'رقم الجوال',
+        'school': 'المدرسة', 'city': 'السكن', 'role': 'المهمة المكلف بها',
+        'hall': 'القاعة', 'hall_city': 'مدينة القاعة', 'preference': 'الرغبة',
+        'modified_by': 'الموظف المعدل', 'job_title': 'الوظيفة', 
+        'permissions': 'الصلاحية', 'relative': 'قريب مباشر', 'relative_exam': 'امتحان القريب'
+    }
+    df_final.rename(columns=column_mapping, inplace=True)
+
+    # 3. إنشاء ملف الإكسل (BytesIO) مع التنسيق (خط 14 عريض)
+    output_all = io.BytesIO()
+    with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
+        df_final.to_excel(writer, index=False, sheet_name='الموظفين')
+        workbook = writer.book
+        worksheet = writer.sheets['الموظفين']
+        
+        h_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'border': 1, 'align': 'center', 'bg_color': '#D7E4BC'})
+        c_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'border': 1, 'align': 'right'})
+        
+        worksheet.right_to_left()
+        worksheet.set_landscape()
+        worksheet.fit_to_pages(1, 0)
+        
+        for col_num, col_name in enumerate(df_final.columns):
+            worksheet.write(0, col_num, col_name, h_fmt)
+            column_data = df_final[col_name].astype(str).str.len()
+            max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 7
+            worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
+
+    # 4. وضع زر التحميل هنا (بعد الانتهاء من إنشاء output_all)
+    st.download_button(
+        label="📥 تحميل إكسل معدل",
+        data=output_all.getvalue(),
+        file_name=f"كشف_عام_{datetime.now().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+   
     
-    st.download_button("📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_معدل_{st.session_state.system_mode}_{datetime.now().strftime('%Y%m%d')}.xlsx")
+   
 
     st.divider()
     assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
