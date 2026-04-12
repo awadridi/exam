@@ -482,30 +482,30 @@ with tab_auto:
             st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
             time.sleep(1)
             st.rerun()
-            st.divider()
-    st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
-
-        df_managers = df_all[
-        (df_all['current_job'] == 'مدير مدرسة') &
-        (df_all['preference'] == 'يرغب') &
-        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
-    ]
-    df_secretaries = df_all[
-        (df_all['current_job'] == 'سكرتير') &
-        (df_all['preference'] == 'يرغب') &
-        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
-    ]
-    df_janitors = df_all[
-        (df_all['current_job'] == 'آذن') &
-        (df_all['preference'] == 'يرغب') &
-        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
-    ]
-
-    col_r1, col_r2 = st.columns(2)
-    with col_r1:
-        target_h2 = st.selectbox("اختر القاعة:", [""] + list(hall_map_auto.keys()), key="role_target_h")
-    with col_r2:
-        st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
+                    st.divider()
+            st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
+        
+                df_managers = df_all[
+                (df_all['current_job'] == 'مدير مدرسة') &
+                (df_all['preference'] == 'يرغب') &
+                (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+            ]
+            df_secretaries = df_all[
+                (df_all['current_job'] == 'سكرتير') &
+                (df_all['preference'] == 'يرغب') &
+                (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+            ]
+            df_janitors = df_all[
+                (df_all['current_job'] == 'آذن') &
+                (df_all['preference'] == 'يرغب') &
+                (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+            ]
+        
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                target_h2 = st.selectbox("اختر القاعة:", [""] + list(hall_map_auto.keys()), key="role_target_h")
+            with col_r2:
+                st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
     if target_h2:
         col_s1, col_s2, col_s3 = st.columns(3)
