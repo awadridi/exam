@@ -566,18 +566,13 @@ with tab_upload:
             # 3. تحديث البيانات الأساسية فقط والحفاظ على القاعات والتكليفات
             # هذا الاستعلام يضيف الموظفين الجدد ويحدث بيانات الموجودين دون المساس بـ (hall, role, hall_city)
             update_query = """
-                INSERT INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam)
-                SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam FROM teachers_temp
-                ON CONFLICT(id) DO UPDATE SET
-                    name = excluded.name,
-                    phone = excluded.phone,
-                    school = excluded.school,
-                    city = excluded.city,
-                    current_job = excluded.current_job,
-                    preference = excluded.preference,
-                    ability = excluded.ability,
-                    relative = excluded.relative,
-                    relative_exam = excluded.relative_exam
+                INSERT OR REPLACE INTO teachers 
+                (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, hall, role, hall_city, updated_by)
+                SELECT 
+                    t.id, t.name, t.phone, t.school, t.city, t.current_job, t.preference, t.ability, t.relative, t.relative_exam,
+                    COALESCE(old.hall, ''), COALESCE(old.role, ''), COALESCE(old.hall_city, ''), COALESCE(old.updated_by, '')
+                FROM teachers_temp t
+                LEFT JOIN teachers old ON t.id = old.id
             """
             c.execute(update_query)
             
