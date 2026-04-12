@@ -153,7 +153,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS logs
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
 conn.commit()
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10)
 def get_cached_teachers():
     return pd.read_sql("SELECT * FROM teachers", conn)
 
