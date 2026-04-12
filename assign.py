@@ -583,25 +583,34 @@ with tab_manage:
                     workbook = writer.book
                     worksheet = writer.sheets['كشف_القاعة']
                     
-                    # 1. تعريف التنسيقات (الرأس والحدود)
+                    # 1. تعريف التنسيقات
                     h_fmt = workbook.add_format({
                         'bold': True, 'font_size': 14, 'border': 1, 
                         'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
                     })
                     c_fmt = workbook.add_format({
-                        'bold': True, 'font_size': 14, 'border': 1,
-                        'border': 1, 'align': 'right', 'valign': 'vcenter'
+                        'bold': False, 'font_size': 12, 'border': 1,
+                        'align': 'right', 'valign': 'vcenter'
                     })
                     
                     # 2. إعدادات اتجاه الصفحة والطباعة
-                    worksheet.right_to_left()      # من اليمين لليسار
-                    worksheet.set_landscape()      # طباعة أفقية
-                    worksheet.fit_to_pages(1, 0)   # احتواء الأعمدة في ورقة واحدة
+                    worksheet.right_to_left()
+                    worksheet.set_landscape()
+                    worksheet.fit_to_pages(1, 0)
                     
-                    # 3. تطبيق التنسيق على العناوين والأعمدة
+                    # 3. تطبيق التنسيق وضبط عرض الأعمدة تلقائياً
                     for col_num, col_name in enumerate(df_final_export.columns):
+                        # كتابة العنوان بتنسيق الرأس
                         worksheet.write(0, col_num, col_name, h_fmt)
-                        worksheet.set_column(col_num, col_num, 20, c_fmt)
+                        
+                        # حساب أقصى طول في العمود الحالي (بين اسم العمود والبيانات)
+                        column_length = max(
+                            df_final_export[col_name].astype(str).map(len).max(),
+                            len(str(col_name))
+                        ) + 4 # زيادة بسيطة للهامش
+                        
+                        # ضبط عرض العمود بناءً على الطول المحسوب وتطبيق التنسيق
+                        worksheet.set_column(col_num, col_num, column_length, c_fmt)
                 
                 st.download_button(f"📊 كشف إكسل {h_choice}", data=output_hall_excel.getvalue(), file_name=f"كشف_{h_choice}.xlsx")
 
