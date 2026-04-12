@@ -331,7 +331,7 @@ with tab_search:
                 
                 # --- التعديل لحل مشكلة التكرار ---
                 # --- التعديل لضمان الثبات ومنع التكرار ---
-                with st.popover("📝 تعديل البيانات الأساسية", key=f"pop_{st.session_state.system_mode}_{row['id']}_{idx}"):
+                with st.popover("📝 تعديل البيانات", key=f"pop_{row['id']}_{st.session_state.popover_counter}"):
                         u_name = st.text_input("الاسم", value=row['name'], key=f"un_{st.session_state.system_mode}_{row['id']}_{idx}")
                         u_phone = st.text_input("رقم الجوال", value=display_phone, key=f"up_{st.session_state.system_mode}_{row['id']}_{idx}")
                         u_school = st.text_input("المدرسة", value=row['school'], key=f"us_{st.session_state.system_mode}_{row['id']}_{idx}")
@@ -367,7 +367,6 @@ with tab_search:
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state.popover_counter += 1
-                            st.cache_data.clear()
                             st.success("✅ تم الحفظ")
                             time.sleep(0.5)
                             st.rerun()
