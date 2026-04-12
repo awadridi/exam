@@ -499,35 +499,33 @@ with tab_manage:
     
     output_all = io.BytesIO()
     
-    # 1. تعريف الترتيب الصحيح للأعمدة بناءً على ملاحظاتك
-    # هذا الترتيب يضمن وضع كل معلومة في مكانها الصحيح في الإكسل
-    correct_order = [
-        'id',               # رقم الهوية
-        'name',             # الاسم كامل
-        'phone',            # رقم الجوال (كان يظهر مكانه المدرسة)
-        'school',           # المدرسة (كان يظهر مكانها السكن)
-        'city',             # السكن (كان يظهر مكانه رقم الجوال)
-        'role',             # المهمة المكلف بها
-        'hall_name',        # القاعة
-        'hall_city',        # مدينة القاعة
-        'preference',       # الرغبة
-        'modified_by',      # الموظف المعدل
-        'job_title',        # الوظيفة
-        'permissions',      # الصلاحية
-        'relative',         # قريب مباشر
-        'relative_exam'     # امتحان القريب
+    # 1. الترتيب الصحيح للأعمدة (بالأسماء العربية كما تظهر في بياناتك)
+    # ملاحظة: تأكد أن هذه الأسماء مطابقة تماماً لما يظهر في الجدول عندك
+    correct_order_arabic = [
+        'رقم الهوية', 
+        'الاسم كامل', 
+        'رقم الجوال', 
+        'المدرسة', 
+        'السكن', 
+        'المهمة المكلف بها', 
+        'القاعة', 
+        'مدينة القاعة', 
+        'الرغبة', 
+        'الموظف المعدل', 
+        'الوظيفة', 
+        'الصلاحية', 
+        'قريب مباشر', 
+        'امتحان القريب'
     ]
     
-    # إعادة ترتيب الـ DataFrame بناءً على القائمة أعلاه
-    # ملاحظة: تأكد أن أسماء الأعمدة بالإنجليزية (id, name, etc.) تطابق الموجود في قاعدة بياناتك
-    df_export_ordered = df_export[correct_order].copy()
-
-    # 2. إعادة تسمية الأعمدة للعربية لتظهر كعناوين في ملف الإكسل
-    df_export_ordered.columns = [
-        'رقم الهوية', 'الاسم كامل', 'رقم الجوال', 'المدرسة', 
-        'السكن', 'المهمة المكلف بها', 'القاعة', 'مدينة القاعة', 
-        'الرغبة', 'الموظف المعدل', 'الوظيفة', 'الصلاحية', 'قريب مباشر', 'امتحان القريب'
-    ]
+    # محاولة إعادة الترتيب بأمان
+    try:
+        # سنأخذ فقط الأعمدة الموجودة فعلياً في df_export لتجنب أي KeyError
+        existing_columns = [col for col in correct_order_arabic if col in df_export.columns]
+        df_export_ordered = df_export[existing_columns].copy()
+    except Exception as e:
+        # في حال حدوث خطأ مفاجئ، استخدم البيانات كما هي
+        df_export_ordered = df_export.copy()
 
     with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
         df_export_ordered.to_excel(writer, index=False, sheet_name='الموظفين')
@@ -549,15 +547,15 @@ with tab_manage:
         worksheet.set_landscape()
         worksheet.fit_to_pages(1, 0)
         
-        # ضبط عرض الأعمدة تلقائياً
+        # ضبط عرض الأعمدة تلقائياً وتنسيقها
         for col_num, col_name in enumerate(df_export_ordered.columns):
             worksheet.write(0, col_num, col_name, h_fmt)
             
             # حساب الطول بأمان
-            all_lengths = df_export_ordered[col_name].astype(str).str.len()
-            max_data_len = all_lengths.max() if not all_lengths.empty else 0
+            column_data = df_export_ordered[col_name].astype(str).str.len()
+            max_data_len = column_data.max() if not column_data.empty else 0
             
-            # العرض المناسب مع هامش إضافي للخط العريض
+            # عرض يتناسب مع الخط 14 Bold
             actual_width = max(max_data_len, len(str(col_name))) + 6
             worksheet.set_column(col_num, col_num, min(actual_width, 50), c_fmt)
     
