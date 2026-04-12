@@ -676,11 +676,12 @@ with tab_manage:
                     worksheet.set_landscape()
                     worksheet.fit_to_pages(1, 0)
                     
-                    # 3. دمج الخلايا B, C, D, E في السطر الأول (السطر 0)
-                    # الأعمدة: B=1, C=2, D=3, E=4
-                    worksheet.merge_range(0, 1, 0, 4, f"بيانات قاعة: {h_choice}", title_fmt)
-                    worksheet.set_row(0, 30) # زيادة ارتفاع السطر الأول ليتناسب مع الخط الكبير
-
+                                        # 3. دمج الخلايا من A إلى G في السطر الأول (السطر 0)
+                    # الأعمدة: A=0, B=1, C=2, D=3, E=4, F=5, G=6
+                    header_text = f"بيانات قاعة: {h_choice}"
+                    worksheet.merge_range(0, 0, 0, 6, header_text, title_fmt)
+                    worksheet.set_row(0, 35) # زيادة الطول قليلاً ليعطي فخامة للعنوان
+                   
                     # 4. تطبيق التنسيق وضبط عرض الأعمدة تلقائياً
                     for col_num, col_name in enumerate(df_final_export.columns):
                         # تعديل: كتابة أسماء الأعمدة في السطر الثاني (رقم 1)
