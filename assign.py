@@ -939,8 +939,8 @@ if st.session_state.get('system_mode') == "tasheeh":
             
             if st.button("🚀 توزيع المصححين", type="primary", use_container_width=True):
                 # استبعاد المعلمين الذين لديهم قريب مباشر (relative == TRUE)
-                    teachers_filtered = teachers[teachers['relative'].astype(str).str.lower() != 'true']
-                    pool = teachers_filtered[teachers_filtered['subject'] == subj_sel] if subj_sel else teachers_filtered
+                teachers_filtered = teachers[teachers['relative'].astype(str).str.lower() != 'true']
+                pool = teachers_filtered[teachers_filtered['subject'] == subj_sel] if subj_sel else teachers_filtered
                 assignments = []
                 for _, t in pool.iterrows():
                     h_pool = halls[halls['ZHALL'] == hall_sel] if hall_sel else halls[halls['ZLOC'] == t.get('city', '')] 
