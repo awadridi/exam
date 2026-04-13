@@ -295,8 +295,7 @@ with header_col2:
         st.rerun()
 
 st.divider()
-# إذا كان النظام في وضع التصحيح، لا تعرض التبويبات الأصلية
-if st.session_state.get('system_mode') == "tasheeh":
+# إذا كان النظام في وضع التصحيح، لا تعرض التبويبات الأصلي
     
 tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
