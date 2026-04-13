@@ -65,9 +65,9 @@ if st.session_state['system_mode'] == "tawjihi":
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
     PAGE_TITLE = "نظام التكليفات امتحان الثانوية العامة "
-elif st.session_state['system_mode'] == "tasheeh":
+eelif st.session_state['system_mode'] == "tasheeh":
     DB_NAME = "data_tasheeh.db"
-    TEMPLATE_NAME = "template.docx"
+    TEMPLATE_NAME = "template_tasheeh.docx"  # 👈 اسم جديد خاص بقالب التصحيح
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRVP8cQV8GHlaWXETc9rGzteNwDVPg8iyyZ9zCXFq-J1_t0q4sxveFchsN5XbuTiZgJBeTpC3VBMc7k/pub?gid=0&single=true&output=csv"
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRVP8cQV8GHlaWXETc9rGzteNwDVPg8iyyZ9zCXFq-J1_t0q4sxveFchsN5XbuTiZgJBeTpC3VBMc7k/pub?gid=1885970999&single=true&output=csv"
     PAGE_TITLE = "نظام تصحيح الثانوية العامة"
@@ -751,8 +751,30 @@ if st.session_state.get('system_mode') == "tasheeh":
         "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات"
     ])
     
-    with corr_tab1:
-        st.markdown("### 📋 الأعمدة المطلوبة: رقم الهوية، الاسم، المبحث، مكان السكن، المدرسة، الجوال")
+        with corr_tab1:
+        st.markdown("### 📥 رفع البيانات وقالب التكليف")
+        
+        # 🔴 زر رفع قالب الوورد الخاص بالتصحيح
+        st.markdown("**1️⃣ رفع قالب وورد التصحيح (مطلوب لمرة واحدة)**")
+        st.caption("يجب أن يحتوي القالب على الرموز: ZNAME, ZID, ZHALL, ZLOC, ZTEST, ZWORK, ZCITY")
+        
+        uploaded_tasheeh_tpl = st.file_uploader(
+            "📄 اختر ملف القالب (template_tasheeh.docx)", 
+            type="docx", 
+            key="tasheeh_tpl_uploader_unique"
+        )
+        
+        if uploaded_tasheeh_tpl is not None:
+            try:
+                with open(TEMPLATE_NAME, "wb") as f:
+                    f.write(uploaded_tasheeh_tpl.getbuffer())
+                st.success("✅ تم حفظ قالب التصحيح بنجاح! سيتم استخدامه فوراً في إنشاء الكتب.")
+                st.cache_data.clear()
+            except Exception as e:
+                st.error(f"❌ خطأ أثناء حفظ القالب: {e}")
+        
+        st.divider()
+        st.markdown("**2️⃣ تحميل بيانات المعلمين والقاعات**")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🔄 تحميل المعلمين من Google Sheets", use_container_width=True):
