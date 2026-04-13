@@ -642,80 +642,170 @@ with tab_manage:
     c_m3.metric("المتبقي", remaining_count)
     
     st.divider()
+    st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
+    df_export = df_all_teachers.copy()
+    original_order = [
+        'id', 'name', 'phone', 'school', 'city', 'role', 
+        'hall', 'hall_city', 'preference', 'modified_by', 
+        'job_title', 'permissions', 'relative', 'relative_exam'
+    ]
+    
+    existing_cols = [c for c in original_order if c in df_export.columns]
+    df_final = df_export[existing_cols].copy()
 
-    # =====================================
-    # إضافة نظام البحث حسب القاعة (جديد)
-    # =====================================
-    st.markdown('<h3 class="move-to-right">🏫 استعراض وتصدير بيانات القاعة</h3>', unsafe_allow_html=True)
-    
-    df_h_list = get_cached_halls()
-    selected_hall_view = st.selectbox("اختر القاعة لعرض الموظفين المكلفين بها:", [""] + sorted(df_h_list['hall_name'].tolist()), key="view_hall_select")
-    
-    if selected_hall_view:
-        # تصفية المعلمين حسب القاعة المختارة
-        hall_teachers = df_all_teachers[df_all_teachers['hall'] == selected_hall_view].copy()
+    column_mapping = {
+        'id': 'رقم الهوية', 'name': 'الاسم كامل', 'phone': 'رقم الجوال',
+        'school': 'المدرسة', 'city': 'السكن', 'role': 'المهمة المكلف بها',
+        'hall': 'القاعة', 'hall_city': 'مدينة القاعة', 'preference': 'الرغبة',
+        'modified_by': 'الموظف المعدل', 'job_title': 'الوظيفة', 
+        'permissions': 'الصلاحية', 'relative': 'قريب مباشر', 'relative_exam': 'امتحان القريب'
+    }
+    df_final.rename(columns=column_mapping, inplace=True)
+
+    output_all = io.BytesIO()
+    with pd.ExcelWriter(output_all, engine='xlsxwriter') as writer:
+        df_final.to_excel(writer, index=False, sheet_name='الموظفين')
+        workbook = writer.book
+        worksheet = writer.sheets['الموظفين']
         
-        if not hall_teachers.empty:
-            st.write(f"عدد المكلفين في هذه القاعة: {len(hall_teachers)}")
-            
-            # عرض الجدول
-            display_cols = ['id', 'name', 'phone', 'school', 'role']
-            st.dataframe(hall_teachers[display_cols], use_container_width=True)
-            
-            col_exp1, col_exp2 = st.columns(2)
-            
-            with col_exp1:
-                # تصدير وورد مجمع للقاعة
-                if st.button("📂 إنشاء كتاب مجمع (Word)", key="bulk_word_btn"):
-                    with st.spinner("جاري إنشاء الملف..."):
-                        bulk_doc = generate_bulk_word(hall_teachers, selected_hall_view)
-                        if bulk_doc:
-                            st.download_button(
-                                label="📥 تحميل الكتاب المجمع",
-                                data=bulk_doc,
-                                file_name=f"تكليفات_قاعة_{selected_hall_view}.docx",
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                            )
-            
-            with col_exp2:
-                # تصدير اكسل للقاعة
-                excel_bio = io.BytesIO()
-                with pd.ExcelWriter(excel_bio, engine='xlsxwriter') as writer:
-                    hall_teachers[display_cols].to_excel(writer, index=False, sheet_name='Sheet1')
-                excel_bio.seek(0)
-                st.download_button(
-                    label="📊 تصدير القاعة (Excel)",
-                    data=excel_bio,
-                    file_name=f"موظفين_قاعة_{selected_hall_view}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        else:
-            st.info("لا يوجد موظفين مكلفين لهذه القاعة حتى الآن.")
+        h_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'border': 1, 'align': 'center', 'bg_color': '#D7E4BC'})
+        c_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'border': 1, 'align': 'right'})
+        
+        worksheet.right_to_left()
+        worksheet.set_landscape()
+        worksheet.fit_to_pages(1, 0)
+        
+        for col_num, col_name in enumerate(df_final.columns):
+            worksheet.write(0, col_num, col_name, h_fmt)
+            column_data = df_final[col_name].astype(str).str.len()
+            max_len = max(column_data.max() if not column_data.empty else 0, len(str(col_name))) + 7
+            worksheet.set_column(col_num, col_num, min(max_len, 50), c_fmt)
+
+    st.download_button(
+        label="📥 تحميل إكسل معدل",
+        data=output_all.getvalue(),
+        file_name=f"كشف_عام_{datetime.now().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
     st.divider()
-    st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة (الكل)</h3>', unsafe_allow_html=True)
-    df_export = df_all_teachers.copy()
+    assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
     
-    # تحويل الهاتف لعرضه بشكل صحيح في الاكسل
-    def format_phone_excel(p):
-        p = str(p)
-        if p.startswith('5') and len(p) == 9: return '0' + p
-        return p
-    df_export['phone'] = df_export['phone'].apply(format_phone_excel)
+    if assigned_halls:
+        h_choice = st.selectbox("اختر قاعة لعرض الكادر والإحصائيات:", [""] + assigned_halls)
+        if h_choice:
+            df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice].copy()
+            
+            st.markdown(f'<h4 class="move-to-right">🔢 معداد قاعة: {h_choice}</h4>', unsafe_allow_html=True)
+            m1, m2, m3, m4 = st.columns(4)
+            with m1: st.markdown(f'<div class="counter-card"><div class="counter-label">رئيس قاعة</div><div class="counter-value">{len(df_hall_details[df_hall_details["role"] == "رئيس قاعة"])}</div></div>', unsafe_allow_html=True)
+            with m2: st.markdown(f'<div class="counter-card"><div class="counter-label">مساعد رئيس</div><div class="counter-value">{len(df_hall_details[df_hall_details["role"] == "مساعد رئيس قاعة"])}</div></div>', unsafe_allow_html=True)
+            with m3: st.markdown(f'<div class="counter-card"><div class="counter-label">مراقب</div><div class="counter-value">{len(df_hall_details[df_hall_details["role"] == "مراقب"])}</div></div>', unsafe_allow_html=True)
+            with m4: st.markdown(f'<div class="counter-card"><div class="counter-label">آذن</div><div class="counter-value">{len(df_hall_details[df_hall_details["role"] == "آذن"])}</div></div>', unsafe_allow_html=True)
+            
+            st.divider()
+            
+            if not df_hall_details.empty:
+                df_to_show = df_hall_details[['name', 'role', 'school', 'city', 'phone']].copy()
+                df_to_show.insert(0, 'م', range(1, 1 + len(df_to_show)))
+                df_to_show.columns = ['الرقم', 'الاسم', 'المهمة', 'المدرسة', 'السكن', 'الجوال']
+                
+                styled_df = df_to_show.style.set_properties(**{
+                    'text-align': 'right',
+                    'direction': 'rtl'
+                }).hide(axis="index")
+                
+                st.markdown(styled_df.to_html(), unsafe_allow_html=True)
 
-    col_ex1, col_ex2 = st.columns(2)
-    with col_ex1:
-        st.write("تصدير جميع البيانات (المكلفين وغير المكلفين)")
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_export.to_excel(writer, index=False, sheet_name='Data')
-        output.seek(0)
-        st.download_button("📊 تحميل ملف Excel الشامل", data=output, file_name="all_data_modified.xlsx")
+            st.markdown("<br>", unsafe_allow_html=True)
+            col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
+            
+            with col_btns1:
+                if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
+                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
+                    conn.commit()
+                    add_log("تفريغ قاعة", f"تم مسح كافة تكليفات قاعة {h_choice}")
+                    st.success("تم تفريغ القاعة")
+                    time.sleep(0.5)
+                    st.rerun()
+            
+            with col_btns2:
+                if st.button(f"📄 إنشاء كتب قاعة {h_choice}", key=f"gen_bulk_{h_choice}"):
+                    bulk_f = generate_bulk_word(df_hall_details, h_choice)
+                    if bulk_f: 
+                        st.download_button("📥 تحميل الوورد", data=bulk_f, file_name=f"تكليفات_{h_choice}.docx")
+            
+            with col_btns3:
+                output_hall_excel = io.BytesIO()
+                df_hall_excel = df_hall_details.copy()
+                df_hall_excel.insert(0, 'الرقم', range(1, 1 + len(df_hall_excel)))
+                df_final_export = df_hall_excel[['الرقم', 'name', 'id', 'phone', 'school', 'role', 'city']]
+                df_final_export.columns = ['الرقم', 'الاسم الرباعي', 'رقم الهوية', 'رقم الجوال', 'المدرسة', 'المهمة', 'العنوان']
 
-# =====================================
-# 5. سجل العمليات
-# =====================================
+                with pd.ExcelWriter(output_hall_excel, engine='xlsxwriter') as writer:
+                    df_final_export.to_excel(writer, index=False, sheet_name='كشف_القاعة', startrow=1)
+                    
+                    workbook = writer.book
+                    worksheet = writer.sheets['كشف_القاعة']
+                    
+                    title_fmt = workbook.add_format({
+                        'bold': True, 'font_size': 20, 'border': 1,
+                        'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
+                    })
+                    
+                    h_fmt = workbook.add_format({
+                        'bold': True, 'font_size': 14, 'border': 1, 
+                        'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE'
+                    })
+                    
+                    c_fmt = workbook.add_format({
+                        'bold': True, 'font_size': 14, 'border': 1,
+                        'align': 'right', 'valign': 'vcenter'
+                    })
+                    
+                    worksheet.right_to_left()
+                    worksheet.set_landscape()
+                    worksheet.fit_to_pages(1, 0)
+                    
+                    header_text = f"بيانات قاعة: {h_choice}"
+                    worksheet.merge_range(0, 0, 0, 6, header_text, title_fmt)
+                    worksheet.set_row(0, 35)
+                   
+                    for col_num, col_name in enumerate(df_final_export.columns):
+                        worksheet.write(1, col_num, col_name, h_fmt)
+                        
+                        column_length = max(
+                            df_final_export[col_name].astype(str).map(len).max(),
+                            len(str(col_name))
+                        ) + 4
+                        
+                        worksheet.set_column(col_num, col_num, column_length, c_fmt)
+
+                add_log("تصدير إكسل", f"تحميل كشف قاعة: {h_choice}")
+                
+                st.download_button(
+                    label=f"📊 كشف إكسل {h_choice}",
+                    data=output_hall_excel.getvalue(),
+                    file_name=f"كشف_{h_choice}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"dl_xl_{h_choice}_export"
+                )
+
 with tab_logs:
-    st.markdown('<h2 class="move-to-right">📜 سجل العمليات الأخير</h2>', unsafe_allow_html=True)
-    logs_df = pd.read_sql("SELECT * FROM logs ORDER BY id DESC LIMIT 100", conn)
-    st.table(logs_df)
+    st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
+    if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
+        try:
+            c.execute("DELETE FROM logs")
+            conn.commit()
+            st.success("✅ تم مسح سجل العمليات بالكامل")
+            time.sleep(0.5)
+            st.rerun()
+        except Exception as e:
+            st.error(f"خطأ أثناء الحذف: {e}")
+
+    st.divider()
+    df_l = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs ORDER BY id DESC LIMIT 100", conn)
+    if not df_l.empty:
+        st.dataframe(df_l, use_container_width=True)
+    else:
+        st.info("سجل العمليات فارغ حالياً.")
