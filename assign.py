@@ -809,3 +809,114 @@ with tab_logs:
         st.dataframe(df_l, use_container_width=True)
     else:
         st.info("سجل العمليات فارغ حالياً.")
+
+# >>>>>> بداية كود دمج تبويب التصحيح - لا تعدل ما قبله <<<<<<
+
+def add_correction_tab(parent_notebook):
+    """
+    دالة لإضافة تبويب التصحيح للنظام الحالي
+    تستخدم فقط: parent_notebook (العنصر الأب للتبويبات)
+    """
+    import tkinter as tk
+    from tkinter import ttk, filedialog, messagebox
+    
+    # إنشاء التبويب الجديد
+    correction_tab = ttk.Frame(parent_notebook)
+    parent_notebook.add(correction_tab, text="✨ التصحيح")
+    
+    # تهيئة النظام المستقل
+    from correction_system import CorrectionSystem
+    system = CorrectionSystem()
+    
+    # === واجهة رفع البيانات ===
+    upload_frame = ttk.LabelFrame(correction_tab, text="📤 رفع البيانات")
+    upload_frame.pack(padx=10, pady=5, fill="x")
+    
+    def load_teachers_file():
+        path = filedialog.askopenfilename(filetypes=[("Excel/CSV", "*.xlsx *.csv")])
+        if path and system.load_teachers(path):
+            messagebox.showinfo("نجاح", "✅ تم رفع ملف المعلمين")
+    
+    def load_halls_file():
+        path = filedialog.askopenfilename(filetypes=[("Excel/CSV", "*.xlsx *.csv")])
+        if path and system.load_halls(path):
+            messagebox.showinfo("نجاح", "✅ تم رفع ملف القاعات")
+    
+    ttk.Button(upload_frame, text="📋 رفع ملف المعلمين", command=load_teachers_file).pack(side="left", padx=5)
+    ttk.Button(upload_frame, text="🏛️ رفع ملف القاعات", command=load_halls_file).pack(side="left", padx=5)
+    
+    # === واجهة التوزيع التلقائي ===
+    assign_frame = ttk.LabelFrame(correction_tab, text="🔄 التوزيع التلقائي")
+    assign_frame.pack(padx=10, pady=5, fill="x")
+    
+    hall_var = tk.StringVar()
+    subject_var = tk.StringVar()
+    
+    ttk.Label(assign_frame, text="اختر القاعة (اختياري):").pack(side="left")
+    hall_combo = ttk.Combobox(assign_frame, textvariable=hall_var, state="readonly", width=25)
+    hall_combo.pack(side="left", padx=5)
+    
+    ttk.Label(assign_frame, text="اختر المبحث (اختياري):").pack(side="left")
+    subject_combo = ttk.Combobox(assign_frame, textvariable=subject_var, state="readonly", width=20)
+    subject_combo.pack(side="left", padx=5)
+    
+    def update_combos():
+        if system.halls_df is not None:
+            hall_combo['values'] = list(system.halls_df['ZHALL'].unique())
+        if system.teachers_df is not None:
+            subject_combo['values'] = list(system.teachers_df['subject'].unique())
+    
+    ttk.Button(assign_frame, text="🔄 تحديث القوائم", command=update_combos).pack(side="left", padx=5)
+    
+    def run_assignment():
+        hall = hall_var.get() if hall_var.get() else None
+        subject = subject_var.get() if subject_var.get() else None
+        if system.auto_assign(selected_hall=hall, selected_subject=subject):
+            messagebox.showinfo("نجاح", f"✅ تم توزيع {len(system.assignments)} معلم/معلمة")
+        else:
+            messagebox.showerror("خطأ", "❌ فشل التوزيع - تأكد من رفع البيانات أولاً")
+    
+    ttk.Button(assign_frame, text="🚀 بدء التوزيع", command=run_assignment).pack(side="left", padx=10)
+    
+    # === واجهة التصدير ===
+    export_frame = ttk.LabelFrame(correction_tab, text="📤 تصدير الكتب")
+    export_frame.pack(padx=10, pady=5, fill="x")
+    
+    def export_words():
+        if system.generate_word_letters():
+            messagebox.showinfo("نجاح", "✅ تم تصدير كتب التكليف (مجلد: تكاليف_التصحيح)")
+    
+    def export_excel():
+        if system.export_assignments_excel():
+            messagebox.showinfo("نجاح", "✅ تم تصدير ملف الإكسل الشامل")
+    
+    ttk.Button(export_frame, text="📄 تصدير وورد (أفراد)", command=export_words).pack(side="left", padx=5)
+    ttk.Button(export_frame, text="📊 تصدير إكسل (شامل)", command=export_excel).pack(side="left", padx=5)
+    
+    # === سجل العمليات ===
+    log_frame = ttk.LabelFrame(correction_tab, text="📜 سجل العمليات")
+    log_frame.pack(padx=10, pady=5, fill="both", expand=True)
+    
+    log_text = tk.Text(log_frame, height=10, state="disabled")
+    log_text.pack(fill="both", expand=True, padx=5, pady=5)
+    
+    def refresh_log():
+        log_text.config(state="normal")
+        log_text.delete("1.0", tk.END)
+        for entry in system.get_operations_log():
+            log_text.insert(tk.END, f"[{entry['timestamp']}] {entry['level'].upper()}: {entry['message']}\n")
+        log_text.config(state="disabled")
+    
+    ttk.Button(log_frame, text="🔄 تحديث السجل", command=refresh_log).pack(pady=2)
+    
+    # تحديث القوائم تلقائياً عند فتح التبويب
+    def on_tab_selected(event):
+        if parent_notebook.tab(parent_notebook.select(), "text") == "✨ التصحيح":
+            update_combos()
+            refresh_log()
+    
+    parent_notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
+    
+    return correction_tab
+
+# >>>>>> نهاية كود دمج تبويب التصحيح <<<<<<
