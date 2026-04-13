@@ -473,17 +473,17 @@ with tab_auto:
     df_managers = df_all[
         (df_all['current_job'] == 'مدير مدرسة') &
         (df_all['preference'] == 'يرغب') &
-        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+        ((df_all['hall'].isna()) | (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None', 'NaN'])))
     ]
     df_secretaries = df_all[
         (df_all['current_job'] == 'سكرتير') &
         (df_all['preference'] == 'يرغب') &
-        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+        ((df_all['hall'].isna()) | (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None', 'NaN'])))
     ]
     df_janitors = df_all[
         (df_all['current_job'] == 'آذن') &
         (df_all['preference'] == 'يرغب') &
-        (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None']))
+        ((df_all['hall'].isna()) | (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None', 'NaN'])))
     ]
 
     target_h2 = ""
