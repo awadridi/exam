@@ -562,9 +562,9 @@ with tab_upload:
             st.error(f"خطأ: {e}")
 
     if st.button("🔍 فحص قيم الوظائف"):
-    df_check = get_cached_teachers()
-    st.write("القيم الموجودة في عمود current_job:")
-    st.write(df_check['current_job'].unique().tolist())
+        df_check = get_cached_teachers()
+        st.write("القيم الموجودة في عمود current_job:")
+        st.write(df_check['current_job'].unique().tolist())
 
     if st.button("🔄 تحديث من Google Sheets"):
         try:
