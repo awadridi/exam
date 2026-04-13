@@ -65,7 +65,7 @@ if st.session_state['system_mode'] == "tawjihi":
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
     PAGE_TITLE = "نظام التكليفات امتحان الثانوية العامة "
-eelif st.session_state['system_mode'] == "tasheeh":
+elif st.session_state['system_mode'] == "tasheeh":
     DB_NAME = "data_tasheeh.db"
     TEMPLATE_NAME = "template_tasheeh.docx"  # 👈 اسم جديد خاص بقالب التصحيح
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRVP8cQV8GHlaWXETc9rGzteNwDVPg8iyyZ9zCXFq-J1_t0q4sxveFchsN5XbuTiZgJBeTpC3VBMc7k/pub?gid=0&single=true&output=csv"
