@@ -574,10 +574,10 @@ with tab_upload:
             
             dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
             # حذف من لم يعد موجوداً في الاكسل
-                ids_in_sheet = dft['id'].astype(str).tolist()
-                placeholders = ','.join(['?' for _ in ids_in_sheet])
-                c.execute(f"DELETE FROM teachers WHERE id NOT IN ({placeholders})", ids_in_sheet)
-                conn.commit()
+            ids_in_sheet = dft['id'].astype(str).tolist()
+            placeholders = ','.join(['?' for _ in ids_in_sheet])
+            c.execute(f"DELETE FROM teachers WHERE id NOT IN ({placeholders})", ids_in_sheet)
+            conn.commit()
             
             if st.session_state['system_mode'] == 'tawjihi':
                 c.execute("""
