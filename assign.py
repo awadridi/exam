@@ -842,7 +842,8 @@ if st.session_state.get('system_mode') == "tasheeh":
             df.columns = df.columns.str.strip().str.lower()
             rename_map = {
                 'رقم الهوية': 'id', 'الاسم': 'name', 'المبحث': 'subject',
-                'مكان سكن المعلم': 'city', 'اسم المدرسة': 'school', 'رقم جواله': 'phone'
+                'مكان سكن المعلم': 'city', 'اسم المدرسة': 'school', 'رقم جواله': 'phone',
+                'هل له قريب مباشر او لا': 'relative'  # ← أضف هذا السطر فقط
             }
             df = df.rename(columns={k:v for k,v in rename_map.items() if k in df.columns})
             return df
@@ -937,7 +938,9 @@ if st.session_state.get('system_mode') == "tasheeh":
             exam_name = st.text_input("اسم الامتحان:", "امتحان الثانوية العامة 2026")
             
             if st.button("🚀 توزيع المصححين", type="primary", use_container_width=True):
-                pool = teachers[teachers['subject'] == subj_sel] if subj_sel else teachers
+                # استبعاد المعلمين الذين لديهم قريب مباشر (relative == TRUE)
+                    teachers_filtered = teachers[teachers['relative'].astype(str).str.lower() != 'true']
+                    pool = teachers_filtered[teachers_filtered['subject'] == subj_sel] if subj_sel else teachers_filtered
                 assignments = []
                 for _, t in pool.iterrows():
                     h_pool = halls[halls['ZHALL'] == hall_sel] if hall_sel else halls[halls['ZLOC'] == t.get('city', '')] 
