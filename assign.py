@@ -295,24 +295,26 @@ with header_col2:
         st.rerun()
 
 st.divider()
-# إذا كان النظام في وضع التصحيح، لا تعرض التبويبات الأصلي
-    
-tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
 
-with tab_search:
-    st.markdown(f'<h2 class="move-to-right">إدارة الموظفين - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
-    df_h_data = get_cached_halls()
-    hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
+# 🟢 هذا الشرط هو السر: يخفي التبويبات إذا كان الوضع "تصحيح الثانوية"
+if st.session_state['system_mode'] != "tasheeh":
     
-    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
-    if q:
-        df_teachers = get_cached_teachers()
-        results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
+    tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
+
+    with tab_search:
+        st.markdown(f'<h2 class="move-to-right">إدارة الموظفين - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
+        df_h_data = get_cached_halls()
+        hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
         
-        for idx, row in results.iterrows():
-            display_phone = str(row.get('phone', '---'))
-            if display_phone.startswith('5') and len(display_phone) == 9:
-                display_phone = '0' + display_phone
+        q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
+        if q:
+            df_teachers = get_cached_teachers()
+            results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
+            
+            for idx, row in results.iterrows():
+                display_phone = str(row.get('phone', '---'))
+                if display_phone.startswith('5') and len(display_phone) == 9:
+                    display_phone = '0' + display_phone
 
             with st.expander(f"👤 {row.get('name', 'اسم غير معروف')} | القاعة: {row.get('hall') or 'غير مكلف'}"):
                 def safe_get(key):
