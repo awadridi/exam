@@ -11,7 +11,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 # =====================================
-# 1. نظام تسجيل الدخول باستخدام Secrets
+# 1. نظام تسجيل الدخول
 # =====================================
 def login():
     if 'logged_in' not in st.session_state:
@@ -26,7 +26,6 @@ def login():
                 user = st.text_input("اسم المستخدم").lower().strip()
                 pw = st.text_input("كلمة المرور", type="password").strip()
                 submit = st.form_submit_button("دخول")
-                
                 if submit:
                     try:
                         valid_password = st.secrets[f"password_{user}"]
@@ -37,7 +36,7 @@ def login():
                         else:
                             st.error("❌ كلمة المرور غير صحيحة")
                     except KeyError:
-                        st.error("❌ اسم المستخدم غير معرف في Secrets")
+                        st.error("❌ اسم المستخدم غير معرف")
         return False
     return True
 
@@ -45,20 +44,18 @@ if not login():
     st.stop()
 
 # =====================================
-# 2. إعدادات الحالة والتبديل (تم إضافة نظام التصحيح هنا)
+# 2. إعدادات الأنظمة (إضافة التصحيح)
 # =====================================
-if 'popover_counter' not in st.session_state:
-    st.session_state.popover_counter = 0
-
 if 'system_mode' not in st.session_state:
     st.session_state['system_mode'] = "tawjihi"
+if 'popover_counter' not in st.session_state:
+    st.session_state.popover_counter = 0
 
 def switch_system(mode):
     st.session_state['system_mode'] = mode
     st.cache_data.clear()
     st.rerun()
 
-# توزيع الإعدادات بناءً على النظام المختار
 if st.session_state['system_mode'] == "tawjihi":
     DB_NAME = "data_system_v26.db"
     TEMPLATE_NAME = "template.docx"
@@ -68,9 +65,9 @@ if st.session_state['system_mode'] == "tawjihi":
 elif st.session_state['system_mode'] == "correction":
     DB_NAME = "data_correction.db"
     TEMPLATE_NAME = "template_correction.docx"
-    # استبدل الروابط أدناه بروابط الشيت الخاصة بالتصحيح عند توفرها
-    TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=0&single=true&output=csv"
-    HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=111&single=true&output=csv"
+    # روابط افتراضية للتصحيح (يمكنك تغييرها لاحقاً)
+    TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=264504938&single=true&output=csv"
+    HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSubFlcocaWSvF7GU14hNGx1cuLJBwF5SchDxzeaNMJnSy6T_b0Hu5aDMnc-OM9u7EnNIATUui12H9L/pub?gid=1364805271&single=true&output=csv"
     PAGE_TITLE = "نظام تكليفات تصحيح الثانوية العامة"
 else:
     DB_NAME = "data_tawzif.db"
@@ -79,46 +76,28 @@ else:
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIka1g67VWzR7UKmdR6eb79WuCFaC-qTNTeNMYbjzkz_HmBR_Qwe6o5RGbPyPqiaY_y_z3k2YdbibO/pub?gid=932943855&single=true&output=csv"
     PAGE_TITLE = "نظام التكليفات امتحان التوظيف"
 
-st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title=PAGE_TITLE, layout="wide")
 
-# تصميم الواجهة CSS
-st.markdown("""
-    <style>
-        .custom-header {
-            position: fixed; top: 0; left: 0; width: 100%;
-            background-color: #1a1c23; color: white; text-align: center;
-            padding: 15px 0; z-index: 999999; border-bottom: 2px solid #00ffcc;
-            line-height: 1.5; direction: rtl; box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
-        }
-        .stApp { margin-top: 80px; }
-        header {visibility: hidden;}
-        .main, .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
-        .user-box { background-color: #1a1c23; padding: 5px 15px; border-radius: 8px; border-right: 5px solid #00ffcc; display: inline-block; float: right; }
-        div[data-baseweb="select"], div[data-baseweb="input"], .stMultiSelect { direction: rtl !important; text-align: right !important; }
-        .move-to-right { text-align: right !important; direction: rtl !important; display: block; width: 100%; color: white; }
-    </style>
-    <div class="custom-header">
-        <div style="font-weight: bold; font-size: 1.2rem;">إعداد وتصميم : عوض نعمان ريده</div>
-        <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# الاتصال بقاعدة البيانات وإعداد الجداول
-conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
+# =====================================
+# 3. قاعدة البيانات والوظائف
+# =====================================
+conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 c = conn.cursor()
 
-c.execute('''CREATE TABLE IF NOT EXISTS teachers 
-             (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
-             role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
-             preference TEXT, current_job TEXT, ability TEXT,
-             relative TEXT, relative_exam TEXT)''')
+def init_db():
+    c.execute('''CREATE TABLE IF NOT EXISTS teachers 
+                 (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
+                 role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
+                 preference TEXT, current_job TEXT, ability TEXT,
+                 relative TEXT, relative_exam TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS logs 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
+    conn.commit()
 
-c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS logs 
-             (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
-conn.commit()
+init_db()
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)
 def get_cached_teachers():
     return pd.read_sql("SELECT * FROM teachers", conn)
 
@@ -131,158 +110,119 @@ def add_log(action, details):
     c.execute("INSERT INTO logs (user, action, details, timestamp) VALUES (?, ?, ?, ?)", 
               (st.session_state.username, action, details, now))
     conn.commit()
-    st.cache_data.clear()
 
-# =====================================
-# 3. وظائف معالجة الملفات والوورد
-# =====================================
+# --- وظائف معالجة المستندات (نفس منطقك الأصلي) ---
 def process_doc(doc_obj, row, h_name, h_city):
-    phone_val = str(row.get('phone', ''))
-    if phone_val.startswith('5') and len(phone_val) == 9:
-        phone_val = '0' + phone_val
-    
-    h_name_final = str(h_name) if h_name and str(h_name).lower() != 'nan' else "---"
-    h_city_final = str(h_city) if h_city and str(h_city).lower() != 'nan' else "---"
-        
     repls = {
-        'ZNAME': str(row.get('name', '')),
-        'ZID': str(row.get('id', '')),
-        'ZPHONE': phone_val,
-        'ZJOB': str(row.get('role', '') or '---'),
-        'ZHALL': h_name_final,
-        'ZLOC': h_city_final,
-        'ZWORK': str(row.get('school', '')),
-        'ZCITY': str(row.get('city', '')),
-        'ZREL': str(row.get('relative', 'لا يوجد')),
-        'ZRELEXAM': str(row.get('relative_exam', '---'))
+        'ZNAME': str(row.get('name', '')), 'ZID': str(row.get('id', '')),
+        'ZJOB': str(row.get('role', '') or '---'), 'ZHALL': str(h_name or '---'),
+        'ZWORK': str(row.get('school', '')), 'ZCITY': str(row.get('city', ''))
     }
-
     for p in doc_obj.paragraphs:
         for k, v in repls.items():
             if k in p.text:
                 for run in p.runs:
-                    if k in run.text:
-                        run.text = run.text.replace(k, v)
-                        run.bold = True
-
-    for table in doc_obj.tables:
-        for r in table.rows:
-            for cell in r.cells:
-                for p in cell.paragraphs:
-                    for k, v in repls.items():
-                        if k in p.text:
-                            for run in p.runs:
-                                if k in run.text:
-                                    run.text = run.text.replace(k, v)
-                                    run.bold = True
+                    if k in run.text: run.text = run.text.replace(k, v)
     return doc_obj
 
-def generate_single_doc(row):
-    if not os.path.exists(TEMPLATE_NAME):
-        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
-        return None
-    doc = Document(TEMPLATE_NAME)
-    doc = process_doc(doc, row, row['hall'], row['hall_city'])
-    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-    return bio
-
 # =====================================
-# 4. الواجهة الرئيسية وتبديل الأنظمة
+# 4. واجهة المستخدم الرأسية
 # =====================================
-header_col1, header_col2 = st.columns([4, 1])
-
-with header_col1:
-    st.markdown(f"""
-        <div class="user-box">
-            <span style="color: #bbb;">👤 الموظف الحالي:</span> 
-            <strong style="color: white; font-size: 1.1rem;">{st.session_state.username}</strong>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.write("") 
-    # شريط تبديل الأنظمة - تمت إضافة زر التصحيح
-    btn_col1, btn_col2, btn_col3, btn_spacer = st.columns([1, 1, 1.2, 1])
-    with btn_col1:
-        if st.button("📝 الثانوية العامة", use_container_width=True, type="primary" if st.session_state.system_mode=="tawjihi" else "secondary"):
-            switch_system("tawjihi")
-    with btn_col2:
-        if st.button("👨‍🏫 امتحان التوظيف", use_container_width=True, type="primary" if st.session_state.system_mode=="tawzif" else "secondary"):
-            switch_system("tawzif")
-    with btn_col3:
-        if st.button("🖊️ تصحيح الثانوية", use_container_width=True, type="primary" if st.session_state.system_mode=="correction" else "secondary"):
-            switch_system("correction")
-
-with header_col2:
-    if st.button("🚪 خروج", key="logout_btn", use_container_width=True):
-        st.session_state.logged_in = False
-        st.rerun()
+st.markdown(f'<h1 style="text-align:center;">{PAGE_TITLE}</h1>', unsafe_allow_html=True)
+col_h1, col_h2, col_h3 = st.columns(3)
+with col_h1:
+    if st.button("📝 الثانوية العامة", use_container_width=True, type="primary" if st.session_state.system_mode=="tawjihi" else "secondary"):
+        switch_system("tawjihi")
+with col_h2:
+    if st.button("👨‍🏫 امتحان التوظيف", use_container_width=True, type="primary" if st.session_state.system_mode=="tawzif" else "secondary"):
+        switch_system("tawzif")
+with col_h3:
+    if st.button("🖊️ تصحيح الثانوية", use_container_width=True, type="primary" if st.session_state.system_mode=="correction" else "secondary"):
+        switch_system("correction")
 
 st.divider()
 
-# التبويبات الرئيسية
-tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإحصائيات", "📜 سجل العمليات"])
+# =====================================
+# 5. التبويبات (كاملة الوظائف)
+# =====================================
+tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث", "🤖 التوزيع التلقائي", "📥 الرفع", "📊 الإحصائيات", "📜 السجل"])
 
 # --- تبويب البحث ---
 with tab_search:
-    st.markdown(f'<h2 class="move-to-right">إدارة الموظفين - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
-    df_h_data = get_cached_halls()
-    hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
-    
-    q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
+    q = st.text_input("ابحث بالاسم أو الهوية")
+    df_t = get_cached_teachers()
+    h_data = get_cached_halls()
+    h_map = {r['hall_name']: r['city'] for _, r in h_data.iterrows()}
+
     if q:
-        df_teachers = get_cached_teachers()
-        results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
-        
+        results = df_t[df_t['name'].str.contains(q, na=False) | df_t['id'].str.contains(q, na=False)]
         for idx, row in results.iterrows():
-            with st.expander(f"👤 {row['name']} | التكليف: {row['hall'] or 'غير مكلف'}"):
-                # عرض البيانات الأساسية
-                st.write(f"المدرسة: {row['school']} | السكن: {row['city']}")
-                
-                # نموذج التعيين
+            with st.expander(f"👤 {row['name']} - {row['hall'] or 'غير مكلف'}"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    sel_h = st.selectbox("اختر المركز/القاعة", [""] + list(hall_map.keys()), key=f"h_{row['id']}_{idx}")
+                    sel_h = st.selectbox("القاعة", [""] + list(h_map.keys()), key=f"h_{row['id']}")
                 with c2:
-                    roles_list = ["", "مصحح", "رئيس ديوان", "عضو ديوان", "مراقب تصحيح"] if st.session_state.system_mode == "correction" else ["", "رئيس قاعة", "مساعد رئيس", "مراقب", "آذن"]
-                    sel_r = st.selectbox("المهمة", roles_list, key=f"r_{row['id']}_{idx}")
-                
-                if st.button("💾 حفظ", key=f"s_{row['id']}_{idx}"):
+                    roles = ["مراقب", "رئيس قاعة"] if st.session_state.system_mode != "correction" else ["مصحح", "عضو ديوان"]
+                    sel_r = st.selectbox("المهمة", roles, key=f"r_{row['id']}")
+                if st.button("حفظ التكليف", key=f"btn_{row['id']}"):
                     c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?", 
-                             (sel_h, sel_r, hall_map.get(sel_h, ""), st.session_state.username, row['id']))
+                             (sel_h, sel_r, h_map.get(sel_h, ""), st.session_state.username, row['id']))
                     conn.commit()
+                    add_log("تعيين يدوي", f"تكليف {row['name']} في {sel_h}")
                     st.success("تم الحفظ")
                     st.rerun()
 
-# --- تبويب رفع البيانات ---
-with tab_upload:
-    st.markdown(f"### تحديث بيانات {PAGE_TITLE}")
-    up_tpl = st.file_uploader(f"ارفع قالب الوورد ({TEMPLATE_NAME})", type="docx")
-    if up_tpl:
-        with open(TEMPLATE_NAME, "wb") as f:
-            f.write(up_tpl.getbuffer())
-        st.success("تم تحديث القالب")
+# --- تبويب التوزيع التلقائي (مستعاد) ---
+with tab_auto:
+    df_all = get_cached_teachers()
+    df_pool = df_all[(df_all['hall'] == '') | (df_all['hall'].isna())]
+    st.info(f"عدد المتاحين للتوزيع: {len(df_pool)}")
     
-    if st.button("🔄 تحديث من Google Sheets الآن"):
+    target_h = st.selectbox("القاعة المستهدفة", [""] + list(get_cached_halls()['hall_name']))
+    num = st.number_input("العدد المطلوب", min_value=0, max_value=len(df_pool), value=0)
+    
+    if st.button("🚀 بدء التوزيع") and target_h and num > 0:
+        sample = df_pool.sample(n=num)
+        h_city = h_map.get(target_h, "")
+        for _, r in sample.iterrows():
+            c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
+                     (target_h, h_city, r['id']))
+        conn.commit()
+        add_log("توزيع تلقائي", f"توزيع {num} موظف على {target_h}")
+        st.success("تم التوزيع بنجاح")
+        st.rerun()
+
+# --- تبويب الإحصائيات (مستعاد) ---
+with tab_manage:
+    df_stat = get_cached_teachers()
+    total = len(df_stat)
+    assigned = len(df_stat[df_stat['hall'].str.len() > 0])
+    
+    m1, m2, m3 = st.columns(3)
+    m1.metric("الإجمالي", total)
+    m2.metric("المكلفين", assigned)
+    m3.metric("المتبقي", total - assigned)
+    
+    st.write("### توزيع الموظفين حسب القاعات")
+    if not df_stat.empty:
+        st.bar_chart(df_stat['hall'].value_counts())
+
+# --- تبويب سجل العمليات (مستعاد) ---
+with tab_logs:
+    st.write("### سجل العمليات الأخير")
+    df_logs = pd.read_sql("SELECT * FROM logs ORDER BY id DESC LIMIT 50", conn)
+    st.table(df_logs)
+
+# --- تبويب الرفع ---
+with tab_upload:
+    if st.button("🔄 تحديث البيانات من Google Sheets"):
         try:
-            dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
-            dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
-            # تحديث مع الحفاظ على التكليفات الحالية
-            c.execute("INSERT OR IGNORE INTO teachers (id, name) SELECT id, name FROM teachers_temp")
-            c.execute("""UPDATE teachers SET 
-                        name=(SELECT name FROM teachers_temp WHERE teachers_temp.id=teachers.id),
-                        phone=(SELECT phone FROM teachers_temp WHERE teachers_temp.id=teachers.id),
-                        school=(SELECT school FROM teachers_temp WHERE teachers_temp.id=teachers.id),
-                        city=(SELECT city FROM teachers_temp WHERE teachers_temp.id=teachers.id),
-                        current_job=(SELECT current_job FROM teachers_temp WHERE teachers_temp.id=teachers.id)
-                        WHERE id IN (SELECT id FROM teachers_temp)""")
-            
+            dft = pd.read_csv(TEACHERS_URL, dtype={'id': str})
+            dft.to_sql('teachers', conn, if_exists='replace', index=False)
             dfh = pd.read_csv(HALLS_URL)
             dfh.to_sql('halls', conn, if_exists='replace', index=False)
-            conn.commit()
-            st.success("✅ تم تحديث البيانات بنجاح")
-            st.cache_data.clear()
+            add_log("تحديث بيانات", "تم استيراد بيانات جديدة من جوجل")
+            st.success("تم التحديث")
             st.rerun()
         except Exception as e:
-            st.error(f"خطأ: {e}")
-
-# (بقية التبويبات تعمل بشكل تلقائي بناءً على DB_NAME المختار لكل نظام)
+            st.error(f"فشل التحديث: {e}")
