@@ -561,21 +561,6 @@ with tab_upload:
         except Exception as e:
             st.error(f"خطأ: {e}")
 
-    if st.button("🔍 فحص قيم الوظائف"):
-        df_check = get_cached_teachers()
-        st.write("القيم الموجودة في عمود current_job:")
-        st.write(df_check['current_job'].unique().tolist())
-    if st.button("🔍 فحص قيم الرغبة للمدراء"):
-        df_check = get_cached_teachers()
-        df_mgr = df_check[df_check['current_job'] == 'مدير مدرسة']
-        st.write("قيم preference للمدراء:")
-        st.write(df_mgr['preference'].unique().tolist())
-
-    if st.button("🔍 فحص hall للمدراء"):
-        df_check = get_cached_teachers()
-        df_mgr = df_check[df_check['current_job'] == 'مدير مدرسة']
-        st.write("قيم hall للمدراء:")
-        st.write(df_mgr['hall'].unique().tolist())
 
     if st.button("🔄 تحديث من Google Sheets"):
         try:
