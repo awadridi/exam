@@ -810,31 +810,107 @@ if st.session_state.get('system_mode') == "tasheeh":
                         except: pass
                     conn.commit()
     
-    with corr_tab3:
+        with corr_tab3:
         if 'tasheeh_assignments' not in st.session_state or not st.session_state['tasheeh_assignments']:
-            st.info("📌 وزع أولاً")
+            st.info("📌 وزع المعلمين أولاً من تبويب 'التوزيع التلقائي'")
         else:
             assigns = st.session_state['tasheeh_assignments']
-            st.markdown(f"### 📄 الكتب الجاهزة: {len(assigns)}")
-            if st.button("📦 إنشاء ملفات وورد"):
-                if os.path.exists(TEMPLATE_NAME):
-                    docs = []
-                    for a in assigns:
-                        doc = generate_tasheeh_letter(a, a['exam_name'])
-                        if doc:
-                            bio = io.BytesIO()
-                            doc.save(bio)
-                            bio.seek(0)
-                            docs.append((bio, f"تكليف_{a['name']}_{a['id']}.docx"))
-                    st.success(f"✅ تم إنشاء {len(docs)} ملف")
-                    for bio, fname in docs[:10]:
-                        st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_{fname}")
-            if st.button("📊 تصدير إكسل"):
+            st.markdown(f"### 📄 الكتب الجاهزة: {len(assigns)} تكليف")
+            
+            # عرض جدول بالمعلمين الموزعين
+            st.dataframe(pd.DataFrame(assigns)[['name', 'subject', 'hall_name', 'hall_city']], use_container_width=True)
+            
+            # زر إنشاء ملف وورد واحد يحتوي على كل التكليفات
+            if st.button("📦 إنشاء ملف وورد واحد لجميع التكليفات", type="primary"):
+                if not os.path.exists(TEMPLATE_NAME):
+                    st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
+                else:
+                    with st.spinner("جاري إنشاء الملف..."):
+                        try:
+                            # إنشاء مستند وورد جديد
+                            final_doc = Document(TEMPLATE_NAME)
+                            final_doc._body.clear_content()  # مسح محتوى القالب الأصلي
+                            
+                            for i, a in enumerate(assigns):
+                                # إنشاء نسخة من القالب لكل معلم
+                                temp_doc = Document(TEMPLATE_NAME)
+                                repls = {
+                                    'ZNAME': a.get('name', '---'), 
+                                    'ZID': a.get('id', '---'),
+                                    'ZTEST': a.get('exam_name', '---'), 
+                                    'ZHALL': a.get('hall_name', '---'),
+                                    'ZLOC': a.get('hall_city', '---'), 
+                                    'ZWORK': a.get('school', '---'),
+                                    'ZCITY': a.get('city', '---'),
+                                    'ZSUBJECT': a.get('subject', '---')  # إضافة المبحث إذا كان موجوداً في القالب
+                                }
+                                # استبدال المتغيرات في الفقرات
+                                for p in temp_doc.paragraphs:
+                                    for k, v in repls.items():
+                                        if k in p.text:
+                                            for run in p.runs:
+                                                if k in run.text:
+                                                    run.text = run.text.replace(k, str(v))
+                                                    run.bold = True
+                                # استبدال المتغيرات في الجداول
+                                for table in temp_doc.tables:
+                                    for row in table.rows:
+                                        for cell in row.cells:
+                                            for p in cell.paragraphs:
+                                                for k, v in repls.items():
+                                                    if k in p.text:
+                                                        for run in p.runs:
+                                                            if k in run.text:
+                                                                run.text = run.text.replace(k, str(v))
+                                                                run.bold = True
+                                
+                                # نسخ العناصر إلى المستند النهائي
+                                elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+                                for element in elements:
+                                    final_doc.element.body.append(copy.deepcopy(element))
+                                
+                                # إضافة فاصل صفحات بين كل تكليف والآخر (إلا للأخير)
+                                if i < len(assigns) - 1:
+                                    p = OxmlElement('w:p')
+                                    r = OxmlElement('w:r')
+                                    br = OxmlElement('w:br')
+                                    br.set(qn('w:type'), 'page')
+                                    r.append(br)
+                                    p.append(r)
+                                    final_doc.element.body.append(p)
+                            
+                            # حفظ الملف النهائي
+                            out = io.BytesIO()
+                            final_doc.save(out)
+                            out.seek(0)
+                            
+                            st.success(f"✅ تم إنشاء الملف بنجاح! يحتوي على {len(assigns)} تكليف")
+                            
+                            # زر التحميل (مرة واحدة فقط)
+                            st.download_button(
+                                label="📥 تحميل ملف التكليفات الكامل",
+                                data=out.getvalue(),
+                                file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key="dl_bulk_tasheeh_unique_key"  # مفتاح فريد وثابت
+                            )
+                        except Exception as e:
+                            st.error(f"❌ خطأ أثناء إنشاء الملف: {e}")
+            
+            # زر تصدير إكسل كخيار إضافي
+            st.divider()
+            if st.button("📊 تصدير كملف إكسل"):
                 df = pd.DataFrame(assigns)
                 out = io.BytesIO()
                 df.to_excel(out, index=False)
                 out.seek(0)
-                st.download_button("📥 تحميل", out.getvalue(), f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button(
+                    "📥 تحميل إكسل", 
+                    out.getvalue(), 
+                    f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", 
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_excel_tasheeh_unique"
+                )
     
     with corr_tab4:
         st.markdown("### 📜 سجل التصحيح")
