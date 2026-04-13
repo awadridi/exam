@@ -296,25 +296,50 @@ with header_col2:
 
 st.divider()
 
-# 🟢 هذا الشرط هو السر: يخفي التبويبات إذا كان الوضع "تصحيح الثانوية"
+# 🔴 هذا الشرط يخفي التبويبات الرئيسية فقط إذا كان الوضع "تصحيح الثانوية"
 if st.session_state['system_mode'] != "tasheeh":
     
-    tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs(["🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", "📊 الإدارة والإحصائيات", "📜 سجل العمليات"])
+    # 1. إنشاء التبويبات
+    tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
+        "🔍 البحث والتعيين", 
+        "🤖 التوزيع التلقائي", 
+        "📥 رفع البيانات", 
+        "📊 الإدارة والإحصائيات", 
+        "📜 سجل العمليات"
+    ])
 
+    # 2. محتوى التبويب الأول (يجب أن يكون مزاحاً لليمين تحت الـ if)
     with tab_search:
         st.markdown(f'<h2 class="move-to-right">إدارة الموظفين - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
-        df_h_data = get_cached_halls()
-        hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
-        
-        q = st.text_input("ابحث عن الاسم، الهوية، أو الجوال")
-        if q:
-            df_teachers = get_cached_teachers()
-            results = df_teachers[df_teachers['name'].str.contains(q, na=False, case=False) | df_teachers['id'].astype(str).str.contains(q) | df_teachers['phone'].astype(str).str.contains(q)]
-            
-            for idx, row in results.iterrows():
-                display_phone = str(row.get('phone', '---'))
-                if display_phone.startswith('5') and len(display_phone) == 9:
-                    display_phone = '0' + display_phone
+        # ... بقية كود البحث ...
+
+    # 3. محتوى التبويب الثاني (يجب أن يكون مزاحاً لليمين تحت الـ if أيضاً)
+    with tab_auto:
+        st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
+        # ... بقية كود التوزيع التلقائي ...
+
+    # 4. محتوى التبويب الثالث (يجب أن يكون مزاحاً لليمين تحت الـ if أيضاً)
+    with tab_upload:
+        st.markdown(f'<h2 class="move-to-right">تحديث القالب والبيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
+        # ... بقية كود الرفع ...
+
+    # 5. محتوى التبويب الرابع (يجب أن يكون مزاحاً لليمين تحت الـ if أيضاً)
+    with tab_manage:
+        # ... كود الإدارة ...
+        pass
+
+    # 6. محتوى التبويب الخامس (يجب أن يكون مزاحاً لليمين تحت الـ if أيضاً)
+    with tab_logs:
+        # ... كود السجلات ...
+        pass
+
+# ============================================================================
+# ✨✨✨ نظام تصحيح الثانوية العامة (يظهر فقط إذا كان الوضع tasheeh) ✨✨✨
+# ============================================================================
+
+if st.session_state.get('system_mode') == "tasheeh":
+    # ... كود نظام التصحيح ...
+    st.stop() # لا تنسى التوقف هنا لمنع تداخل الأكواد
 
             with st.expander(f"👤 {row.get('name', 'اسم غير معروف')} | القاعة: {row.get('hall') or 'غير مكلف'}"):
                 def safe_get(key):
