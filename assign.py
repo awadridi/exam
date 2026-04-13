@@ -810,113 +810,200 @@ with tab_logs:
     else:
         st.info("سجل العمليات فارغ حالياً.")
 
-# >>>>>> بداية كود دمج تبويب التصحيح - لا تعدل ما قبله <<<<<<
-
-def add_correction_tab(parent_notebook):
-    """
-    دالة لإضافة تبويب التصحيح للنظام الحالي
-    تستخدم فقط: parent_notebook (العنصر الأب للتبويبات)
-    """
-    import tkinter as tk
-    from tkinter import ttk, filedialog, messagebox
+# =====================================
+# ✨ تبويب التصحيح - نظام مستقل
+# =====================================
+with tab_correction:
+    st.markdown('<h2 class="move-to-right">✨ نظام تكليفات التصحيح</h2>', unsafe_allow_html=True)
     
-    # إنشاء التبويب الجديد
-    correction_tab = ttk.Frame(parent_notebook)
-    parent_notebook.add(correction_tab, text="✨ التصحيح")
+    # تهيئة الحالة
+    if 'corr_teachers' not in st.session_state:
+        st.session_state.corr_teachers = None
+    if 'corr_halls' not in st.session_state:
+        st.session_state.corr_halls = None
+    if 'corr_assignments' not in st.session_state:
+        st.session_state.corr_assignments = []
+    if 'corr_log' not in st.session_state:
+        st.session_state.corr_log = []
     
-    # تهيئة النظام المستقل
-    from correction_system import CorrectionSystem
-    system = CorrectionSystem()
+    def corr_log(msg, level="info"):
+        entry = f"[{datetime.now().strftime('%H:%M:%S')}] {level.upper()}: {msg}"
+        st.session_state.corr_log.append(entry)
     
-    # === واجهة رفع البيانات ===
-    upload_frame = ttk.LabelFrame(correction_tab, text="📤 رفع البيانات")
-    upload_frame.pack(padx=10, pady=5, fill="x")
+    # === قسم رفع البيانات ===
+    with st.expander("📤 رفع ملفات البيانات", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            teachers_file = st.file_uploader("📋 ملف المعلمين (إكسل/CSV)", type=['xlsx', 'csv'], key="corr_teachers_up")
+            if teachers_file:
+                try:
+                    if teachers_file.name.endswith('.csv'):
+                        df = pd.read_csv(teachers_file, dtype={'id': str})
+                    else:
+                        df = pd.read_excel(teachers_file, dtype={'id': str})
+                    # توحيد أسماء الأعمدة
+                    df.columns = df.columns.str.strip().str.lower()
+                    required = ['id', 'name', 'subject', 'city']
+                    if all(c in df.columns for c in required):
+                        st.session_state.corr_teachers = df
+                        corr_log(f"✅ تم رفع {len(df)} معلم", "success")
+                        st.success(f"✅ تم رفع {len(df)} معلم بنجاح")
+                    else:
+                        st.error(f"❌ الأعمدة المطلوبة: {required}")
+                except Exception as e:
+                    st.error(f"خطأ: {e}")
+        
+        with col2:
+            halls_file = st.file_uploader("🏛️ ملف القاعات (إكسل/CSV)", type=['xlsx', 'csv'], key="corr_halls_up")
+            if halls_file:
+                try:
+                    if halls_file.name.endswith('.csv'):
+                        df = pd.read_csv(halls_file)
+                    else:
+                        df = pd.read_excel(halls_file)
+                    df.columns = df.columns.str.strip().str.upper()
+                    if 'ZHALL' in df.columns and 'ZLOC' in df.columns:
+                        st.session_state.corr_halls = df
+                        corr_log(f"✅ تم رفع {len(df)} قاعة", "success")
+                        st.success(f"✅ تم رفع {len(df)} قاعة بنجاح")
+                    else:
+                        st.error("❌ ملف القاعات يجب أن يحتوي على عمودي: ZHALL, ZLOC")
+                except Exception as e:
+                    st.error(f"خطأ: {e}")
     
-    def load_teachers_file():
-        path = filedialog.askopenfilename(filetypes=[("Excel/CSV", "*.xlsx *.csv")])
-        if path and system.load_teachers(path):
-            messagebox.showinfo("نجاح", "✅ تم رفع ملف المعلمين")
+    st.divider()
     
-    def load_halls_file():
-        path = filedialog.askopenfilename(filetypes=[("Excel/CSV", "*.xlsx *.csv")])
-        if path and system.load_halls(path):
-            messagebox.showinfo("نجاح", "✅ تم رفع ملف القاعات")
-    
-    ttk.Button(upload_frame, text="📋 رفع ملف المعلمين", command=load_teachers_file).pack(side="left", padx=5)
-    ttk.Button(upload_frame, text="🏛️ رفع ملف القاعات", command=load_halls_file).pack(side="left", padx=5)
-    
-    # === واجهة التوزيع التلقائي ===
-    assign_frame = ttk.LabelFrame(correction_tab, text="🔄 التوزيع التلقائي")
-    assign_frame.pack(padx=10, pady=5, fill="x")
-    
-    hall_var = tk.StringVar()
-    subject_var = tk.StringVar()
-    
-    ttk.Label(assign_frame, text="اختر القاعة (اختياري):").pack(side="left")
-    hall_combo = ttk.Combobox(assign_frame, textvariable=hall_var, state="readonly", width=25)
-    hall_combo.pack(side="left", padx=5)
-    
-    ttk.Label(assign_frame, text="اختر المبحث (اختياري):").pack(side="left")
-    subject_combo = ttk.Combobox(assign_frame, textvariable=subject_var, state="readonly", width=20)
-    subject_combo.pack(side="left", padx=5)
-    
-    def update_combos():
-        if system.halls_df is not None:
-            hall_combo['values'] = list(system.halls_df['ZHALL'].unique())
-        if system.teachers_df is not None:
-            subject_combo['values'] = list(system.teachers_df['subject'].unique())
-    
-    ttk.Button(assign_frame, text="🔄 تحديث القوائم", command=update_combos).pack(side="left", padx=5)
-    
-    def run_assignment():
-        hall = hall_var.get() if hall_var.get() else None
-        subject = subject_var.get() if subject_var.get() else None
-        if system.auto_assign(selected_hall=hall, selected_subject=subject):
-            messagebox.showinfo("نجاح", f"✅ تم توزيع {len(system.assignments)} معلم/معلمة")
+    # === قسم التوزيع التلقائي ===
+    with st.expander("🔄 التوزيع التلقائي", expanded=True):
+        if st.session_state.corr_teachers is None or st.session_state.corr_halls is None:
+            st.warning("⚠️ يرجى رفع ملفي المعلمين والقاعات أولاً")
         else:
-            messagebox.showerror("خطأ", "❌ فشل التوزيع - تأكد من رفع البيانات أولاً")
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                hall_options = [""] + list(st.session_state.corr_halls['ZHALL'].unique())
+                selected_hall = st.selectbox("اختر القاعة (اختياري):", hall_options, key="corr_sel_hall")
+            
+            with col_b:
+                subject_options = [""] + list(st.session_state.corr_teachers['subject'].unique())
+                selected_subject = st.selectbox("اختر المبحث (اختياري):", subject_options, key="corr_sel_subj")
+            
+            exam_name = st.text_input("اسم الامتحان:", value="امتحان عام", key="corr_exam_name")
+            
+            if st.button("🚀 بدء التوزيع التلقائي", type="primary", use_container_width=True, key="corr_run_assign"):
+                teachers = st.session_state.corr_teachers.copy()
+                halls = st.session_state.corr_halls.copy()
+                
+                # تصفية حسب المبحث
+                if selected_subject:
+                    teachers = teachers[teachers['subject'] == selected_subject]
+                
+                assignments = []
+                for _, t in teachers.iterrows():
+                    # اختيار القاعة
+                    if selected_hall:
+                        hall_row = halls[halls['ZHALL'] == selected_hall]
+                    else:
+                        # توزيع عشوائي حسب المدينة
+                        city_halls = halls[halls['ZLOC'] == t.get('city', '')]
+                        hall_row = city_halls.sample(n=1) if not city_halls.empty else halls.sample(n=1)
+                    
+                    if not hall_row.empty:
+                        h = hall_row.iloc[0]
+                        assignments.append({
+                            'ZID': str(t['id']),
+                            'ZNAME': t['name'],
+                            'ZTEST': exam_name,
+                            'ZHALL': h['ZHALL'],
+                            'ZLOC': h['ZLOC'],
+                            'ZWORK': t.get('work_location', 'غير محدد'),
+                            'ZCITY': t.get('city', 'غير محدد'),
+                            'subject': t['subject'],
+                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
+                        })
+                
+                st.session_state.corr_assignments = assignments
+                corr_log(f"✅ تم توزيع {len(assignments)} معلم", "success")
+                st.success(f"✅ تم توزيع {len(assignments)} معلم بنجاح!")
     
-    ttk.Button(assign_frame, text="🚀 بدء التوزيع", command=run_assignment).pack(side="left", padx=10)
+    st.divider()
     
-    # === واجهة التصدير ===
-    export_frame = ttk.LabelFrame(correction_tab, text="📤 تصدير الكتب")
-    export_frame.pack(padx=10, pady=5, fill="x")
+    # === قسم التصدير ===
+    if st.session_state.corr_assignments:
+        with st.expander("📤 تصدير كتب التكليف", expanded=True):
+            st.markdown(f"📊 عدد التكليفات الجاهزة: **{len(st.session_state.corr_assignments)}**")
+            
+            col_e1, col_e2 = st.columns(2)
+            
+            with col_e1:
+                if st.button("📄 إنشاء ملفات وورد فردية", use_container_width=True, key="corr_export_word"):
+                    if not os.path.exists(TEMPLATE_NAME):
+                        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
+                    else:
+                        docs = []
+                        for a in st.session_state.corr_assignments:
+                            doc = Document(TEMPLATE_NAME)
+                            # استبدال المتغيرات في الوورد
+                            for p in doc.paragraphs:
+                                for k, v in a.items():
+                                    if k in p.text:
+                                        for run in p.runs:
+                                            if k in run.text:
+                                                run.text = run.text.replace(k, str(v))
+                                                run.bold = True
+                            for table in doc.tables:
+                                for row in table.rows:
+                                    for cell in row.cells:
+                                        for p in cell.paragraphs:
+                                            for k, v in a.items():
+                                                if k in p.text:
+                                                    for run in p.runs:
+                                                        if k in run.text:
+                                                            run.text = run.text.replace(k, str(v))
+                                                            run.bold = True
+                            bio = io.BytesIO()
+                            doc.save(bio)
+                            bio.seek(0)
+                            docs.append((bio, f"تكليف_{a['ZNAME']}_{a['ZID']}.docx"))
+                        
+                        if docs:
+                            st.success(f"✅ تم إنشاء {len(docs)} ملف وورد")
+                            for bio, fname in docs:
+                                st.download_button(
+                                    label=f"📥 {fname}",
+                                    data=bio.getvalue(),
+                                    file_name=fname,
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key=f"dl_corr_{fname}"
+                                )
+            
+            with col_e2:
+                if st.button("📊 تصدير إكسل شامل", use_container_width=True, key="corr_export_excel"):
+                    df_assign = pd.DataFrame(st.session_state.corr_assignments)
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df_assign.to_excel(writer, index=False, sheet_name='التكليفات')
+                    output.seek(0)
+                    st.download_button(
+                        label="📥 تحميل ملف الإكسل",
+                        data=output.getvalue(),
+                        file_name=f"تكاليف_التصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_corr_excel"
+                    )
+                    corr_log("✅ تم تصدير ملف الإكسل الشامل", "success")
     
-    def export_words():
-        if system.generate_word_letters():
-            messagebox.showinfo("نجاح", "✅ تم تصدير كتب التكليف (مجلد: تكاليف_التصحيح)")
-    
-    def export_excel():
-        if system.export_assignments_excel():
-            messagebox.showinfo("نجاح", "✅ تم تصدير ملف الإكسل الشامل")
-    
-    ttk.Button(export_frame, text="📄 تصدير وورد (أفراد)", command=export_words).pack(side="left", padx=5)
-    ttk.Button(export_frame, text="📊 تصدير إكسل (شامل)", command=export_excel).pack(side="left", padx=5)
+    st.divider()
     
     # === سجل العمليات ===
-    log_frame = ttk.LabelFrame(correction_tab, text="📜 سجل العمليات")
-    log_frame.pack(padx=10, pady=5, fill="both", expand=True)
-    
-    log_text = tk.Text(log_frame, height=10, state="disabled")
-    log_text.pack(fill="both", expand=True, padx=5, pady=5)
-    
-    def refresh_log():
-        log_text.config(state="normal")
-        log_text.delete("1.0", tk.END)
-        for entry in system.get_operations_log():
-            log_text.insert(tk.END, f"[{entry['timestamp']}] {entry['level'].upper()}: {entry['message']}\n")
-        log_text.config(state="disabled")
-    
-    ttk.Button(log_frame, text="🔄 تحديث السجل", command=refresh_log).pack(pady=2)
-    
-    # تحديث القوائم تلقائياً عند فتح التبويب
-    def on_tab_selected(event):
-        if parent_notebook.tab(parent_notebook.select(), "text") == "✨ التصحيح":
-            update_combos()
-            refresh_log()
-    
-    parent_notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
-    
-    return correction_tab
-
-# >>>>>> نهاية كود دمج تبويب التصحيح <<<<<<
+    with st.expander("📜 سجل عمليات التصحيح"):
+        if st.session_state.corr_log:
+            for entry in reversed(st.session_state.corr_log[-50:]):
+                st.markdown(f"<div style='background:#1a1c23;padding:8px;border-radius:5px;margin:3px 0;font-family:monospace;font-size:0.9rem'>{entry}</div>", unsafe_allow_html=True)
+        else:
+            st.info("لا توجد عمليات مسجلة بعد")
+        
+        if st.button("🗑️ مسح سجل التصحيح", key="corr_clear_log"):
+            st.session_state.corr_log = []
+            st.rerun()
