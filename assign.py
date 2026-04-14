@@ -1344,45 +1344,43 @@ if st.session_state.get('system_mode') == "other_assignments":
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
                     margin: 20px 0; text-align: center;">
             <h2 style="color: #00ffcc; margin: 0;">📋 نظام التكليفات الأخرى</h2>
-                # 🟢 كود اجبار الاتجاه من اليمين لليسار (RTL) 🟢
-    st.markdown("""
-        <style>
-        /* اجبار الاتجاه العام */
-        .stApp {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* النصوص والعناوين */
-        p, h3, h4, h5, h6, label, span, div {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* حقول الكتابة والأزرار */
-        input, textarea, button {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* التبويبات (Tabs) */
-        [data-testid="stTabs"] {
-            direction: rtl !important;
-            justify-content: flex-end !important;
-        }
-        [data-testid="stTab"] {
-            direction: rtl !important;
-        }
-        
-        /* الجداول والبيانات */
-        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
             <p style="color: #bbb; margin: 10px 0 0 0;">الحرس | مرافقة الطرود | جهاز الامتحان | لجنة الامتحان</p>
         </div>
+        
+        <style>
+        /* اجبار الاتجاه العام */
+        .stApp {{
+            direction: rtl !important;
+            text-align: right !important;
+        }}
+        
+        /* النصوص والعناوين */
+        p, h3, h4, h5, h6, label, span, div {{
+            direction: rtl !important;
+            text-align: right !important;
+        }}
+        
+        /* حقول الكتابة والأزرار */
+        input, textarea, button {{
+            direction: rtl !important;
+            text-align: right !important;
+        }}
+        
+        /* التبويبات */
+        [data-testid="stTabs"] {{
+            direction: rtl !important;
+            justify-content: flex-end !important;
+        }}
+        [data-testid="stTab"] {{
+            direction: rtl !important;
+        }}
+        
+        /* الجداول */
+        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {{
+            direction: rtl !important;
+            text-align: right !important;
+        }}
+        </style>
     """, unsafe_allow_html=True)
     
     # 📄 رفع قالب Word
