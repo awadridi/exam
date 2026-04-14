@@ -151,7 +151,12 @@ c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city 
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT)''')
 conn.commit()
-
+# إضافة عمود الملاحظات (مرة واحدة فقط)
+try:
+    c.execute("ALTER TABLE teachers ADD COLUMN notes TEXT DEFAULT ''")
+    conn.commit()
+except:
+    pass  # العمود موجود مسبقاً
 @st.cache_data(ttl=10)
 def get_cached_teachers():
     return pd.read_sql("SELECT * FROM teachers", conn)
@@ -330,6 +335,7 @@ if st.session_state['system_mode'] != "tasheeh":
                     v_school = safe_get('school')
                     v_job = safe_get('current_job')
                     v_abil = safe_get('ability')
+                    v_notes = safe_get('notes')
                     v_pref = safe_get('preference')
 
                     rel_html = ''
@@ -338,7 +344,7 @@ if st.session_state['system_mode'] != "tasheeh":
                         v_relex = safe_get('relative_exam')
                         rel_html = f'<tr><td style="padding: 5px; color: #ffc107;"><b>🔗 قريب:</b> {v_rel}</td><td style="padding: 5px; color: #ffc107;"><b>📝 الامتحان:</b> {v_relex}</td></tr>'
 
-                    full_table = f'<div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;"><table style="width:100%; color: white; border: none;"><tr><td style="padding: 5px;"><b>🆔 الهوية:</b> {v_id}</td><td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td></tr><tr><td style="padding: 5px;"><b>🏡 السكن:</b> {v_city}</td><td style="padding: 5px;"><b>🏫 المدرسة:</b> {v_school}</td></tr><tr><td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td><td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td></tr>{rel_html}<tr><td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;"><b>⚠️ صلاحية المراقبة:</b> {v_abil}</td></tr></table></div>'
+                    full_table = f'<div style="background-color: #1a1c23; padding: 15px; border-radius: 10px; border: 1px solid #444; border-right: 5px solid #00ffcc; margin-bottom: 15px; text-align: right; direction: rtl;"><table style="width:100%; color: white; border: none;"><tr><td style="padding: 5px;"><b>🆔 الهوية:</b> {v_id}</td><td style="padding: 5px;"><b>📱 الجوال:</b> {display_phone}</td></tr><tr><td style="padding: 5px;"><b>🏡 السكن:</b> {v_city}</td><td style="padding: 5px;"><b>🏫 المدرسة:</b> {v_school}</td></tr><tr><td style="padding: 5px;"><b>📝 الرغبة:</b> {v_pref}</td><td style="padding: 5px;"><b>💼 الوظيفة:</b> {v_job}</td></tr>{rel_html}<tr><td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #ffc107;"><b>⚠️ صلاحية المراقبة:</b> {v_abil}</td></tr><tr><td colspan="2" style="padding: 5px; border-top: 1px solid #444; color: #888;"><b>📝 ملاحظات:</b> {v_notes if v_notes != "---" else "لا يوجد"}</td></tr></table></div>'
                     st.markdown(full_table, unsafe_allow_html=True)
                     st.markdown(f"<span class='editor-info'>آخر تعديل: {row['updated_by'] or 'لا يوجد'}</span>", unsafe_allow_html=True)
                     
@@ -356,6 +362,7 @@ if st.session_state['system_mode'] != "tasheeh":
                         u_abil = st.selectbox("صلاحية المراقبة", ["يصلح", "لا يصلح", "لم تحدد"], 
                                             index=0 if row['ability']=="يصلح" else (1 if row['ability']=="لا يصلح" else 2), 
                                             key=f"uab_{st.session_state.system_mode}_{row['id']}_{idx}")
+                        u_notes = st.text_area("📝 ملاحظات إضافية", value=row.get('notes', ''), height=80, key=f"unotes_{st.session_state.system_mode}_{row['id']}_{idx}")
 
                         if st.session_state.system_mode == "tawzif":
                             u_rel = st.selectbox("هل له قريب؟", ["نعم", "لا"], index=0 if row.get('relative')=="نعم" else 1, key=f"urel_{row['id']}_{idx}")
@@ -363,11 +370,11 @@ if st.session_state['system_mode'] != "tasheeh":
 
                         if st.button("💾 تحديث وحفظ", key=f"save_base_{row['id']}_{idx}_{st.session_state.popover_counter}"):
                             if st.session_state.system_mode == "tawzif":
-                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, updated_by=? WHERE id=?""", 
-                                         (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, st.session_state.username, row['id']))
+                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, relative=?, relative_exam=?, notes=?, updated_by=? WHERE id=?""", 
+                                         (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_rel, u_relex, u_notes, st.session_state.username, row['id']))
                             else:
-                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, updated_by=? WHERE id=?""", 
-                                         (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, st.session_state.username, row['id']))
+                                c.execute("""UPDATE teachers SET name=?, phone=?, school=?, city=?, current_job=?, preference=?, ability=?, notes=?, updated_by=? WHERE id=?""", 
+                                         (u_name, u_phone, u_school, u_city, u_job, u_pref, u_abil, u_notes, st.session_state.username, row['id']))
                             conn.commit()
                             add_log("تعديل بيانات أساسية", f"تعديل بيانات {u_name}")
                             st.session_state.popover_counter += 1
