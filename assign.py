@@ -894,68 +894,140 @@ if st.session_state.get('system_mode') == "tasheeh":
                             st.error("❌ لم يتم التوزيع، تأكد من توفر قاعات.")
     
     # ==================== تبويب 3: كتب التكليف ====================
+        # ==================== تبويب 3: كتب التكليف وإدارتها ====================
     with corr_tab3:
+        
+        # 1. عرض التكليفات الحالية
         if 'tasheeh_assignments' not in st.session_state or not st.session_state['tasheeh_assignments']:
-            st.info("📌 وزع المعلمين أولاً من تبويب 'التوزيع التلقائي'")
+            st.info("📌 لم يتم توزيع أي تكليفات بعد. اذهب لتبويب التوزيع التلقائي.")
         else:
             assigns = st.session_state['tasheeh_assignments']
-            st.markdown(f"### 📄 الكتب الجاهزة: {len(assigns)} تكليف")
-            st.dataframe(pd.DataFrame(assigns)[['name', 'subject', 'hall_name', 'hall_city']], use_container_width=True)
+            df_assigns = pd.DataFrame(assigns)
             
-            if st.button("📦 إنشاء ملف وورد واحد لجميع التكليفات", type="primary"):
-                if not os.path.exists(TEMPLATE_NAME):
-                    st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
-                else:
-                    with st.spinner("جاري إنشاء الملف..."):
-                        try:
-                            final_doc = Document(TEMPLATE_NAME)
-                            final_doc._body.clear_content()
-                            for i, a in enumerate(assigns):
-                                temp_doc = Document(TEMPLATE_NAME)
-                                repls = {
-                                    'ZNAME': a.get('name', '---'), 'ZID': a.get('id', '---'),
-                                    'ZTEST': a.get('exam_name', '---'), 'ZHALL': a.get('hall_name', '---'),
-                                    'ZLOC': a.get('hall_city', '---'), 'ZWORK': a.get('school', '---'),
-                                    'ZCITY': a.get('city', '---'), 'ZSUBJECT': a.get('subject', '---')
-                                }
-                                for p in temp_doc.paragraphs:
-                                    for k, v in repls.items():
-                                        if k in p.text:
-                                            for run in p.runs:
-                                                if k in run.text:
-                                                    run.text = run.text.replace(k, str(v))
-                                                    run.bold = True
-                                for table in temp_doc.tables:
-                                    for row in table.rows:
-                                        for cell in row.cells:
-                                            for p in cell.paragraphs:
-                                                for k, v in repls.items():
-                                                    if k in p.text:
-                                                        for run in p.runs:
-                                                            if k in run.text:
-                                                                run.text = run.text.replace(k, str(v))
-                                                                run.bold = True
-                                elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
-                                for element in elements:
-                                    final_doc.element.body.append(copy.deepcopy(element))
-                                if i < len(assigns) - 1:
-                                    p = OxmlElement('w:p')
-                                    r = OxmlElement('w:r')
-                                    br = OxmlElement('w:br')
-                                    br.set(qn('w:type'), 'page')
-                                    r.append(br)
-                                    p.append(r)
-                                    final_doc.element.body.append(p)
-                            out = io.BytesIO()
-                            final_doc.save(out)
-                            out.seek(0)
-                            st.success(f"✅ تم إنشاء الملف بنجاح! يحتوي على {len(assigns)} تكليف")
-                            st.download_button(label="📥 تحميل ملف التكليفات الكامل", data=out.getvalue(),
-                                               file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
-                                               mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                               key="dl_bulk_tasheeh_unique_key")
-                        except Exception as e:
-                            st.error(f"❌ خطأ: {e}")
+            st.markdown(f"### 📄 التكليفات الحالية: {len(assigns)} معلم")
+            
+            # عرض الجدول
+            st.dataframe(df_assigns[['name', 'subject', 'hall_name', 'hall_city', 'exam_name']], use_container_width=True)
+            
+            st.divider()
+            
+            # 2. قسم إدارة وحذف التكليفات 🔴🔴🔴
+            st.markdown("### 🗑️ إدارة وحذف التكليفات")
+            
+            # زر حذف الكل
+            if st.button("🗑️ حذف جميع التكليفات (مسح شامل)", type="secondary"):
+                if st.session_state['tasheeh_assignments']:
+                    c.execute("DELETE FROM tasheeh_assignments")
+                    conn.commit()
+                    st.session_state['tasheeh_assignments'] = []
+                    st.success("✅ تم حذف جميع التكليفات")
+                    st.rerun()
+
+            # زر حذف حسب المادة
+            if not df_assigns.empty:
+                subjects_list = sorted(df_assigns['subject'].dropna().unique().tolist())
+                del_subject = st.selectbox("⚠️ اختر المادة لحذف تكليفاتها فقط:", subjects_list)
+                
+                if st.button(f"🗑️ حذف تكليفات مادة '{del_subject}' فقط", type="primary"):
+                    # حذف من قاعدة البيانات
+                    c.execute("DELETE FROM tasheeh_assignments WHERE subject=?", (del_subject,))
+                    conn.commit()
+                    
+                    # حذف من الذاكرة الحالية
+                    st.session_state['tasheeh_assignments'] = [a for a in st.session_state['tasheeh_assignments'] if a['subject'] != del_subject]
+                    
+                    st.success(f"✅ تم حذف تكليفات مادة '{del_subject}' بنجاح")
+                    st.rerun()
+
+            st.divider()
+
+            # 3. أزرار إنشاء الملفات (كما هي سابقاً)
+            st.markdown("### 📦 إنشاء الملفات وتصديرها")
+            
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                if st.button("📝 إنشاء ملف وورد كامل", type="primary"):
+                    if not os.path.exists(TEMPLATE_NAME):
+                        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
+                    else:
+                        with st.spinner("جاري إنشاء الملف..."):
+                            try:
+                                final_doc = Document(TEMPLATE_NAME)
+                                final_doc._body.clear_content()
+                                # إعادة تحميل التكليفات من قاعدة البيانات لضمان الدقة
+                                current_assigns = pd.read_sql("SELECT * FROM tasheeh_assignments", conn)
+                                
+                                for i, a in current_assigns.iterrows():
+                                    temp_doc = Document(TEMPLATE_NAME)
+                                    repls = {
+                                        'ZNAME': str(a.get('teacher_name', '---')), 
+                                        'ZID': str(a.get('teacher_id', '---')),
+                                        'ZTEST': str(a.get('exam_name', '---')), 
+                                        'ZHALL': str(a.get('hall_name', '---')),
+                                        'ZLOC': str(a.get('hall_city', '---')), 
+                                        'ZWORK': str(a.get('subject', '---')), # المدرسة/المادة
+                                        'ZCITY': str(a.get('city', '---')),
+                                        'ZSUBJECT': str(a.get('subject', '---'))
+                                    }
+                                    for p in temp_doc.paragraphs:
+                                        for k, v in repls.items():
+                                            if k in p.text:
+                                                for run in p.runs:
+                                                    if k in run.text:
+                                                        run.text = run.text.replace(k, v)
+                                                        run.bold = True
+                                    for table in temp_doc.tables:
+                                        for row in table.rows:
+                                            for cell in row.cells:
+                                                for p in cell.paragraphs:
+                                                    for k, v in repls.items():
+                                                        if k in p.text:
+                                                            for run in p.runs:
+                                                                if k in run.text:
+                                                                    run.text = run.text.replace(k, v)
+                                                                    run.bold = True
+                                    
+                                    elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+                                    for element in elements:
+                                        final_doc.element.body.append(copy.deepcopy(element))
+                                    
+                                    if i < len(current_assigns) - 1:
+                                        p = OxmlElement('w:p')
+                                        r = OxmlElement('w:r')
+                                        br = OxmlElement('w:br')
+                                        br.set(qn('w:type'), 'page')
+                                        r.append(br)
+                                        p.append(r)
+                                        final_doc.element.body.append(p)
+                                
+                                out = io.BytesIO()
+                                final_doc.save(out)
+                                out.seek(0)
+                                
+                                st.success(f"✅ تم إنشاء الملف بنجاح! ({len(current_assigns)} صفحة)")
+                                st.download_button(
+                                    label="📥 تحميل ملف الوورد",
+                                    data=out.getvalue(),
+                                    file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="dl_bulk_tasheeh_unique_key_final"
+                                )
+                            except Exception as e:
+                                st.error(f"❌ خطأ: {e}")
+
+            with col_btn2:
+                if st.button("📊 تصدير إكسل"):
+                    df = pd.DataFrame(st.session_state['tasheeh_assignments'])
+                    out = io.BytesIO()
+                    df.to_excel(out, index=False)
+                    out.seek(0)
+                    st.download_button(
+                        "📥 تحميل إكسل", 
+                        out.getvalue(), 
+                        f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", 
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_excel_tasheeh_unique"
+                    )
             
             st.divider()
             if st.button("📊 تصدير كملف إكسل"):
