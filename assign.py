@@ -802,29 +802,33 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         source_options.append("جميع المعلمين (حسب الوضع الحالي)")
         query_source = st.selectbox("", source_options, index=0, label_visibility="collapsed")
 
-        # 2️⃣ تقارير سريعة
+                # 2️⃣ تقارير سريعة
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns(6)
         with q1:
             if st.button("👔 مدراء راغبين ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "مدير مدرسة", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+                st.rerun()  # 🔄 إعادة تحميل الصفحة فوراً
         with q2:
             if st.button("📋 سكرتارية راغبين ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "سكرتير", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+                st.rerun()  # 🔄
         with q3:
             if st.button("👨‍🏫 معلمون راغبون ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "معلم", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+                st.rerun()  # 🔄
         with q4:
             if st.button("🔑 آذن راغبون ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "آذن", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+                st.rerun()  # 🔄
         with q5:
             if st.button("✅ جميع المكلفين حالياً", use_container_width=True):
                 st.session_state.update({'q_role': "الكل", 'q_pref': "الكل", 'q_abl': "الكل", 'q_assigned': "مكلف"})
+                st.rerun()  # 🔄
         with q6:
             if st.button("⏳ غير مكلفين (متاحين)", use_container_width=True):
                 st.session_state.update({'q_role': "الكل", 'q_pref': "الكل", 'q_abl': "الكل", 'q_assigned': "غير مكلف"})
-
-        st.divider()
+                st.rerun()  # 🔄
 
         # 3️⃣ الفلاتر
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
