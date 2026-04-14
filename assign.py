@@ -451,15 +451,38 @@ if st.session_state['system_mode'] != "tasheeh":
             num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
 
             if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
-                selected_sample = df_pool.sample(n=int(num_to_assign))
-                for _, r in selected_sample.iterrows():
-                    c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
-                              (target_h, hall_map_auto[target_h], r['id']))
-                conn.commit()
-                add_log("توزيع تلقائي", f"توزيع {num_to_assign} معلم على قاعة {target_h}")
-                st.success(f"✅ تم توزيع {num_to_assign} بنجاح!")
-                time.sleep(1)
-                st.rerun()
+                # 🔴🔴 الحصول على معلومات القاعة المستهدفة 🔴🔴
+                target_hall_city = hall_map_auto.get(target_h, "")
+                
+                # 🔴 فلترة المعلمين المستبعدين (للثانوية العامة فقط)
+                if st.session_state.system_mode == "tawjihi":
+                    # استبعاد من يسكن في نفس مدينة القاعة
+                    df_pool_filtered = df_pool[df_pool['city'] != target_hall_city].copy()
+                    
+                    # استبعاد من يعمل في نفس المدرسة/القاعة
+                    df_pool_filtered = df_pool_filtered[df_pool_filtered['school'] != target_h].copy()
+                    
+                    excluded_count = len(df_pool) - len(df_pool_filtered)
+                    if excluded_count > 0:
+                        st.info(f"ℹ️ تم استبعاد `{excluded_count}` معلم (من نفس المدينة أو المدرسة)")
+                    
+                    df_pool = df_pool_filtered
+                
+                # التأكد من وجود عدد كافٍ للتوزيع
+                actual_num = min(int(num_to_assign), len(df_pool))
+                
+                if actual_num == 0:
+                    st.warning("⚠️ لا يوجد معلمين متاحين للتوزيع بعد تطبيق الشروط")
+                else:
+                    selected_sample = df_pool.sample(n=actual_num)
+                    for _, r in selected_sample.iterrows():
+                        c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
+                                  (target_h, target_hall_city, r['id']))
+                    conn.commit()
+                    add_log("توزيع تلقائي", f"توزيع {actual_num} معلم على قاعة {target_h}")
+                    st.success(f"✅ تم توزيع {actual_num} بنجاح!")
+                    time.sleep(1)
+                    st.rerun()
 
         st.divider()
         st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
