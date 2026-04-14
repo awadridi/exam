@@ -969,12 +969,30 @@ if st.session_state.get('system_mode') == "tasheeh":
                                    key="dl_excel_tasheeh_unique")
     
     # ==================== تبويب 4: سجل العمليات ====================
+        # ==================== تبويب 4: سجل العمليات ====================
     with corr_tab4:
-        st.markdown("### 📜 سجل التصحيح")
-        df = pd.read_sql("SELECT * FROM logs WHERE action LIKE '%تصحيح%' ORDER BY id DESC LIMIT 50", conn)
+        st.markdown("### 📜 سجل العمليات الخاص بالتصحيح")
+        
+        # 🔴🔴 زر حذف السجلات الجديد 🔴🔴
+        st.warning("⚠️ هذا الزر سيقوم بحذف سجلات التصحيح نهائياً.")
+        if st.button("🗑️ حذف سجلات التصحيح نهائياً", type="primary", key="delete_tasheeh_logs_btn"):
+            try:
+                # حذف السجلات التي تحتوي على كلمة 'تصحيح' فقط
+                c.execute("DELETE FROM logs WHERE action LIKE '%تصحيح%'")
+                conn.commit()
+                st.success("✅ تم مسح سجلات التصحيح بالكامل")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ خطأ أثناء الحذف: {e}")
+        
+        st.divider()
+        
+        # عرض السجلات
+        df = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs WHERE action LIKE '%تصحيح%' ORDER BY id DESC", conn)
         if not df.empty:
             st.dataframe(df, use_container_width=True)
         else:
-            st.info("لا يوجد سجلات")
+            st.info("لا يوجد سجلات تصحيح حالياً.")
     
     st.stop()
