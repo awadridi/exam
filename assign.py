@@ -838,12 +838,13 @@ if st.session_state.get('system_mode') == "tasheeh":
         return doc
     
     st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
+        <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%);
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
                     margin: 20px 0; text-align: center;">
             <h2 style="color: #00ffcc; margin: 0;">✨ نظام تصحيح الثانوية العامة ✨</h2>
-                # 🟢 كود اجبار الاتجاه من اليمين لليسار (RTL) 🟢
-    st.markdown("""
+        </div>
+        
+        # 🟢 كود اجبار الاتجاه من اليمين لليسار (RTL) 🟢
         <style>
         /* اجبار الاتجاه العام */
         .stApp {
