@@ -499,6 +499,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.divider()
         st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
+
         df_managers = df_all[(df_all['current_job'] == 'مدير مدرسة') & (df_all['preference'] == 'يرغب') & ((df_all['hall'].isna()) | (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None', 'NaN'])))]
         df_secretaries = df_all[(df_all['current_job'] == 'سكرتير') & (df_all['preference'] == 'يرغب') & ((df_all['hall'].isna()) | (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None', 'NaN'])))]
         df_janitors = df_all[(df_all['current_job'] == 'آذن') & (df_all['preference'] == 'يرغب') & ((df_all['hall'].isna()) | (df_all['hall'].astype(str).str.strip().isin(['', 'nan', 'None', 'NaN'])))]
@@ -512,27 +513,40 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         if target_h2:
             col_s1, col_s2, col_s3 = st.columns(3)
+            
             with col_s1:
                 sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), key="sel_manager")
             with col_s2:
-                sel_secretary = st.selectbox("📋 مساعد الرئيس (سكرتير):", [""] + df_secretaries['name'].tolist(), key="sel_secretary")
+                # ✅ التعديل هنا: قائمة متعددة تتيح اختيار مساعد أو مساعدان
+                sel_secretaries = st.multiselect("📋 مساعدي الرئيس (بحد أقصى 2):", df_secretaries['name'].tolist(), max_selections=2, key="sel_secretaries_multi")
             with col_s3:
                 sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), key="sel_janitor")
             
             if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
                 saved = []
+                
+                # حفظ رئيس القاعة
                 if sel_manager:
                     manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?", (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
+                    c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                              (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
                     saved.append(f"رئيس قاعة: {sel_manager}")
-                if sel_secretary:
-                    secretary_id = df_secretaries[df_secretaries['name'] == sel_secretary]['id'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?", (target_h2, hall_map_auto[target_h2], st.session_state.username, secretary_id))
-                    saved.append(f"مساعد رئيس: {sel_secretary}")
+                
+                # ✅ حفظ المساعدين (واحد أو اثنين)
+                for sec_name in sel_secretaries:
+                    if sec_name:
+                        sec_id = df_secretaries[df_secretaries['name'] == sec_name]['id'].values[0]
+                        c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                                  (target_h2, hall_map_auto[target_h2], st.session_state.username, sec_id))
+                        saved.append(f"مساعد رئيس: {sec_name}")
+                
+                # حفظ الآذن
                 if sel_janitor:
                     janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?", (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
+                    c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
+                              (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
                     saved.append(f"آذن: {sel_janitor}")
+                
                 if saved:
                     conn.commit()
                     add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
@@ -542,7 +556,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.rerun()
                 else:
                     st.warning("⚠️ لم تختر أي شخص!")
-
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
         st.markdown(f'<h2 class="move-to-right">تحديث القالب والبيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
