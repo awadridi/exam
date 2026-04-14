@@ -814,6 +814,26 @@ if st.session_state.get('system_mode') == "tasheeh":
         if not st.session_state['tasheeh_teachers'].empty:
             st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
             st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
+                    st.divider()
+        st.markdown("### 🧹 تنظيف البيانات من التكرار")
+        if st.button("🗑️ حذف المكررات (نفس الاسم والهوية)", type="secondary", use_container_width=True):
+            try:
+                c.execute("""
+                    DELETE FROM tasheeh_teachers 
+                    WHERE rowid NOT IN (
+                        SELECT MIN(rowid) 
+                        FROM tasheeh_teachers 
+                        GROUP BY id
+                    )
+                """)
+                conn.commit()
+                st.cache_data.clear()
+                # تحديث البيانات في الذاكرة فوراً
+                st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
+                st.success("✅ تم حذف التكرارات بنجاح!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ خطأ: {e}")
 
     # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
