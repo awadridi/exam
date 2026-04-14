@@ -314,13 +314,10 @@ st.divider()
 # 🔴🔴🔴 التبويبات الأصلية تظهر فقط إذا لم يكن الوضع "تصحيح الثانوية" 🔴🔴🔴
 if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
     
-    tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
-        "🔍 البحث والتعيين", 
-        "🤖 التوزيع التلقائي", 
-        "📥 رفع البيانات", 
-        "📊 الإدارة والإحصائيات", 
-        "📜 سجل العمليات"
-    ])
+    tab_search, tab_auto, tab_upload, tab_manage, tab_logs, tab_inquiry = st.tabs([
+    "🔍 البحث والتعيين", "🤖 التوزيع التلقائي", "📥 رفع البيانات", 
+    "📊 الإدارة والإحصائيات", "📜 سجل العمليات", "🔎 الاستعلامات الذكية"
+])
 
     # ==================== تبويب البحث ====================
     with tab_search:
@@ -726,6 +723,145 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.dataframe(df_l, use_container_width=True)
         else:
             st.info("سجل العمليات فارغ حالياً.")
+
+    # ==================== تبويب الاستعلامات الذكية ====================
+    with tab_inquiry:
+        st.markdown('<h2 class="move-to-right">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
+        
+        # تهيئة الجلسة للفلاتر السريعة
+        for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned']:
+            if k not in st.session_state: st.session_state[k] = "الكل"
+
+        # 1️⃣ اختيار مصدر البيانات (يتكيف تلقائياً مع النظام الحالي)
+        st.markdown("### 📂 مصدر البيانات")
+        source_options = []
+        if st.session_state.system_mode == "tawjihi": source_options.append("نظام الثانوية العامة")
+        elif st.session_state.system_mode == "tawzif": source_options.append("نظام التوظيف")
+        source_options.append("جميع المعلمين (حسب الوضع الحالي)")
+        query_source = st.selectbox("", source_options, index=0, label_visibility="collapsed")
+
+        # 2️⃣ تقارير سريعة (أزرار جاهزة)
+        st.markdown("### ⚡ تقارير سريعة")
+        q1, q2, q3, q4, q5, q6 = st.columns(6)
+        with q1:
+            if st.button("👔 مدراء راغبين ويصلحون", use_container_width=True):
+                st.session_state.update({'q_role': "مدير مدرسة", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+        with q2:
+            if st.button("📋 سكرتارية راغبين ويصلحون", use_container_width=True):
+                st.session_state.update({'q_role': "سكرتير", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+        with q3:
+            if st.button("👨‍🏫 معلمون راغبون ويصلحون", use_container_width=True):
+                st.session_state.update({'q_role': "معلم", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+        with q4:
+            if st.button("🔑 آذن راغبون ويصلحون", use_container_width=True):
+                st.session_state.update({'q_role': "آذن", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
+        with q5:
+            if st.button("✅ جميع المكلفين حالياً", use_container_width=True):
+                st.session_state.update({'q_role': "الكل", 'q_pref': "الكل", 'q_abl': "الكل", 'q_assigned': "مكلف"})
+        with q6:
+            if st.button("⏳ غير مكلفين (متاحين)", use_container_width=True):
+                st.session_state.update({'q_role': "الكل", 'q_pref': "الكل", 'q_abl': "الكل", 'q_assigned': "غير مكلف"})
+
+        st.divider()
+
+        # 3️⃣ الفلاتر المخصصة
+        st.markdown("### ⚙️ فلترة متقدمة")
+        f1, f2, f3, f4 = st.columns(4)
+        with f1:
+            role_filter = st.selectbox("🎯 الوظيفة/المهمة:", 
+                ["الكل", "مدير مدرسة", "سكرتير", "معلم", "آذن", "غير محدد"], 
+                index=0 if st.session_state.q_role=="الكل" else ["الكل","مدير مدرسة","سكرتير","معلم","آذن","غير محدد"].index(st.session_state.q_role))
+        with f2:
+            pref_filter = st.selectbox("💭 الرغبة:", 
+                ["الكل", "يرغب", "لا يرغب", "غير محدد"], 
+                index=0 if st.session_state.q_pref=="الكل" else ["الكل","يرغب","لا يرغب","غير محدد"].index(st.session_state.q_pref))
+        with f3:
+            abl_filter = st.selectbox("🛡️ صلاحية المراقبة:", 
+                ["الكل", "يصلح", "لا يصلح", "غير محدد"], 
+                index=0 if st.session_state.q_abl=="الكل" else ["الكل","يصلح","لا يصلح","غير محدد"].index(st.session_state.q_abl))
+        with f4:
+            assign_filter = st.selectbox("📌 حالة التكليف:", 
+                ["الكل", "مكلف", "غير مكلف"], 
+                index=0 if st.session_state.q_assigned=="الكل" else ["الكل","مكلف","غير مكلف"].index(st.session_state.q_assigned))
+
+        search_term = st.text_input("🔍 بحث حر (اسم، هوية، مدرسة، قاعة، جوال):")
+
+        # حفظ اختيارات الفلاتر في الجلسة
+        st.session_state.update({'q_role': role_filter, 'q_pref': pref_filter, 'q_abl': abl_filter, 'q_assigned': assign_filter})
+
+        # 4️⃣ تنفيذ الاستعلام
+        if st.button("🚀 تنفيذ الاستعلام", type="primary", use_container_width=True):
+            df = get_cached_teachers()
+            if df.empty:
+                st.warning("⚠️ قاعدة البيانات فارغة أو لم يتم تحميل البيانات بعد.")
+            else:
+                mask = pd.Series([True] * len(df))
+                
+                if role_filter != "الكل": mask &= (df['current_job'] == role_filter)
+                if pref_filter != "الكل": mask &= (df['preference'] == pref_filter)
+                if abl_filter != "الكل": mask &= (df['ability'] == abl_filter)
+                
+                hall_valid = (df['hall'].astype(str).str.len() > 0) & (df['hall'] != "nan") & (df['hall'].notna())
+                if assign_filter == "مكلف": mask &= hall_valid
+                elif assign_filter == "غير مكلف": mask &= ~hall_valid
+
+                if search_term:
+                    mask &= df.astype(str).apply(lambda col: col.str.contains(search_term, case=False, na=False)).any(axis=1)
+
+                df_res = df[mask].copy()
+
+                # 📊 المقاييس والإحصائيات
+                total = len(df_res)
+                assigned = len(df_res[hall_valid[mask]]) if total > 0 else 0
+                unassigned = total - assigned
+                pct = (assigned / max(total, 1)) * 100
+
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("📊 إجمالي النتائج", total)
+                c2.metric("✅ المكلفون", assigned)
+                c3.metric("⏳ غير مكلفين", unassigned)
+                c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
+
+                # 📈 رسم بياني للرغبة
+                if not df_res.empty:
+                    st.markdown("### 📈 توزيع الرغبة بين النتائج")
+                    st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
+
+                # 📋 جدول النتائج
+                st.markdown("### 📋 جدول النتائج التفصيلي")
+                display_cols = ['name', 'id', 'current_job', 'preference', 'ability', 'hall', 'city', 'phone']
+                safe_cols = [c for c in display_cols if c in df_res.columns]
+                st.dataframe(df_res[safe_cols], use_container_width=True)
+
+                # 📥 زر التصدير
+                if not df_res.empty:
+                    if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            df_export = df_res[safe_cols].copy()
+                            df_export.columns = ['الاسم', 'الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
+                            df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
+                            
+                            wb = writer.book
+                            ws = writer.sheets['نتائج_الاستعلام']
+                            header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center'})
+                            cell_fmt = wb.add_format({'border': 1, 'align': 'right'})
+                            ws.right_to_left()
+                            ws.set_landscape()
+                            ws.fit_to_pages(1, 0)
+                            for col_num, col_name in enumerate(df_export.columns):
+                                ws.write(0, col_num, col_name, header_fmt)
+                                max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
+                                ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
+                        
+                        st.download_button(
+                            label="📥 تحميل ملف Excel",
+                            data=output.getvalue(),
+                            file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                else:
+                    st.info("لا توجد نتائج مطابقة للشروط المختارة.")
 
 # ============================================================================
 # ✨✨✨ نظام تصحيح الثانوية العامة - وحدة مستقلة تماماً ✨✨✨
