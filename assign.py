@@ -700,6 +700,7 @@ if st.session_state.get('system_mode') == "tasheeh":
 
     # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
         # 🔴🔴 استبدل دالة sync_tasheeh_data القديمة بهذه الجديدة 🔴🔴
+        # 🔴🔴 استبدل دالة sync_tasheeh_data القديمة بهذه الجديدة 🔴🔴
     def sync_tasheeh_data():
         try:
             with st.spinner("🔄 جاري المزامنة والتنظيف العميق..."):
