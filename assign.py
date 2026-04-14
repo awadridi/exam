@@ -837,7 +837,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                                         run.bold = True
         return doc
     
-    st.markdown(f"""
+        st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%);
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
                     margin: 20px 0; text-align: center;">
@@ -847,37 +847,37 @@ if st.session_state.get('system_mode') == "tasheeh":
         # 🟢 كود اجبار الاتجاه من اليمين لليسار (RTL) 🟢
         <style>
         /* اجبار الاتجاه العام */
-        .stApp {
+        .stApp {{
             direction: rtl !important;
             text-align: right !important;
-        }
+        }}
         
         /* النصوص والعناوين */
-        p, h3, h4, h5, h6, label, span, div {
+        p, h3, h4, h5, h6, label, span, div {{
             direction: rtl !important;
             text-align: right !important;
-        }
+        }}
         
         /* حقول الكتابة والأزرار */
-        input, textarea, button {
+        input, textarea, button {{
             direction: rtl !important;
             text-align: right !important;
-        }
+        }}
         
         /* التبويبات (Tabs) */
-        [data-testid="stTabs"] {
+        [data-testid="stTabs"] {{
             direction: rtl !important;
             justify-content: flex-end !important;
-        }
-        [data-testid="stTab"] {
+        }}
+        [data-testid="stTab"] {{
             direction: rtl !important;
-        }
+        }}
         
         /* الجداول والبيانات */
-        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {
+        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {{
             direction: rtl !important;
             text-align: right !important;
-        }
+        }}
         </style>
     """, unsafe_allow_html=True)
            
