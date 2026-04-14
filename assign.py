@@ -837,7 +837,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                                         run.bold = True
         return doc
     
-        st.markdown("""
+    st.markdown("""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%);
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
                     margin: 20px 0; text-align: center;">
@@ -846,32 +846,55 @@ if st.session_state.get('system_mode') == "tasheeh":
         </div>
         
         <style>
-        .stApp {
+        /* RTL - اجبار كل العناصر على الاتجاه من اليمين لليسار */
+        * {
+            direction: rtl !important;
+        }
+        
+        body, .stApp, main, section, div[class*="st-"] {
             direction: rtl !important;
             text-align: right !important;
         }
         
-        p, h3, h4, h5, h6, label, span, div {
+        /* النصوص والعناوين */
+        h1, h2, h3, h4, h5, h6, p, span, label {
             direction: rtl !important;
             text-align: right !important;
         }
         
-        input, textarea, button {
+        /* حقول الإدخال */
+        input[type="text"], input[type="number"], input[type="date"], 
+        textarea, select, [data-baseweb="input"], [data-baseweb="select"] {
             direction: rtl !important;
             text-align: right !important;
         }
         
-        [data-testid="stTabs"] {
-            direction: rtl !important;
-            justify-content: flex-end !important;
-        }
-        [data-testid="stTab"] {
+        /* الأزرار */
+        button, [role="button"] {
             direction: rtl !important;
         }
         
-        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {
+        /* الجداول */
+        table, thead, tbody, tr, th, td {
             direction: rtl !important;
             text-align: right !important;
+        }
+        
+        /* التبويبات */
+        [data-testid="stTabs"], [data-testid="stTab"], .stTabs {
+            direction: rtl !important;
+        }
+        
+        /* الصناديق والمحتوى */
+        .stAlert, .stInfo, .stSuccess, .stWarning, .stError,
+        [data-testid="stAlert"], [data-testid="stMarkdown"] {
+            direction: rtl !important;
+            text-align: right !important;
+        }
+        
+        /* القوائم المنسدلة */
+        [data-testid="stSelectbox"], [data-testid="stMultiselect"] {
+            direction: rtl !important;
         }
         </style>
     """, unsafe_allow_html=True)
