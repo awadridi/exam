@@ -814,10 +814,26 @@ if st.session_state.get('system_mode') == "tasheeh":
         if not st.session_state['tasheeh_teachers'].empty:
             st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
             st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
-        st.divider()
+                st.divider()
         st.markdown("### 🧹 تنظيف البيانات من التكرار")
+        
+        # فحص عدد المكررات قبل الحذف
+        if not st.session_state['tasheeh_teachers'].empty:
+            df_check = st.session_state['tasheeh_teachers']
+            duplicates = df_check[df_check.duplicated(subset=['id'], keep=False)]
+            num_duplicates = len(duplicates)
+            
+            if num_duplicates > 0:
+                st.warning(f"⚠️ تم العثور على `{num_duplicates}` سجل مكرر")
+                st.dataframe(duplicates[['name', 'id', 'subject']].head(10), use_container_width=True)
+            else:
+                st.info("✅ لا يوجد تكرار في البيانات حالياً")
+        
         if st.button("🗑️ حذف المكررات (نفس الاسم والهوية)", type="secondary", use_container_width=True):
             try:
+                # احسب عدد السجلات قبل الحذف
+                before_count = len(st.session_state['tasheeh_teachers'])
+                
                 c.execute("""
                     DELETE FROM tasheeh_teachers 
                     WHERE rowid NOT IN (
@@ -827,14 +843,22 @@ if st.session_state.get('system_mode') == "tasheeh":
                     )
                 """)
                 conn.commit()
-                st.cache_data.clear()
-                # تحديث البيانات في الذاكرة فوراً
+                
+                # احسب عدد السجلات بعد الحذف
                 st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
-                st.success("✅ تم حذف التكرارات بنجاح!")
-                st.rerun()
+                after_count = len(st.session_state['tasheeh_teachers'])
+                deleted_count = before_count - after_count
+                
+                st.cache_data.clear()
+                
+                if deleted_count > 0:
+                    st.success(f"✅ تم حذف `{deleted_count}` سجل مكرر بنجاح!")
+                    st.info(f"📊 العدد السابق: `{before_count}` | العدد الجديد: `{after_count}`")
+                else:
+                    st.info("ℹ️ لم يتم العثور على سجلات مكررة للحذف")
+                    
             except Exception as e:
                 st.error(f"❌ خطأ: {e}")
-
     # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
