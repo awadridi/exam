@@ -880,9 +880,7 @@ if st.session_state.get('system_mode') == "tasheeh":
         }
         </style>
     """, unsafe_allow_html=True)
-            <p style="color: #bbb; margin: 10px 0 0 0;">توزيع المصححين حسب المبحث والقاعة</p>
-        </div>
-    """, unsafe_allow_html=True)
+           
     
     corr_tab1, corr_tab2, corr_tab3, corr_tab4 = st.tabs([
         "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات"
