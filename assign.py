@@ -724,157 +724,101 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         else:
             st.info("سجل العمليات فارغ حالياً.")
 
-           # ==================== تبويب الاستعلامات الذكية ====================
+             # ==================== تبويب الاستعلامات الذكية ====================
     with tab_inquiry:
-        # 🟢 حقن CSS قوي جداً في بداية الصفحة
+        # 🟢 CSS للمحاذاة من اليمين لليسار
         st.markdown("""
         <style>
-        /* RTL شامل وقوي */
-        .stApp [data-testid="stVerticalBlock"] > div:first-child {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* جميع النصوص */
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, 
-        .stMarkdown h4, .stMarkdown p, .stMarkdown label,
-        h1, h2, h3, h4, p, span, div:not([class*="st-"]) {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* حقول الإدخال والقوائم */
-        input[type="text"], input[type="search"], 
-        select, textarea,
-        .stTextInput > div > div > input,
-        .stSelectbox > div > div > select {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* الأزرار */
-        .stButton > button {
-            direction: rtl !important;
-        }
-        
-        /* المقاييس Metrics */
-        [data-testid="stMetric"] {
-            direction: rtl !important;
-            text-align: center !important;
-        }
-        [data-testid="stMetricLabel"] {
-            direction: rtl !important;
-        }
-        [data-testid="stMetricValue"] {
-            direction: ltr !important;
-            text-align: center !important;
-        }
-        
-        /* الجداول */
-        table {
-            direction: rtl !important;
-        }
-        th, td {
-            text-align: right !important;
-        }
-        [data-testid="stDataFrame"] {
-            direction: rtl !important;
-        }
-        
-        /* الأعمدة الأفقية */
-        .stColumns > div {
-            direction: rtl !important;
-        }
+        .stApp [data-testid="stVerticalBlock"] > div:first-child { direction: rtl !important; text-align: right !important; }
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown p, .stMarkdown label { direction: rtl !important; text-align: right !important; }
+        input[type="text"], input[type="search"], select, textarea, .stTextInput > div > div > input, .stSelectbox > div > div > select { direction: rtl !important; text-align: right !important; }
+        .stButton > button { direction: rtl !important; }
+        [data-testid="stMetric"] { direction: rtl !important; text-align: center !important; }
+        [data-testid="stMetricLabel"] { direction: rtl !important; }
+        [data-testid="stMetricValue"] { direction: ltr !important; text-align: center !important; }
+        table, th, td, [data-testid="stDataFrame"] { direction: rtl !important; text-align: right !important; }
+        .stColumns > div { direction: rtl !important; }
         </style>
         """, unsafe_allow_html=True)
 
         st.markdown('<h2 style="text-align: right; direction: rtl;">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
         
-        # تهيئة الجلسة
-        for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned']:
-            if k not in st.session_state: st.session_state[k] = "الكل"
+        # 🔑 تهيئة متغير التشغيل والفلاتر
+        if 'run_query' not in st.session_state: st.session_state.run_query = False
+        for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned', 'q_search']:
+            if k not in st.session_state: st.session_state[k] = "الكل" if k.startswith('q_') and k != 'q_search' else ""
 
         # 1️⃣ مصدر البيانات
         st.markdown('<h3 style="text-align: right; direction: rtl;">📂 مصدر البيانات</h3>', unsafe_allow_html=True)
-        source_options = []
-        if st.session_state.system_mode == "tawjihi": source_options.append("نظام الثانوية العامة")
-        elif st.session_state.system_mode == "tawzif": source_options.append("نظام التوظيف")
-        source_options.append("جميع المعلمين (حسب الوضع الحالي)")
-        query_source = st.selectbox("", source_options, index=0, label_visibility="collapsed")
+        source_options = ["جميع المعلمين (حسب الوضع الحالي)"]
+        if st.session_state.system_mode == "tawjihi": source_options.insert(0, "نظام الثانوية العامة")
+        elif st.session_state.system_mode == "tawzif": source_options.insert(0, "نظام التوظيف")
+        st.selectbox("", source_options, index=0, label_visibility="collapsed", disabled=True)
 
-                # 2️⃣ تقارير سريعة
+        # 2️⃣ تقارير سريعة (تُفعّل المفتاح وتعيد التشغيل)
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns(6)
-        with q1:
-            if st.button("👔 مدراء راغبين ويصلحون", use_container_width=True):
-                st.session_state.update({'q_role': "مدير مدرسة", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
-                st.rerun()  # 🔄 إعادة تحميل الصفحة فوراً
-        with q2:
-            if st.button("📋 سكرتارية راغبين ويصلحون", use_container_width=True):
-                st.session_state.update({'q_role': "سكرتير", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
-                st.rerun()  # 🔄
-        with q3:
-            if st.button("👨‍🏫 معلمون راغبون ويصلحون", use_container_width=True):
-                st.session_state.update({'q_role': "معلم", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
-                st.rerun()  # 🔄
-        with q4:
-            if st.button("🔑 آذن راغبون ويصلحون", use_container_width=True):
-                st.session_state.update({'q_role': "آذن", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
-                st.rerun()  # 🔄
-        with q5:
-            if st.button("✅ جميع المكلفين حالياً", use_container_width=True):
-                st.session_state.update({'q_role': "الكل", 'q_pref': "الكل", 'q_abl': "الكل", 'q_assigned': "مكلف"})
-                st.rerun()  # 🔄
-        with q6:
-            if st.button("⏳ غير مكلفين (متاحين)", use_container_width=True):
-                st.session_state.update({'q_role': "الكل", 'q_pref': "الكل", 'q_abl': "الكل", 'q_assigned': "غير مكلف"})
-                st.rerun()  # 🔄
+        def set_quick(role, pref, abl, assign):
+            st.session_state.update({'q_role': role, 'q_pref': pref, 'q_abl': abl, 'q_assigned': assign})
+            st.session_state.run_query = True
+            st.rerun()
 
-        # 3️⃣ الفلاتر
+        with q1:
+            if st.button("👔 مدراء راغبين ويصلحون", use_container_width=True): set_quick("مدير مدرسة", "يرغب", "يصلح", "الكل")
+        with q2:
+            if st.button("📋 سكرتارية راغبين ويصلحون", use_container_width=True): set_quick("سكرتير", "يرغب", "يصلح", "الكل")
+        with q3:
+            if st.button("👨‍🏫 معلمون راغبون ويصلحون", use_container_width=True): set_quick("معلم", "يرغب", "يصلح", "الكل")
+        with q4:
+            if st.button("🔑 آذن راغبون ويصلحون", use_container_width=True): set_quick("آذن", "يرغب", "يصلح", "الكل")
+        with q5:
+            if st.button("✅ جميع المكلفين حالياً", use_container_width=True): set_quick("الكل", "الكل", "الكل", "مكلف")
+        with q6:
+            if st.button("⏳ غير مكلفين (متاحين)", use_container_width=True): set_quick("الكل", "الكل", "الكل", "غير مكلف")
+
+        st.divider()
+
+        # 3️⃣ الفلاتر المخصصة
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
         f1, f2, f3, f4 = st.columns(4)
         with f1:
-            role_filter = st.selectbox("🎯 الوظيفة/المهمة:", 
-                ["الكل", "مدير مدرسة", "سكرتير", "معلم", "آذن", "غير محدد"], 
-                index=0 if st.session_state.q_role=="الكل" else ["الكل","مدير مدرسة","سكرتير","معلم","آذن","غير محدد"].index(st.session_state.q_role))
+            role_filter = st.selectbox("🎯 الوظيفة/المهمة:", ["الكل", "مدير مدرسة", "سكرتير", "معلم", "آذن", "غير محدد"], index=0 if st.session_state.q_role=="الكل" else ["الكل","مدير مدرسة","سكرتير","معلم","آذن","غير محدد"].index(st.session_state.q_role), key="sel_role")
         with f2:
-            pref_filter = st.selectbox("💭 الرغبة:", 
-                ["الكل", "يرغب", "لا يرغب", "غير محدد"], 
-                index=0 if st.session_state.q_pref=="الكل" else ["الكل","يرغب","لا يرغب","غير محدد"].index(st.session_state.q_pref))
+            pref_filter = st.selectbox("💭 الرغبة:", ["الكل", "يرغب", "لا يرغب", "غير محدد"], index=0 if st.session_state.q_pref=="الكل" else ["الكل","يرغب","لا يرغب","غير محدد"].index(st.session_state.q_pref), key="sel_pref")
         with f3:
-            abl_filter = st.selectbox("🛡️ صلاحية المراقبة:", 
-                ["الكل", "يصلح", "لا يصلح", "غير محدد"], 
-                index=0 if st.session_state.q_abl=="الكل" else ["الكل","يصلح","لا يصلح","غير محدد"].index(st.session_state.q_abl))
+            abl_filter = st.selectbox("🛡️ صلاحية المراقبة:", ["الكل", "يصلح", "لا يصلح", "غير محدد"], index=0 if st.session_state.q_abl=="الكل" else ["الكل","يصلح","لا يصلح","غير محدد"].index(st.session_state.q_abl), key="sel_abl")
         with f4:
-            assign_filter = st.selectbox("📌 حالة التكليف:", 
-                ["الكل", "مكلف", "غير مكلف"], 
-                index=0 if st.session_state.q_assigned=="الكل" else ["الكل","مكلف","غير مكلف"].index(st.session_state.q_assigned))
+            assign_filter = st.selectbox("📌 حالة التكليف:", ["الكل", "مكلف", "غير مكلف"], index=0 if st.session_state.q_assigned=="الكل" else ["الكل","مكلف","غير مكلف"].index(st.session_state.q_assigned), key="sel_assign")
 
-        search_term = st.text_input("🔍 بحث حر (اسم، هوية، مدرسة، قاعة، جوال):")
+        search_term = st.text_input("🔍 بحث حر (اسم، هوية، مدرسة، قاعة، جوال):", value=st.session_state.q_search, key="txt_search")
 
-        st.session_state.update({'q_role': role_filter, 'q_pref': pref_filter, 'q_abl': abl_filter, 'q_assigned': assign_filter})
+        # حفظ اختيارات الفلاتر في الجلسة
+        st.session_state.update({'q_role': role_filter, 'q_pref': pref_filter, 'q_abl': abl_filter, 'q_assigned': assign_filter, 'q_search': search_term})
 
-        # 4️⃣ تنفيذ الاستعلام
+        # 4️⃣ زر التنفيذ الرئيسي (يُفعّل المفتاح فقط)
         if st.button("🚀 تنفيذ الاستعلام", type="primary", use_container_width=True):
+            st.session_state.run_query = True
+
+        # 🔍🔍 منطق تنفيذ الاستعلام (يعمل تلقائياً عند تفعيل المفتاح)
+        if st.session_state.get('run_query', False):
             df = get_cached_teachers()
             if df.empty:
                 st.warning("⚠️ قاعدة البيانات فارغة أو لم يتم تحميل البيانات بعد.")
             else:
                 mask = pd.Series([True] * len(df))
                 
-                if role_filter != "الكل": mask &= (df['current_job'] == role_filter)
-                if pref_filter != "الكل": mask &= (df['preference'] == pref_filter)
-                if abl_filter != "الكل": mask &= (df['ability'] == abl_filter)
+                if st.session_state.q_role != "الكل": mask &= (df['current_job'] == st.session_state.q_role)
+                if st.session_state.q_pref != "الكل": mask &= (df['preference'] == st.session_state.q_pref)
+                if st.session_state.q_abl != "الكل": mask &= (df['ability'] == st.session_state.q_abl)
                 
                 hall_valid = (df['hall'].astype(str).str.len() > 0) & (df['hall'] != "nan") & (df['hall'].notna())
-                if assign_filter == "مكلف": mask &= hall_valid
-                elif assign_filter == "غير مكلف": mask &= ~hall_valid
+                if st.session_state.q_assigned == "مكلف": mask &= hall_valid
+                elif st.session_state.q_assigned == "غير مكلف": mask &= ~hall_valid
 
-                if search_term:
-                    mask &= df.astype(str).apply(lambda col: col.str.contains(search_term, case=False, na=False)).any(axis=1)
+                if st.session_state.q_search:
+                    mask &= df.astype(str).apply(lambda col: col.str.contains(st.session_state.q_search, case=False, na=False)).any(axis=1)
 
                 df_res = df[mask].copy()
-
                 total = len(df_res)
                 assigned = len(df_res[hall_valid[mask]]) if total > 0 else 0
                 unassigned = total - assigned
@@ -901,27 +845,20 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                             df_export = df_res[safe_cols].copy()
                             df_export.columns = ['الاسم', 'الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
                             df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
-                            
-                            wb = writer.book
-                            ws = writer.sheets['نتائج_الاستعلام']
+                            wb = writer.book; ws = writer.sheets['نتائج_الاستعلام']
                             header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center'})
                             cell_fmt = wb.add_format({'border': 1, 'align': 'right'})
-                            ws.right_to_left()
-                            ws.set_landscape()
-                            ws.fit_to_pages(1, 0)
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0)
                             for col_num, col_name in enumerate(df_export.columns):
                                 ws.write(0, col_num, col_name, header_fmt)
                                 max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
                                 ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
-                        
-                        st.download_button(
-                            label="📥 تحميل ملف Excel",
-                            data=output.getvalue(),
-                            file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
+                        st.download_button(label="📥 تحميل ملف Excel", data=output.getvalue(), file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 else:
                     st.info("لا توجد نتائج مطابقة للشروط المختارة.")
+            
+            # 🔑 إعادة تعيين المفتاح بعد التنفيذ لمنع التكرار
+            st.session_state.run_query = False
 
 # ============================================================================
 # ✨✨✨ نظام تصحيح الثانوية العامة - وحدة مستقلة تماماً ✨✨✨
