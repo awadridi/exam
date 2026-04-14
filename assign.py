@@ -58,7 +58,13 @@ def switch_system(mode):
     st.cache_data.clear()
     st.rerun()
 
+def switch_to_other_assignments():
+    st.session_state['system_mode'] = "other_assignments"
+    st.cache_data.clear()
+    st.rerun()
+
 # 🔧 التعديل 1: إضافة الوضع الثالث
+# 🔧 التعديل 1: إضافة الوضع الثالث والرابع
 if st.session_state['system_mode'] == "tawjihi":
     DB_NAME = "data_system_v26.db"
     TEMPLATE_NAME = "template.docx"
@@ -67,10 +73,14 @@ if st.session_state['system_mode'] == "tawjihi":
     PAGE_TITLE = "نظام التكليفات امتحان الثانوية العامة "
 elif st.session_state['system_mode'] == "tasheeh":
     DB_NAME = "data_tasheeh.db"
-    TEMPLATE_NAME = "template_tasheeh.docx"  # 👈 اسم جديد خاص بقالب التصحيح
+    TEMPLATE_NAME = "template_tasheeh.docx"
     TEACHERS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRVP8cQV8GHlaWXETc9rGzteNwDVPg8iyyZ9zCXFq-J1_t0q4sxveFchsN5XbuTiZgJBeTpC3VBMc7k/pub?gid=0&single=true&output=csv"
     HALLS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRVP8cQV8GHlaWXETc9rGzteNwDVPg8iyyZ9zCXFq-J1_t0q4sxveFchsN5XbuTiZgJBeTpC3VBMc7k/pub?gid=1885970999&single=true&output=csv"
     PAGE_TITLE = "نظام تصحيح الثانوية العامة"
+elif st.session_state['system_mode'] == "other_assignments":
+    DB_NAME = "data_other_assignments.db"
+    TEMPLATE_NAME = "template_other.docx"
+    PAGE_TITLE = "نظام التكليفات الأخرى"
 else:
     DB_NAME = "data_tawzif.db"
     TEMPLATE_NAME = "template_tawzif.docx"
@@ -280,7 +290,7 @@ with header_col1:
     """, unsafe_allow_html=True)
     
     st.write("") 
-    btn_col1, btn_col2, btn_col3, btn_spacer = st.columns([1, 1, 1, 1])
+    btn_col1, btn_col2, btn_col3, btn_col4 = st.columns([1, 1, 1, 1])
     with btn_col1:
         if st.button("📝 الثانوية العامة", use_container_width=True, type="primary" if st.session_state.system_mode=="tawjihi" else "secondary"):
             switch_system("tawjihi")
@@ -290,6 +300,9 @@ with header_col1:
     with btn_col3:
         if st.button("✅ تصحيح الثانوية", use_container_width=True, type="primary" if st.session_state.system_mode=="tasheeh" else "secondary"):
             switch_system("tasheeh")
+    with btn_col4:
+        if st.button("📋 تكليفات أخرى", use_container_width=True, type="primary" if st.session_state.system_mode=="other_assignments" else "secondary"):
+            switch_to_other_assignments()
 
 with header_col2:
     if st.button("🚪 تسجيل الخروج", key="logout_btn", use_container_width=True):
@@ -1214,4 +1227,365 @@ if st.session_state.get('system_mode') == "tasheeh":
         else:
             st.info("لا يوجد سجلات تصحيح حالياً.")
     
+    st.stop()
+
+
+# ============================================================================
+# 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً
+# ============================================================================
+
+if st.session_state.get('system_mode') == "other_assignments":
+    
+    # إنشاء قاعدة البيانات والجداول
+    conn_other = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
+    c_other = conn_other.cursor()
+    
+    # جداول منفصلة لكل نوع تكليف
+    for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
+        c_other.execute(f'''CREATE TABLE IF NOT EXISTS {table_name} 
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      zid TEXT, zname TEXT, zjob TEXT, zwork TEXT, 
+                      zloc TEXT, zcity TEXT, created_at TEXT)''')
+    conn_other.commit()
+    
+    def add_other_assignment(table_name, zid, zname, zjob, zwork, zloc, zcity):
+        """إضافة تكليف جديد"""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        c_other.execute(f"""INSERT INTO {table_name} 
+                           (zid, zname, zjob, zwork, zloc, zcity, created_at) 
+                           VALUES (?,?,?,?,?,?,?)""",
+                       (zid, zname, zjob, zwork, zloc, zcity, now))
+        conn_other.commit()
+    
+    def get_other_assignments(table_name):
+        """جلب جميع التكليفات من جدول معين"""
+        return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
+    
+    def delete_other_assignment(table_name, record_id):
+        """حذف تكليف معين"""
+        c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
+        conn_other.commit()
+    
+    def generate_other_letter(row):
+        """إنشاء كتاب تكليف Word"""
+        if not os.path.exists(TEMPLATE_NAME):
+            return None
+        
+        doc = Document(TEMPLATE_NAME)
+        repls = {
+            'ZID': str(row.get('zid', '---')),
+            'ZNAME': str(row.get('zname', '---')),
+            'ZJOB': str(row.get('zjob', '---')),
+            'ZWORK': str(row.get('zwork', '---')),
+            'ZLOC': str(row.get('zloc', '---')),
+            'ZCITY': str(row.get('zcity', '---'))
+        }
+        
+        for p in doc.paragraphs:
+            for k, v in repls.items():
+                if k in p.text:
+                    for run in p.runs:
+                        if k in run.text:
+                            run.text = run.text.replace(k, str(v))
+                            run.bold = True
+        
+        for table in doc.tables:
+            for row_tbl in table.rows:
+                for cell in row_tbl.cells:
+                    for p in cell.paragraphs:
+                        for k, v in repls.items():
+                            if k in p.text:
+                                for run in p.runs:
+                                    if k in run.text:
+                                        run.text = run.text.replace(k, str(v))
+                                        run.bold = True
+        
+        return doc
+    
+    # الواجهة الرئيسية
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
+                    padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
+                    margin: 20px 0; text-align: center;">
+            <h2 style="color: #00ffcc; margin: 0;">📋 نظام التكليفات الأخرى</h2>
+            <p style="color: #bbb; margin: 10px 0 0 0;">الحرس | مرافقة الطرود | جهاز الامتحان | لجنة الامتحان</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # التبويبات الأربعة
+    tab_guard, tab_parcels, tab_device, tab_committee = st.tabs([
+        "🛡️ الحرس", "📦 مرافقة الطرود", "📱 جهاز الامتحان", "👥 لجنة الامتحان"
+    ])
+    
+    # خريطة أسماء الجداول
+    tables_map = {
+        'guards': 'الحرس',
+        'parcels': 'مرافقة الطرود',
+        'exam_device': 'جهاز الامتحان',
+        'exam_committee': 'لجنة الامتحان'
+    }
+    
+    # ==================== تبويب الحرس ====================
+    with tab_guard:
+        st.markdown("### 🛡️ إدارة تكليفات الحرس")
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown("**➕ إضافة تكليف جديد**")
+            with st.form("add_guard_form"):
+                g_zid = st.text_input("رقم الهوية (ZID)")
+                g_zname = st.text_input("الاسم (ZNAME)")
+                g_zjob = st.text_input("المهمة (ZJOB)", value="حارس")
+                g_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
+                g_zloc = st.text_input("مكان التكليف (ZLOC)")
+                g_zcity = st.text_input("مكان السكن (ZCITY)")
+                submit_guard = st.form_submit_button("💾 إضافة", type="primary")
+                
+                if submit_guard:
+                    if g_zid and g_zname:
+                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zwork, g_zloc, g_zcity)
+                        st.success("✅ تم الإضافة بنجاح!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        with col2:
+            st.markdown("**📋 قائمة الحرس**")
+            df_guard = get_other_assignments('guards')
+            if not df_guard.empty:
+                st.dataframe(df_guard, use_container_width=True)
+                
+                # أزرار التحميل والحذف
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                        docs = []
+                        for _, row in df_guard.iterrows():
+                            doc = generate_other_letter(row)
+                            if doc:
+                                bio = io.BytesIO()
+                                doc.save(bio)
+                                bio.seek(0)
+                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
+                        if docs:
+                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
+                            for bio, fname in docs[:5]:  # عرض أول 5 فقط
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, 
+                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                 key=f"dl_guard_{fname}")
+                
+                with col_btn2:
+                    if st.button("📊 تصدير Excel"):
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            df_guard.to_excel(writer, index=False, sheet_name='الحرس')
+                        st.download_button("📥 تحميل Excel", output.getvalue(), 
+                                         "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                
+                # زر حذف
+                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1)
+                if st.button("🗑️ حذف السجل"):
+                    delete_other_assignment('guards', del_id)
+                    st.success("✅ تم الحذف")
+                    st.rerun()
+            else:
+                st.info("لا يوجد تكليفات حتى الآن")
+    
+    # ==================== تبويب مرافقة الطرود ====================
+    with tab_parcels:
+        st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown("**➕ إضافة تكليف جديد**")
+            with st.form("add_parcels_form"):
+                p_zid = st.text_input("رقم الهوية (ZID)")
+                p_zname = st.text_input("الاسم (ZNAME)")
+                p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود")
+                p_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
+                p_zloc = st.text_input("مكان التكليف (ZLOC)")
+                p_zcity = st.text_input("مكان السكن (ZCITY)")
+                submit_parcels = st.form_submit_button("💾 إضافة", type="primary")
+                
+                if submit_parcels:
+                    if p_zid and p_zname:
+                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zwork, p_zloc, p_zcity)
+                        st.success("✅ تم الإضافة بنجاح!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        with col2:
+            st.markdown("**📋 قائمة مرافقة الطرود**")
+            df_parcels = get_other_assignments('parcels')
+            if not df_parcels.empty:
+                st.dataframe(df_parcels, use_container_width=True)
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                        docs = []
+                        for _, row in df_parcels.iterrows():
+                            doc = generate_other_letter(row)
+                            if doc:
+                                bio = io.BytesIO()
+                                doc.save(bio)
+                                bio.seek(0)
+                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
+                        if docs:
+                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
+                            for bio, fname in docs[:5]:
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname,
+                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                 key=f"dl_parcels_{fname}")
+                
+                with col_btn2:
+                    if st.button("📊 تصدير Excel"):
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            df_parcels.to_excel(writer, index=False, sheet_name='مرافقة الطرود')
+                        st.download_button("📥 تحميل Excel", output.getvalue(),
+                                         "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                
+                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1, key="del_parcels")
+                if st.button("🗑️ حذف السجل"):
+                    delete_other_assignment('parcels', del_id)
+                    st.success("✅ تم الحذف")
+                    st.rerun()
+            else:
+                st.info("لا يوجد تكليفات حتى الآن")
+    
+    # ==================== تبويب جهاز الامتحان ====================
+    with tab_device:
+        st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown("**➕ إضافة تكليف جديد**")
+            with st.form("add_device_form"):
+                d_zid = st.text_input("رقم الهوية (ZID)")
+                d_zname = st.text_input("الاسم (ZNAME)")
+                d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان")
+                d_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
+                d_zloc = st.text_input("مكان التكليف (ZLOC)")
+                d_zcity = st.text_input("مكان السكن (ZCITY)")
+                submit_device = st.form_submit_button("💾 إضافة", type="primary")
+                
+                if submit_device:
+                    if d_zid and d_zname:
+                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zwork, d_zloc, d_zcity)
+                        st.success("✅ تم الإضافة بنجاح!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        with col2:
+            st.markdown("**📋 قائمة جهاز الامتحان**")
+            df_device = get_other_assignments('exam_device')
+            if not df_device.empty:
+                st.dataframe(df_device, use_container_width=True)
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                        docs = []
+                        for _, row in df_device.iterrows():
+                            doc = generate_other_letter(row)
+                            if doc:
+                                bio = io.BytesIO()
+                                doc.save(bio)
+                                bio.seek(0)
+                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
+                        if docs:
+                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
+                            for bio, fname in docs[:5]:
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname,
+                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                 key=f"dl_device_{fname}")
+                
+                with col_btn2:
+                    if st.button("📊 تصدير Excel"):
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            df_device.to_excel(writer, index=False, sheet_name='جهاز الامتحان')
+                        st.download_button("📥 تحميل Excel", output.getvalue(),
+                                         "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                
+                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1, key="del_device")
+                if st.button("🗑️ حذف السجل"):
+                    delete_other_assignment('exam_device', del_id)
+                    st.success("✅ تم الحذف")
+                    st.rerun()
+            else:
+                st.info("لا يوجد تكليفات حتى الآن")
+    
+    # ==================== تبويب لجنة الامتحان ====================
+    with tab_committee:
+        st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown("**➕ إضافة تكليف جديد**")
+            with st.form("add_committee_form"):
+                c_zid = st.text_input("رقم الهوية (ZID)")
+                c_zname = st.text_input("الاسم (ZNAME)")
+                c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان")
+                c_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
+                c_zloc = st.text_input("مكان التكليف (ZLOC)")
+                c_zcity = st.text_input("مكان السكن (ZCITY)")
+                submit_committee = st.form_submit_button("💾 إضافة", type="primary")
+                
+                if submit_committee:
+                    if c_zid and c_zname:
+                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zwork, c_zloc, c_zcity)
+                        st.success("✅ تم الإضافة بنجاح!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        with col2:
+            st.markdown("**📋 قائمة لجنة الامتحان**")
+            df_committee = get_other_assignments('exam_committee')
+            if not df_committee.empty:
+                st.dataframe(df_committee, use_container_width=True)
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                        docs = []
+                        for _, row in df_committee.iterrows():
+                            doc = generate_other_letter(row)
+                            if doc:
+                                bio = io.BytesIO()
+                                doc.save(bio)
+                                bio.seek(0)
+                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
+                        if docs:
+                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
+                            for bio, fname in docs[:5]:
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname,
+                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                 key=f"dl_committee_{fname}")
+                
+                with col_btn2:
+                    if st.button("📊 تصدير Excel"):
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            df_committee.to_excel(writer, index=False, sheet_name='لجنة الامتحان')
+                        st.download_button("📥 تحميل Excel", output.getvalue(),
+                                         "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                
+                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1, key="del_committee")
+                if st.button("🗑️ حذف السجل"):
+                    delete_other_assignment('exam_committee', del_id)
+                    st.success("✅ تم الحذف")
+                    st.rerun()
+            else:
+                st.info("لا يوجد تكليفات حتى الآن")
+    
+    # ملاحظة حول القالب
+    st.divider()
+    st.info("📌 **ملاحظة:** يجب رفع قالب Word باسم `template_other.docx` يحتوي على الرموز: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY")
+    
+    conn_other.close()
     st.stop()
