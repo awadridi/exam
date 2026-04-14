@@ -895,77 +895,87 @@ if st.session_state.get('system_mode') == "tasheeh":
     
     # ==================== تبويب 3: كتب التكليف ====================
         # ==================== تبويب 3: كتب التكليف وإدارتها ====================
+        # ==================== تبويب 3: إحصائيات التكليفات والكتب ====================
     with corr_tab3:
         
-        # 1. عرض التكليفات الحالية
-        if 'tasheeh_assignments' not in st.session_state or not st.session_state['tasheeh_assignments']:
-            st.info("📌 لم يتم توزيع أي تكليفات بعد. اذهب لتبويب التوزيع التلقائي.")
+        # التحقق من وجود البيانات
+        if 'tasheeh_teachers' not in st.session_state or st.session_state['tasheeh_teachers'].empty:
+            st.warning("⚠️ يرجى تحميل البيانات أولاً من تبويب 'رفع البيانات' لعرض الإحصائيات.")
         else:
-            assigns = st.session_state['tasheeh_assignments']
-            df_assigns = pd.DataFrame(assigns)
+            st.markdown("### 📊 إحصائيات التكليفات")
             
-            st.markdown(f"### 📄 التكليفات الحالية: {len(assigns)} معلم")
+            # 1. قائمة المواد المتاحة من بيانات المعلمين
+            teachers_df = st.session_state['tasheeh_teachers']
+            subjects_list = sorted(teachers_df['subject'].dropna().unique().tolist()) if not teachers_df.empty else []
             
-            # عرض الجدول
-            st.dataframe(df_assigns[['name', 'subject', 'hall_name', 'hall_city', 'exam_name']], use_container_width=True)
+            col_f1, col_f2 = st.columns([1, 2])
+            with col_f1:
+                filter_subj = st.selectbox("🔍 عرض إحصائيات مادة محددة:", ["الكل"] + subjects_list, index=0)
             
-            st.divider()
+            # 2. فلترة البيانات للحسابات
+            assignments_list = st.session_state.get('tasheeh_assignments', [])
+            df_assigns = pd.DataFrame(assignments_list) if assignments_list else pd.DataFrame()
             
-            # 2. قسم إدارة وحذف التكليفات 🔴🔴🔴
-            st.markdown("### 🗑️ إدارة وحذف التكليفات")
-            
-            # زر حذف الكل
-            if st.button("🗑️ حذف جميع التكليفات (مسح شامل)", type="secondary"):
-                if st.session_state['tasheeh_assignments']:
-                    c.execute("DELETE FROM tasheeh_assignments")
-                    conn.commit()
-                    st.session_state['tasheeh_assignments'] = []
-                    st.success("✅ تم حذف جميع التكليفات")
-                    st.rerun()
+            if filter_subj != "الكل":
+                # فلترة حسب المادة المختارة
+                pool_count = len(teachers_df[teachers_df['subject'] == filter_subj])
+                assigned_df = df_assigns[df_assigns['subject'] == filter_subj] if not df_assigns.empty else pd.DataFrame()
+                assigned_count = len(assigned_df)
+                remaining_count = pool_count - assigned_count
+            else:
+                # عرض الكل
+                pool_count = len(teachers_df)
+                assigned_count = len(df_assigns)
+                assigned_df = df_assigns
+                remaining_count = pool_count - assigned_count
 
-            # زر حذف حسب المادة
-            if not df_assigns.empty:
-                subjects_list = sorted(df_assigns['subject'].dropna().unique().tolist())
-                del_subject = st.selectbox("⚠️ اختر المادة لحذف تكليفاتها فقط:", subjects_list)
-                
-                if st.button(f"🗑️ حذف تكليفات مادة '{del_subject}' فقط", type="primary"):
-                    # حذف من قاعدة البيانات
-                    c.execute("DELETE FROM tasheeh_assignments WHERE subject=?", (del_subject,))
-                    conn.commit()
-                    
-                    # حذف من الذاكرة الحالية
-                    st.session_state['tasheeh_assignments'] = [a for a in st.session_state['tasheeh_assignments'] if a['subject'] != del_subject]
-                    
-                    st.success(f"✅ تم حذف تكليفات مادة '{del_subject}' بنجاح")
-                    st.rerun()
+            # 3. عرض المقاييس (Metrics)
+            c_m1, c_m2, c_m3 = st.columns(3)
+            with c_m1:
+                st.metric("📚 إجمالي المعلمين (المادة)", pool_count)
+            with c_m2:
+                st.metric("✅ تم تكليفهم", assigned_count)
+            with c_m3:
+                st.metric("⏳ المتبقي للتكليف", remaining_count)
 
             st.divider()
 
-            # 3. أزرار إنشاء الملفات (كما هي سابقاً)
-            st.markdown("### 📦 إنشاء الملفات وتصديرها")
-            
+            # 4. عرض الجدول
+            st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
+            if not assigned_df.empty:
+                display_cols = ['name', 'subject', 'hall_name', 'hall_city']
+                # التأكد من وجود الأعمدة
+                safe_cols = [c for c in display_cols if c in assigned_df.columns]
+                st.dataframe(assigned_df[safe_cols], use_container_width=True)
+            else:
+                st.info(f"لا يوجد تكليفات لـ {filter_subj}.")
+
+            st.divider()
+
+            # 5. أزرار التحكم (تحميل وحذف)
+            st.markdown("### ⚙️ إدارة وتصدير")
             col_btn1, col_btn2 = st.columns(2)
+            
             with col_btn1:
-                if st.button("📝 إنشاء ملف وورد كامل", type="primary"):
+                if st.button("📥 تحميل وورد للمادة الحالية", type="primary", use_container_width=True, disabled=assigned_df.empty):
                     if not os.path.exists(TEMPLATE_NAME):
-                        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
+                        st.error("❌ القالب غير موجود")
                     else:
-                        with st.spinner("جاري إنشاء الملف..."):
+                        with st.spinner("جاري الإنشاء..."):
                             try:
                                 final_doc = Document(TEMPLATE_NAME)
                                 final_doc._body.clear_content()
-                                # إعادة تحميل التكليفات من قاعدة البيانات لضمان الدقة
-                                current_assigns = pd.read_sql("SELECT * FROM tasheeh_assignments", conn)
+                                current_list = assigned_df.to_dict('records') 
                                 
-                                for i, a in current_assigns.iterrows():
+                                for i, a in enumerate(current_list):
                                     temp_doc = Document(TEMPLATE_NAME)
                                     repls = {
-                                        'ZNAME': str(a.get('teacher_name', '---')), 
-                                        'ZID': str(a.get('teacher_id', '---')),
+                                        'ZNAME': str(a.get('name', '---')), 
+                                        'ZID': str(a.get('id', '---')),
                                         'ZTEST': str(a.get('exam_name', '---')), 
                                         'ZHALL': str(a.get('hall_name', '---')),
                                         'ZLOC': str(a.get('hall_city', '---')), 
-                                        'ZWORK': str(a.get('subject', '---')), # المدرسة/المادة
+                                        'ZWORK': str(a.get('subject', '---')), 
                                         'ZCITY': str(a.get('city', '---')),
                                         'ZSUBJECT': str(a.get('subject', '---'))
                                     }
@@ -986,12 +996,12 @@ if st.session_state.get('system_mode') == "tasheeh":
                                                                 if k in run.text:
                                                                     run.text = run.text.replace(k, v)
                                                                     run.bold = True
-                                    
+                                                    
                                     elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
                                     for element in elements:
                                         final_doc.element.body.append(copy.deepcopy(element))
                                     
-                                    if i < len(current_assigns) - 1:
+                                    if i < len(current_list) - 1:
                                         p = OxmlElement('w:p')
                                         r = OxmlElement('w:r')
                                         br = OxmlElement('w:br')
@@ -1003,17 +1013,36 @@ if st.session_state.get('system_mode') == "tasheeh":
                                 out = io.BytesIO()
                                 final_doc.save(out)
                                 out.seek(0)
-                                
-                                st.success(f"✅ تم إنشاء الملف بنجاح! ({len(current_assigns)} صفحة)")
+                                st.success(f"✅ تم إنشاء ملف {filter_subj} بنجاح")
                                 st.download_button(
-                                    label="📥 تحميل ملف الوورد",
+                                    label="📥 تحميل الآن",
                                     data=out.getvalue(),
-                                    file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    file_name=f"تكليفات_{filter_subj}_{datetime.now().strftime('%Y%m%d')}.docx",
                                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_bulk_tasheeh_unique_key_final"
+                                    key="dl_word_filtered_tasheeh"
                                 )
                             except Exception as e:
-                                st.error(f"❌ خطأ: {e}")
+                                st.error(f"خطأ: {e}")
+
+            with col_btn2:
+                del_btn_label = f"🗑️ حذف تكليفات {filter_subj}"
+                if filter_subj == "الكل":
+                     del_btn_label = "🗑️ حذف جميع التكليفات"
+                
+                if st.button(del_btn_label, type="secondary", use_container_width=True, disabled=assigned_df.empty):
+                    if filter_subj == "الكل":
+                        c.execute("DELETE FROM tasheeh_assignments")
+                    else:
+                        c.execute("DELETE FROM tasheeh_assignments WHERE subject=?", (filter_subj,))
+                    conn.commit()
+                    
+                    if filter_subj == "الكل":
+                        st.session_state['tasheeh_assignments'] = []
+                    else:
+                        st.session_state['tasheeh_assignments'] = [a for a in st.session_state['tasheeh_assignments'] if a['subject'] != filter_subj]
+                    
+                    st.success(f"✅ تم حذف تكليفات {filter_subj}")
+                    st.rerun()
 
             with col_btn2:
                 if st.button("📊 تصدير إكسل"):
