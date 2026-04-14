@@ -814,7 +814,7 @@ if st.session_state.get('system_mode') == "tasheeh":
         if not st.session_state['tasheeh_teachers'].empty:
             st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
             st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
-                st.divider()
+        st.divider()
         st.markdown("### 🧹 تنظيف البيانات من التكرار (حسب رقم الهوية)")
         
         # 🔍 فحص مسبق دقيق
