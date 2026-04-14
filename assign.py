@@ -1312,42 +1312,55 @@ if st.session_state.get('system_mode') == "other_assignments":
         </div>
     """, unsafe_allow_html=True)
     
+    # 📄 رفع قالب Word
+    st.markdown("### 📄 إعدادات القالب")
+    uploaded_tpl = st.file_uploader("📄 ارفع قالب Word (template_other.docx)", type="docx", key="tpl_other_upload")
+    if uploaded_tpl is not None:
+        try:
+            with open(TEMPLATE_NAME, "wb") as f:
+                f.write(uploaded_tpl.getbuffer())
+            st.success("✅ تم حفظ القالب بنجاح!")
+        except Exception as e:
+            st.error(f"❌ خطأ: {e}")
+    
+    st.divider()
+    
     # التبويبات الأربعة
     tab_guard, tab_parcels, tab_device, tab_committee = st.tabs([
         "🛡️ الحرس", "📦 مرافقة الطرود", "📱 جهاز الامتحان", "👥 لجنة الامتحان"
     ])
     
-    # خريطة أسماء الجداول
-    tables_map = {
-        'guards': 'الحرس',
-        'parcels': 'مرافقة الطرود',
-        'exam_device': 'جهاز الامتحان',
-        'exam_committee': 'لجنة الامتحان'
-    }
-    
     # ==================== تبويب الحرس ====================
     with tab_guard:
         st.markdown("### 🛡️ إدارة تكليفات الحرس")
+        
+        if 'guard_form_clear' not in st.session_state:
+            st.session_state.guard_form_clear = False
         
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_guard_form"):
-                g_zid = st.text_input("رقم الهوية (ZID)")
-                g_zname = st.text_input("الاسم (ZNAME)")
-                g_zjob = st.text_input("المهمة (ZJOB)", value="حارس")
-                g_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
-                g_zloc = st.text_input("مكان التكليف (ZLOC)")
-                g_zcity = st.text_input("مكان السكن (ZCITY)")
-                submit_guard = st.form_submit_button("💾 إضافة", type="primary")
+                g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
+                g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
+                g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
+                g_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="g_zwork_input")
+                g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
+                g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
+                submit_guard = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_guard:
                     if g_zid and g_zname:
                         add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zwork, g_zloc, g_zcity)
-                        st.success("✅ تم الإضافة بنجاح!")
+                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        # تفريغ الحقول
+                        st.session_state.guard_form_clear = True
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        if st.session_state.guard_form_clear:
+            st.session_state.guard_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة الحرس**")
@@ -1355,7 +1368,6 @@ if st.session_state.get('system_mode') == "other_assignments":
             if not df_guard.empty:
                 st.dataframe(df_guard, use_container_width=True)
                 
-                # أزرار التحميل والحذف
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
@@ -1369,7 +1381,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
                         if docs:
                             st.success(f"✅ تم إنشاء {len(docs)} ملف")
-                            for bio, fname in docs[:5]:  # عرض أول 5 فقط
+                            for bio, fname in docs[:5]:
                                 st.download_button(f"📥 {fname}", bio.getvalue(), fname, 
                                                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                                  key=f"dl_guard_{fname}")
@@ -1382,38 +1394,45 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), 
                                          "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
-                # زر حذف
-                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1)
-                if st.button("🗑️ حذف السجل"):
+                st.divider()
+                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_guard_num")
+                if st.button("🗑️ حذف السجل", key="btn_del_guard"):
                     delete_other_assignment('guards', del_id)
                     st.success("✅ تم الحذف")
                     st.rerun()
             else:
-                st.info("لا يوجد تكليفات حتى الآن")
+                st.info("📭 لا يوجد تكليفات حتى الآن")
     
     # ==================== تبويب مرافقة الطرود ====================
     with tab_parcels:
         st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
         
+        if 'parcels_form_clear' not in st.session_state:
+            st.session_state.parcels_form_clear = False
+        
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_parcels_form"):
-                p_zid = st.text_input("رقم الهوية (ZID)")
-                p_zname = st.text_input("الاسم (ZNAME)")
-                p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود")
-                p_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
-                p_zloc = st.text_input("مكان التكليف (ZLOC)")
-                p_zcity = st.text_input("مكان السكن (ZCITY)")
-                submit_parcels = st.form_submit_button("💾 إضافة", type="primary")
+                p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input")
+                p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input")
+                p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
+                p_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="p_zwork_input")
+                p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
+                p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
+                submit_parcels = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_parcels:
                     if p_zid and p_zname:
                         add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zwork, p_zloc, p_zcity)
-                        st.success("✅ تم الإضافة بنجاح!")
+                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        st.session_state.parcels_form_clear = True
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        if st.session_state.parcels_form_clear:
+            st.session_state.parcels_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة مرافقة الطرود**")
@@ -1447,37 +1466,45 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(),
                                          "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
-                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1, key="del_parcels")
-                if st.button("🗑️ حذف السجل"):
+                st.divider()
+                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_parcels_num")
+                if st.button("🗑️ حذف السجل", key="btn_del_parcels"):
                     delete_other_assignment('parcels', del_id)
                     st.success("✅ تم الحذف")
                     st.rerun()
             else:
-                st.info("لا يوجد تكليفات حتى الآن")
+                st.info("📭 لا يوجد تكليفات حتى الآن")
     
     # ==================== تبويب جهاز الامتحان ====================
     with tab_device:
         st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
         
+        if 'device_form_clear' not in st.session_state:
+            st.session_state.device_form_clear = False
+        
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_device_form"):
-                d_zid = st.text_input("رقم الهوية (ZID)")
-                d_zname = st.text_input("الاسم (ZNAME)")
-                d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان")
-                d_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
-                d_zloc = st.text_input("مكان التكليف (ZLOC)")
-                d_zcity = st.text_input("مكان السكن (ZCITY)")
-                submit_device = st.form_submit_button("💾 إضافة", type="primary")
+                d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
+                d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
+                d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
+                d_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="d_zwork_input")
+                d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
+                d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
+                submit_device = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_device:
                     if d_zid and d_zname:
                         add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zwork, d_zloc, d_zcity)
-                        st.success("✅ تم الإضافة بنجاح!")
+                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        st.session_state.device_form_clear = True
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        if st.session_state.device_form_clear:
+            st.session_state.device_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة جهاز الامتحان**")
@@ -1511,37 +1538,45 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(),
                                          "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
-                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1, key="del_device")
-                if st.button("🗑️ حذف السجل"):
+                st.divider()
+                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_device_num")
+                if st.button("🗑️ حذف السجل", key="btn_del_device"):
                     delete_other_assignment('exam_device', del_id)
                     st.success("✅ تم الحذف")
                     st.rerun()
             else:
-                st.info("لا يوجد تكليفات حتى الآن")
+                st.info("📭 لا يوجد تكليفات حتى الآن")
     
     # ==================== تبويب لجنة الامتحان ====================
     with tab_committee:
         st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
         
+        if 'committee_form_clear' not in st.session_state:
+            st.session_state.committee_form_clear = False
+        
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_committee_form"):
-                c_zid = st.text_input("رقم الهوية (ZID)")
-                c_zname = st.text_input("الاسم (ZNAME)")
-                c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان")
-                c_zwork = st.text_input("الوظيفة الحالية (ZWORK)")
-                c_zloc = st.text_input("مكان التكليف (ZLOC)")
-                c_zcity = st.text_input("مكان السكن (ZCITY)")
-                submit_committee = st.form_submit_button("💾 إضافة", type="primary")
+                c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input")
+                c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input")
+                c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
+                c_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="c_zwork_input")
+                c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
+                c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
+                submit_committee = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_committee:
                     if c_zid and c_zname:
                         add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zwork, c_zloc, c_zcity)
-                        st.success("✅ تم الإضافة بنجاح!")
+                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        st.session_state.committee_form_clear = True
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+        
+        if st.session_state.committee_form_clear:
+            st.session_state.committee_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة لجنة الامتحان**")
@@ -1575,17 +1610,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(),
                                          "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
-                del_id = st.number_input("أدخل رقم السجل للحذف", min_value=0, step=1, key="del_committee")
-                if st.button("🗑️ حذف السجل"):
+                st.divider()
+                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_committee_num")
+                if st.button("🗑️ حذف السجل", key="btn_del_committee"):
                     delete_other_assignment('exam_committee', del_id)
                     st.success("✅ تم الحذف")
                     st.rerun()
             else:
-                st.info("لا يوجد تكليفات حتى الآن")
+                st.info("📭 لا يوجد تكليفات حتى الآن")
     
-    # ملاحظة حول القالب
     st.divider()
-    st.info("📌 **ملاحظة:** يجب رفع قالب Word باسم `template_other.docx` يحتوي على الرموز: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY")
+    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY")
     
     conn_other.close()
     st.stop()
