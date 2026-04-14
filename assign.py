@@ -817,6 +817,7 @@ if st.session_state.get('system_mode') == "tasheeh":
 
     # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
+        # ==================== تبويب 2: التوزيع التلقائي ====================
     with corr_tab2:
         if st.session_state['tasheeh_teachers'].empty or st.session_state['tasheeh_halls'].empty:
             st.warning("⚠️ يرجى مزامنة البيانات أولاً من تبويب 'رفع البيانات'")
@@ -827,65 +828,70 @@ if st.session_state.get('system_mode') == "tasheeh":
             col1, col2 = st.columns(2)
             with col1:
                 hall_sel = st.selectbox("🏫 القاعة (اختياري):", [""] + list(halls['hall_name'].unique()))
+            
             with col2:
-                subj_sel = st.selectbox("📚 المبحث (اختياري):", [""] + sorted(teachers['subject'].dropna().unique().tolist())) if 'subject' in teachers.columns else st.selectbox("المبحث:", [""])
+                # إذا كان هناك مواد، اعرضها، وإلا اترك القائمة فارغة
+                if 'subject' in teachers.columns and not teachers['subject'].dropna().empty:
+                    subj_sel = st.selectbox("📚 المادة المراد توزيعها:", [""] + sorted(teachers['subject'].dropna().unique().tolist()))
+                else:
+                    subj_sel = ""
+                    st.info("⚠️ عمود المادة فارغ في البيانات")
             
-            # 🔴🔴 التعديل هنا: استبدال مربع النص بقائمة اختيار 🔴🔴🔴
-            st.markdown("---")
-            st.markdown("### 📅 اختر اسم الامتحان:")
-            
-            # هذه القائمة يمكنك تعديلها وإضافة السنوات التي تريدها
-            exam_options = [
-                "امتحان الثانوية العامة 2026 - الدورة الأولى",
-                "امتحان الثانوية العامة 2026 - الدورة الثانية",
-                "امتحان الثانوية العامة 2025",
-                "امتحان الثانوية العامة 2024",
-                "امتحان التوجيهي / مهني"
-            ]
-            
-            # القائمة المنسدلة
-            exam_name = st.selectbox("", exam_options, index=0)
+            # 🔴 تم حذف خانة "اسم الامتحان" 🔴🔴
+            # النظام الآن سيأخذ اسم المادة ويضعه مكان اسم الامتحان في التكليف
             
             if st.button("🚀 توزيع المصححين", type="primary", use_container_width=True):
-                teachers_filtered = teachers[teachers['relative'].astype(str).str.lower() != 'true']
-                pool = teachers_filtered[teachers_filtered['subject'] == subj_sel] if subj_sel else teachers_filtered
-                
-                if pool.empty:
-                    st.warning("⚠️ لا يوجد معلمين مطابقين للمعايير المختارة (مبحث/قريب).")
+                if not subj_sel:
+                    st.warning("⚠️ يرجى اختيار مادة محددة ليتم وضعها كاسم للامتحان في التكليف.")
                 else:
-                    assignments = []
-                    for _, t in pool.iterrows():
-                        # منطق اختيار القاعة (إذا اخترت قاعة محددة أو عشوائية من مدينته)
-                        if hall_sel:
-                            h_pool = halls[halls['hall_name'] == hall_sel]
-                        else:
-                            h_pool = halls[halls['city'] == t.get('city', '')]
-                        
-                        h_pool = h_pool if not h_pool.empty else halls # إذا ما لقي قاعة من مدينته، يختار أي قاعة متاحة
-                        
-                        if not h_pool.empty:
-                            h = h_pool.sample(1).iloc[0]
-                            assignments.append({
-                                'id': t.get('id',''), 'name': t.get('name',''), 'subject': t.get('subject',''),
-                                'hall_name': h['hall_name'], 'hall_city': h['city'], 'exam_name': exam_name,
-                                'school': t.get('school',''), 'city': t.get('city',''),
-                                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
-                            })
+                    # تصفية المعلمين حسب المادة المختارة واستبعاد من له قريب
+                    teachers_filtered = teachers[teachers['relative'].astype(str).str.lower() != 'true']
+                    pool = teachers_filtered[teachers_filtered['subject'] == subj_sel]
                     
-                    if assignments:
-                        st.session_state['tasheeh_assignments'] = assignments
-                        add_log("توزيع تصحيح", f"توزيع {len(assignments)} معلم في {exam_name}")
-                        st.success(f"✅ تم توزيع {len(assignments)} معلم بنجاح!")
-                        
-                        # حفظ في قاعدة البيانات
-                        for a in assignments:
-                            try:
-                                c.execute("INSERT INTO tasheeh_assignments (teacher_id,teacher_name,subject,hall_name,hall_city,exam_name,created_at,created_by) VALUES (?,?,?,?,?,?,?,?)",
-                                         (a['id'],a['name'],a['subject'],a['hall_name'],a['hall_city'],a['exam_name'],a['timestamp'],st.session_state.username))
-                            except: pass
-                        conn.commit()
+                    if pool.empty:
+                        st.warning(f"⚠️ لا يوجد معلمين متاحين للمادة: {subj_sel}")
                     else:
-                        st.error("❌ لم يتم التوزيع، تأكد من توفر قاعات كافية.")
+                        assignments = []
+                        for _, t in pool.iterrows():
+                            # اختيار القاعة
+                            if hall_sel:
+                                h_pool = halls[halls['hall_name'] == hall_sel]
+                            else:
+                                h_pool = halls[halls['city'] == t.get('city', '')]
+                            
+                            h_pool = h_pool if not h_pool.empty else halls
+                            
+                            if not h_pool.empty:
+                                h = h_pool.sample(1).iloc[0]
+                                assignments.append({
+                                    'id': t.get('id',''), 
+                                    'name': t.get('name',''), 
+                                    'subject': t.get('subject',''),
+                                    'hall_name': h['hall_name'], 
+                                    'hall_city': h['city'], 
+                                    
+                                    # 🔴🔴 هنا التغيير: اسم الامتحان يأخذ اسم المادة مباشرة 🔴🔴
+                                    'exam_name': t.get('subject', 'عام'), 
+                                    
+                                    'school': t.get('school',''), 
+                                    'city': t.get('city',''),
+                                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
+                                })
+                        
+                        if assignments:
+                            st.session_state['tasheeh_assignments'] = assignments
+                            add_log("توزيع تصحيح", f"توزيع {len(assignments)} معلم في مادة {subj_sel}")
+                            st.success(f"✅ تم توزيع {len(assignments)} معلم لمادة {subj_sel}")
+                            
+                            # حفظ في قاعدة البيانات
+                            for a in assignments:
+                                try:
+                                    c.execute("INSERT INTO tasheeh_assignments (teacher_id,teacher_name,subject,hall_name,hall_city,exam_name,created_at,created_by) VALUES (?,?,?,?,?,?,?,?)",
+                                             (a['id'],a['name'],a['subject'],a['hall_name'],a['hall_city'],a['exam_name'],a['timestamp'],st.session_state.username))
+                                except: pass
+                            conn.commit()
+                        else:
+                            st.error("❌ لم يتم التوزيع، تأكد من توفر قاعات.")
     
     # ==================== تبويب 3: كتب التكليف ====================
     with corr_tab3:
