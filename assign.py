@@ -699,10 +699,9 @@ if st.session_state.get('system_mode') == "tasheeh":
         except: st.session_state['tasheeh_halls'] = pd.DataFrame()
 
     # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
-    def sync_tasheeh_data():
+        def sync_tasheeh_data():
         try:
-            with st.spinner("🔄 جاري المزامنة الذكية من Google Sheets..."):
-                # مزامنة المعلمين
+            with st.spinner("🔄 جاري المزامنة الذكية (منع التكرار)..."):
                 df_t = pd.read_csv(TEACHERS_URL, dtype=str)
                 df_t.columns = df_t.columns.str.strip().str.lower()
                 rename_map = {
@@ -712,9 +711,18 @@ if st.session_state.get('system_mode') == "tasheeh":
                 }
                 df_t = df_t.rename(columns={k:v for k,v in rename_map.items() if k in df_t.columns})
                 
+                # 🔴🔴 إزالة التكرار بناءً على رقم الهوية (الاحتفاظ بالأول فقط) 🔴🔴
+                before_count = len(df_t)
+                df_t = df_t.drop_duplicates(subset=['id'], keep='first')
+                after_count = len(df_t)
+                
+                if before_count != after_count:
+                    st.info(f"📊 تم اكتشاف `{before_count - after_count}` تكرار في الإكسل وتم تجاهلها")
+                
+                # الإدخال في قاعدة البيانات
                 for _, r in df_t.iterrows():
                     tid = str(r.get('id','')).strip()
-                    if not tid: continue # تخطي الصفوف الفارغة
+                    if not tid: continue
                     c.execute("""INSERT OR REPLACE INTO tasheeh_teachers 
                                  (id, name, subject, city, school, phone, relative) 
                                  VALUES (?,?,?,?,?,?,?)""",
@@ -733,10 +741,11 @@ if st.session_state.get('system_mode') == "tasheeh":
                               (hname, str(r.get('ZLOC',''))))
                 conn.commit()
                 
-                # تحديث الجلسة والواجهة
+                # تحديث الجلسة
                 st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
                 st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
-            st.success("✅ تم التحديث الذكي بنجاح! (تم حفظ/تحديث البيانات بدون تكرار)")
+                
+            st.success(f"✅ تم التحديث بنجاح! (عدد المعلمين: `{len(st.session_state['tasheeh_teachers'])}`)")
             st.rerun()
         except Exception as e:
             st.error(f"❌ خطأ أثناء المزامنة: {e}")
