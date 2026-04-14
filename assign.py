@@ -724,51 +724,78 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         else:
             st.info("سجل العمليات فارغ حالياً.")
 
-       # ==================== تبويب الاستعلامات الذكية ====================
+           # ==================== تبويب الاستعلامات الذكية ====================
     with tab_inquiry:
-        # 🟢 حاوية وأنماط RTL خاصة بهذا التبويب فقط
+        # 🟢 حقن CSS قوي جداً في بداية الصفحة
         st.markdown("""
         <style>
-            #inquiry-rtl-wrap {
-                direction: rtl !important;
-                text-align: right !important;
-            }
-            #inquiry-rtl-wrap h1, #inquiry-rtl-wrap h2, #inquiry-rtl-wrap h3, 
-            #inquiry-rtl-wrap h4, #inquiry-rtl-wrap p, #inquiry-rtl-wrap span, #inquiry-rtl-wrap label {
-                direction: rtl !important;
-                text-align: right !important;
-            }
-            #inquiry-rtl-wrap input, #inquiry-rtl-wrap textarea, #inquiry-rtl-wrap select,
-            #inquiry-rtl-wrap [data-baseweb="input"], #inquiry-rtl-wrap [data-baseweb="select"] {
-                direction: rtl !important;
-                text-align: right !important;
-            }
-            #inquiry-rtl-wrap button, #inquiry-rtl-wrap [role="button"] {
-                direction: rtl !important;
-            }
-            #inquiry-rtl-wrap [data-testid="stMetric"] {
-                direction: rtl !important;
-                text-align: center !important;
-            }
-            #inquiry-rtl-wrap [data-testid="stDataFrame"] th, 
-            #inquiry-rtl-wrap [data-testid="stDataFrame"] td {
-                text-align: right !important;
-            }
-            #inquiry-rtl-wrap [data-testid="stHorizontalBlock"] {
-                direction: rtl !important;
-            }
+        /* RTL شامل وقوي */
+        .stApp [data-testid="stVerticalBlock"] > div:first-child {
+            direction: rtl !important;
+            text-align: right !important;
+        }
+        
+        /* جميع النصوص */
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, 
+        .stMarkdown h4, .stMarkdown p, .stMarkdown label,
+        h1, h2, h3, h4, p, span, div:not([class*="st-"]) {
+            direction: rtl !important;
+            text-align: right !important;
+        }
+        
+        /* حقول الإدخال والقوائم */
+        input[type="text"], input[type="search"], 
+        select, textarea,
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > select {
+            direction: rtl !important;
+            text-align: right !important;
+        }
+        
+        /* الأزرار */
+        .stButton > button {
+            direction: rtl !important;
+        }
+        
+        /* المقاييس Metrics */
+        [data-testid="stMetric"] {
+            direction: rtl !important;
+            text-align: center !important;
+        }
+        [data-testid="stMetricLabel"] {
+            direction: rtl !important;
+        }
+        [data-testid="stMetricValue"] {
+            direction: ltr !important;
+            text-align: center !important;
+        }
+        
+        /* الجداول */
+        table {
+            direction: rtl !important;
+        }
+        th, td {
+            text-align: right !important;
+        }
+        [data-testid="stDataFrame"] {
+            direction: rtl !important;
+        }
+        
+        /* الأعمدة الأفقية */
+        .stColumns > div {
+            direction: rtl !important;
+        }
         </style>
-        <div id="inquiry-rtl-wrap">
         """, unsafe_allow_html=True)
 
-        st.markdown('<h2 style="text-align: right !important; margin-bottom: 20px;">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 style="text-align: right; direction: rtl;">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
         
-        # تهيئة الجلسة للفلاتر السريعة
+        # تهيئة الجلسة
         for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned']:
             if k not in st.session_state: st.session_state[k] = "الكل"
 
-        # 1️⃣ اختيار مصدر البيانات
-        st.markdown('<h3 style="text-align: right !important;">📂 مصدر البيانات</h3>', unsafe_allow_html=True)
+        # 1️⃣ مصدر البيانات
+        st.markdown('<h3 style="text-align: right; direction: rtl;">📂 مصدر البيانات</h3>', unsafe_allow_html=True)
         source_options = []
         if st.session_state.system_mode == "tawjihi": source_options.append("نظام الثانوية العامة")
         elif st.session_state.system_mode == "tawzif": source_options.append("نظام التوظيف")
@@ -776,7 +803,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         query_source = st.selectbox("", source_options, index=0, label_visibility="collapsed")
 
         # 2️⃣ تقارير سريعة
-        st.markdown('<h3 style="text-align: right !important;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: right; direction: rtl;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns(6)
         with q1:
             if st.button("👔 مدراء راغبين ويصلحون", use_container_width=True):
@@ -785,7 +812,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             if st.button("📋 سكرتارية راغبين ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "سكرتير", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
         with q3:
-            if st.button("👨‍ معلمون راغبون ويصلحون", use_container_width=True):
+            if st.button("👨‍🏫 معلمون راغبون ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "معلم", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
         with q4:
             if st.button("🔑 آذن راغبون ويصلحون", use_container_width=True):
@@ -799,8 +826,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.divider()
 
-        # 3️⃣ الفلاتر المخصصة
-        st.markdown('<h3 style="text-align: right !important;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
+        # 3️⃣ الفلاتر
+        st.markdown('<h3 style="text-align: right; direction: rtl;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
         f1, f2, f3, f4 = st.columns(4)
         with f1:
             role_filter = st.selectbox("🎯 الوظيفة/المهمة:", 
@@ -821,7 +848,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         search_term = st.text_input("🔍 بحث حر (اسم، هوية، مدرسة، قاعة، جوال):")
 
-        # حفظ اختيارات الفلاتر في الجلسة
         st.session_state.update({'q_role': role_filter, 'q_pref': pref_filter, 'q_abl': abl_filter, 'q_assigned': assign_filter})
 
         # 4️⃣ تنفيذ الاستعلام
@@ -845,7 +871,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
                 df_res = df[mask].copy()
 
-                # 📊 المقاييس والإحصائيات
                 total = len(df_res)
                 assigned = len(df_res[hall_valid[mask]]) if total > 0 else 0
                 unassigned = total - assigned
@@ -857,19 +882,15 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 c3.metric("⏳ غير مكلفين", unassigned)
                 c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
 
-                # 📈 رسم بياني للرغبة
                 if not df_res.empty:
-                    st.markdown('<h4 style="text-align: right !important;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
+                    st.markdown('<h4 style="text-align: right; direction: rtl;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
                     st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
 
-                # 📋 جدول النتائج
-                st.markdown('<h4 style="text-align: right !important;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
-                display_cols = ['name', 'id', 'current_job', 'preference', 'ability', 'hall', 'city', 'phone']
-                safe_cols = [c for c in display_cols if c in df_res.columns]
-                st.dataframe(df_res[safe_cols], use_container_width=True)
+                    st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
+                    display_cols = ['name', 'id', 'current_job', 'preference', 'ability', 'hall', 'city', 'phone']
+                    safe_cols = [c for c in display_cols if c in df_res.columns]
+                    st.dataframe(df_res[safe_cols], use_container_width=True)
 
-                # 📥 زر التصدير
-                if not df_res.empty:
                     if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -897,9 +918,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         )
                 else:
                     st.info("لا توجد نتائج مطابقة للشروط المختارة.")
-
-        # إغلاق حاوية RTL
-        st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================================
 # ✨✨✨ نظام تصحيح الثانوية العامة - وحدة مستقلة تماماً ✨✨✨
