@@ -699,7 +699,7 @@ if st.session_state.get('system_mode') == "tasheeh":
         except: st.session_state['tasheeh_halls'] = pd.DataFrame()
 
     # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
-        def sync_tasheeh_data():
+    def sync_tasheeh_data():
         try:
             with st.spinner("🔄 جاري المزامنة الذكية (منع التكرار)..."):
                 df_t = pd.read_csv(TEACHERS_URL, dtype=str)
