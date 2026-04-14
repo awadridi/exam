@@ -678,37 +678,69 @@ if st.session_state['system_mode'] != "tasheeh":
 
 if st.session_state.get('system_mode') == "tasheeh":
     
-    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_assignments 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  teacher_id TEXT, teacher_name TEXT, subject TEXT,
-                  hall_name TEXT, hall_city TEXT, exam_name TEXT,
-                  created_at TEXT, created_by TEXT)''')
+    # 1️⃣ إنشاء جداول التخزين الدائم في قاعدة البيانات
+    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_teachers (
+        id TEXT PRIMARY KEY, name TEXT, subject TEXT, city TEXT, 
+        school TEXT, phone TEXT, relative TEXT
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_halls (
+        hall_name TEXT PRIMARY KEY, city TEXT
+    )''')
     conn.commit()
     
-    def load_tasheeh_teachers():
+    # 2️⃣ تحميل البيانات تلقائياً من القاعدة عند فتح الموقع
+    if 'tasheeh_teachers' not in st.session_state:
         try:
-            df = pd.read_csv(TEACHERS_URL, dtype=str)
-            df.columns = df.columns.str.strip().str.lower()
-            rename_map = {
-                'رقم الهوية': 'id', 'الاسم': 'name', 'المبحث': 'subject',
-                'مكان سكن المعلم': 'city', 'اسم المدرسة': 'school', 'رقم جواله': 'phone',
-                'هل له قريب مباشر او لا': 'relative'
-            }
-            df = df.rename(columns={k:v for k,v in rename_map.items() if k in df.columns})
-            return df
-        except Exception as e:
-            st.error(f"❌ خطأ: {e}")
-            return None
-    
-    def load_tasheeh_halls():
+            st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
+        except: st.session_state['tasheeh_teachers'] = pd.DataFrame()
+    if 'tasheeh_halls' not in st.session_state:
         try:
-            df = pd.read_csv(HALLS_URL, dtype=str)
-            df.columns = df.columns.str.strip().str.upper()
-            return df if 'ZHALL' in df.columns and 'ZLOC' in df.columns else None
+            st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
+        except: st.session_state['tasheeh_halls'] = pd.DataFrame()
+
+    # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
+    def sync_tasheeh_data():
+        try:
+            with st.spinner("🔄 جاري المزامنة الذكية من Google Sheets..."):
+                # مزامنة المعلمين
+                df_t = pd.read_csv(TEACHERS_URL, dtype=str)
+                df_t.columns = df_t.columns.str.strip().str.lower()
+                rename_map = {
+                    'رقم الهوية': 'id', 'الاسم': 'name', 'المبحث': 'subject',
+                    'مكان سكن المعلم': 'city', 'اسم المدرسة': 'school', 
+                    'رقم جواله': 'phone', 'هل له قريب مباشر او لا': 'relative'
+                }
+                df_t = df_t.rename(columns={k:v for k,v in rename_map.items() if k in df_t.columns})
+                
+                for _, r in df_t.iterrows():
+                    tid = str(r.get('id','')).strip()
+                    if not tid: continue # تخطي الصفوف الفارغة
+                    c.execute("""INSERT OR REPLACE INTO tasheeh_teachers 
+                                 (id, name, subject, city, school, phone, relative) 
+                                 VALUES (?,?,?,?,?,?,?)""",
+                              (tid, str(r.get('name','')), str(r.get('subject','')),
+                               str(r.get('city','')), str(r.get('school','')), 
+                               str(r.get('phone','')), str(r.get('relative',''))))
+                conn.commit()
+                
+                # مزامنة القاعات
+                df_h = pd.read_csv(HALLS_URL, dtype=str)
+                df_h.columns = df_h.columns.str.strip().str.upper()
+                for _, r in df_h.iterrows():
+                    hname = str(r.get('ZHALL','')).strip()
+                    if not hname: continue
+                    c.execute("INSERT OR REPLACE INTO tasheeh_halls (hall_name, city) VALUES (?,?)",
+                              (hname, str(r.get('ZLOC',''))))
+                conn.commit()
+                
+                # تحديث الجلسة والواجهة
+                st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
+                st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
+            st.success("✅ تم التحديث الذكي بنجاح! (تم حفظ/تحديث البيانات بدون تكرار)")
+            st.rerun()
         except Exception as e:
-            st.error(f"❌ خطأ: {e}")
-            return None
-    
+            st.error(f"❌ خطأ أثناء المزامنة: {e}")
+
     def generate_tasheeh_letter(data, exam_name):
         if not os.path.exists(TEMPLATE_NAME):
             return None
@@ -751,11 +783,11 @@ if st.session_state.get('system_mode') == "tasheeh":
         "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات"
     ])
     
+    # ==================== تبويب 1: رفع البيانات والمزامنة ====================
     with corr_tab1:
-        st.markdown("### 📥 رفع البيانات وقالب التكليف")
+        st.markdown("### 📥 إدارة البيانات وقالب التكليف")
         
-        # 🔴 زر رفع قالب الوورد الخاص بالتصحيح
-        st.markdown("**1️⃣ رفع قالب وورد التصحيح (مطلوب لمرة واحدة)**")
+        st.markdown("**1️⃣ رفع قالب وورد التصحيح**")
         st.caption("يجب أن يحتوي القالب على الرموز: ZNAME, ZID, ZHALL, ZLOC, ZTEST, ZWORK, ZCITY")
         
         uploaded_tasheeh_tpl = st.file_uploader(
@@ -763,45 +795,36 @@ if st.session_state.get('system_mode') == "tasheeh":
             type="docx", 
             key="tasheeh_tpl_uploader_unique"
         )
-        
         if uploaded_tasheeh_tpl is not None:
             try:
                 with open(TEMPLATE_NAME, "wb") as f:
                     f.write(uploaded_tasheeh_tpl.getbuffer())
-                st.success("✅ تم حفظ قالب التصحيح بنجاح! سيتم استخدامه فوراً في إنشاء الكتب.")
+                st.success("✅ تم حفظ القالب بنجاح!")
                 st.cache_data.clear()
             except Exception as e:
-                st.error(f"❌ خطأ أثناء حفظ القالب: {e}")
+                st.error(f"❌ خطأ: {e}")
         
         st.divider()
-        st.markdown("**2️⃣ تحميل بيانات المعلمين والقاعات**")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 تحميل المعلمين من Google Sheets", use_container_width=True):
-                with st.spinner("جاري التحميل..."):
-                    df = load_tasheeh_teachers()
-                    if df is not None:
-                        st.session_state['tasheeh_teachers'] = df
-                        st.success(f"✅ تم تحميل {len(df)} معلم")
-                        st.dataframe(df.head(), use_container_width=True)
-        with col2:
-            if st.button("🏛️ تحميل القاعات من Google Sheets", use_container_width=True):
-                with st.spinner("جاري التحميل..."):
-                    df = load_tasheeh_halls()
-                    if df is not None:
-                        st.session_state['tasheeh_halls'] = df
-                        st.success(f"✅ تم تحميل {len(df)} قاعة")
-                        st.dataframe(df.head(), use_container_width=True)
-    
+        st.markdown("**2️⃣ المزامنة مع Google Sheets**")
+        st.info("💡 البيانات محفوظة تلقائياً في النظام. اضغط هنا فقط إذا أضفت/عدلت بيانات في ملف الإكسل الخارجي.")
+        
+        if st.button("🔄 مزامنة وتحديث البيانات من Google Sheets", type="primary", use_container_width=True):
+            sync_tasheeh_data()
+            
+        if not st.session_state['tasheeh_teachers'].empty:
+            st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
+            st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
+
+    # ==================== تبويب 2: التوزيع التلقائي ====================
     with corr_tab2:
-        if 'tasheeh_teachers' not in st.session_state or 'tasheeh_halls' not in st.session_state:
-            st.warning("⚠️ حمل البيانات أولاً")
+        if st.session_state['tasheeh_teachers'].empty or st.session_state['tasheeh_halls'].empty:
+            st.warning("⚠️ يرجى مزامنة البيانات أولاً من تبويب 'رفع البيانات'")
         else:
             teachers = st.session_state['tasheeh_teachers']
             halls = st.session_state['tasheeh_halls']
             col1, col2 = st.columns(2)
             with col1:
-                hall_sel = st.selectbox("القاعة (اختياري):", [""] + list(halls['ZHALL'].unique()))
+                hall_sel = st.selectbox("القاعة (اختياري):", [""] + list(halls['hall_name'].unique()))
             with col2:
                 subj_sel = st.selectbox("المبحث (اختياري):", [""] + sorted(teachers['subject'].dropna().unique().tolist())) if 'subject' in teachers.columns else st.selectbox("المبحث:", [""])
             exam_name = st.text_input("اسم الامتحان:", "امتحان الثانوية العامة 2026")
@@ -811,13 +834,13 @@ if st.session_state.get('system_mode') == "tasheeh":
                 pool = teachers_filtered[teachers_filtered['subject'] == subj_sel] if subj_sel else teachers_filtered
                 assignments = []
                 for _, t in pool.iterrows():
-                    h_pool = halls[halls['ZHALL'] == hall_sel] if hall_sel else halls[halls['ZLOC'] == t.get('city', '')] 
+                    h_pool = halls[halls['hall_name'] == hall_sel] if hall_sel else halls[halls['city'] == t.get('city', '')] 
                     h_pool = h_pool if not h_pool.empty else halls
                     if not h_pool.empty:
                         h = h_pool.sample(1).iloc[0]
                         assignments.append({
                             'id': t.get('id',''), 'name': t.get('name',''), 'subject': t.get('subject',''),
-                            'hall_name': h['ZHALL'], 'hall_city': h['ZLOC'], 'exam_name': exam_name,
+                            'hall_name': h['hall_name'], 'hall_city': h['city'], 'exam_name': exam_name,
                             'school': t.get('school',''), 'city': t.get('city',''),
                             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
                         })
@@ -832,108 +855,82 @@ if st.session_state.get('system_mode') == "tasheeh":
                         except: pass
                     conn.commit()
     
-        with corr_tab3:
-            if 'tasheeh_assignments' not in st.session_state or not st.session_state['tasheeh_assignments']:
-                st.info("📌 وزع المعلمين أولاً من تبويب 'التوزيع التلقائي'")
-            else:
-                assigns = st.session_state['tasheeh_assignments']
-                st.markdown(f"### 📄 الكتب الجاهزة: {len(assigns)} تكليف")
-                
-                # عرض جدول بالمعلمين الموزعين
-                st.dataframe(pd.DataFrame(assigns)[['name', 'subject', 'hall_name', 'hall_city']], use_container_width=True)
-                
-                # زر إنشاء ملف وورد واحد يحتوي على كل التكليفات
-                if st.button("📦 إنشاء ملف وورد واحد لجميع التكليفات", type="primary"):
-                    if not os.path.exists(TEMPLATE_NAME):
-                        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
-                    else:
-                        with st.spinner("جاري إنشاء الملف..."):
-                            try:
-                                # إنشاء مستند وورد جديد
-                                final_doc = Document(TEMPLATE_NAME)
-                                final_doc._body.clear_content()  # مسح محتوى القالب الأصلي
-                                
-                                for i, a in enumerate(assigns):
-                                    # إنشاء نسخة من القالب لكل معلم
-                                    temp_doc = Document(TEMPLATE_NAME)
-                                    repls = {
-                                        'ZNAME': a.get('name', '---'), 
-                                        'ZID': a.get('id', '---'),
-                                        'ZTEST': a.get('exam_name', '---'), 
-                                        'ZHALL': a.get('hall_name', '---'),
-                                        'ZLOC': a.get('hall_city', '---'), 
-                                        'ZWORK': a.get('school', '---'),
-                                        'ZCITY': a.get('city', '---'),
-                                        'ZSUBJECT': a.get('subject', '---')  # إضافة المبحث إذا كان موجوداً في القالب
-                                    }
-                                    # استبدال المتغيرات في الفقرات
-                                    for p in temp_doc.paragraphs:
-                                        for k, v in repls.items():
-                                            if k in p.text:
-                                                for run in p.runs:
-                                                    if k in run.text:
-                                                        run.text = run.text.replace(k, str(v))
-                                                        run.bold = True
-                                    # استبدال المتغيرات في الجداول
-                                    for table in temp_doc.tables:
-                                        for row in table.rows:
-                                            for cell in row.cells:
-                                                for p in cell.paragraphs:
-                                                    for k, v in repls.items():
-                                                        if k in p.text:
-                                                            for run in p.runs:
-                                                                if k in run.text:
-                                                                    run.text = run.text.replace(k, str(v))
-                                                                    run.bold = True
-                                    
-                                    # نسخ العناصر إلى المستند النهائي
-                                    elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
-                                    for element in elements:
-                                        final_doc.element.body.append(copy.deepcopy(element))
-                                    
-                                    # إضافة فاصل صفحات بين كل تكليف والآخر (إلا للأخير)
-                                    if i < len(assigns) - 1:
-                                        p = OxmlElement('w:p')
-                                        r = OxmlElement('w:r')
-                                        br = OxmlElement('w:br')
-                                        br.set(qn('w:type'), 'page')
-                                        r.append(br)
-                                        p.append(r)
-                                        final_doc.element.body.append(p)
-                                
-                                # حفظ الملف النهائي
-                                out = io.BytesIO()
-                                final_doc.save(out)
-                                out.seek(0)
-                                
-                                st.success(f"✅ تم إنشاء الملف بنجاح! يحتوي على {len(assigns)} تكليف")
-                                
-                                # زر التحميل (مرة واحدة فقط)
-                                st.download_button(
-                                    label="📥 تحميل ملف التكليفات الكامل",
-                                    data=out.getvalue(),
-                                    file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_bulk_tasheeh_unique_key"  # مفتاح فريد وثابت
-                                )
-                            except Exception as e:
-                                st.error(f"❌ خطأ أثناء إنشاء الملف: {e}")
+    # ==================== تبويب 3: كتب التكليف ====================
+    with corr_tab3:
+        if 'tasheeh_assignments' not in st.session_state or not st.session_state['tasheeh_assignments']:
+            st.info("📌 وزع المعلمين أولاً من تبويب 'التوزيع التلقائي'")
+        else:
+            assigns = st.session_state['tasheeh_assignments']
+            st.markdown(f"### 📄 الكتب الجاهزة: {len(assigns)} تكليف")
+            st.dataframe(pd.DataFrame(assigns)[['name', 'subject', 'hall_name', 'hall_city']], use_container_width=True)
             
-            # زر تصدير إكسل كخيار إضافي
+            if st.button("📦 إنشاء ملف وورد واحد لجميع التكليفات", type="primary"):
+                if not os.path.exists(TEMPLATE_NAME):
+                    st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
+                else:
+                    with st.spinner("جاري إنشاء الملف..."):
+                        try:
+                            final_doc = Document(TEMPLATE_NAME)
+                            final_doc._body.clear_content()
+                            for i, a in enumerate(assigns):
+                                temp_doc = Document(TEMPLATE_NAME)
+                                repls = {
+                                    'ZNAME': a.get('name', '---'), 'ZID': a.get('id', '---'),
+                                    'ZTEST': a.get('exam_name', '---'), 'ZHALL': a.get('hall_name', '---'),
+                                    'ZLOC': a.get('hall_city', '---'), 'ZWORK': a.get('school', '---'),
+                                    'ZCITY': a.get('city', '---'), 'ZSUBJECT': a.get('subject', '---')
+                                }
+                                for p in temp_doc.paragraphs:
+                                    for k, v in repls.items():
+                                        if k in p.text:
+                                            for run in p.runs:
+                                                if k in run.text:
+                                                    run.text = run.text.replace(k, str(v))
+                                                    run.bold = True
+                                for table in temp_doc.tables:
+                                    for row in table.rows:
+                                        for cell in row.cells:
+                                            for p in cell.paragraphs:
+                                                for k, v in repls.items():
+                                                    if k in p.text:
+                                                        for run in p.runs:
+                                                            if k in run.text:
+                                                                run.text = run.text.replace(k, str(v))
+                                                                run.bold = True
+                                elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+                                for element in elements:
+                                    final_doc.element.body.append(copy.deepcopy(element))
+                                if i < len(assigns) - 1:
+                                    p = OxmlElement('w:p')
+                                    r = OxmlElement('w:r')
+                                    br = OxmlElement('w:br')
+                                    br.set(qn('w:type'), 'page')
+                                    r.append(br)
+                                    p.append(r)
+                                    final_doc.element.body.append(p)
+                            out = io.BytesIO()
+                            final_doc.save(out)
+                            out.seek(0)
+                            st.success(f"✅ تم إنشاء الملف بنجاح! يحتوي على {len(assigns)} تكليف")
+                            st.download_button(label="📥 تحميل ملف التكليفات الكامل", data=out.getvalue(),
+                                               file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+                                               mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                               key="dl_bulk_tasheeh_unique_key")
+                        except Exception as e:
+                            st.error(f"❌ خطأ: {e}")
+            
             st.divider()
             if st.button("📊 تصدير كملف إكسل"):
                 df = pd.DataFrame(assigns)
                 out = io.BytesIO()
                 df.to_excel(out, index=False)
                 out.seek(0)
-                st.download_button(
-                    "📥 تحميل إكسل", 
-                    out.getvalue(), 
-                    f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", 
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="dl_excel_tasheeh_unique"
-                )
+                st.download_button("📥 تحميل إكسل", out.getvalue(), 
+                                   f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", 
+                                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="dl_excel_tasheeh_unique")
     
+    # ==================== تبويب 4: سجل العمليات ====================
     with corr_tab4:
         st.markdown("### 📜 سجل التصحيح")
         df = pd.read_sql("SELECT * FROM logs WHERE action LIKE '%تصحيح%' ORDER BY id DESC LIMIT 50", conn)
@@ -942,4 +939,4 @@ if st.session_state.get('system_mode') == "tasheeh":
         else:
             st.info("لا يوجد سجلات")
     
-    st.stop()  # 🔴 توقف هنا لمنع تداخل الأكواد
+    st.stop()
