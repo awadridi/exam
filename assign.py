@@ -724,24 +724,59 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         else:
             st.info("سجل العمليات فارغ حالياً.")
 
-    # ==================== تبويب الاستعلامات الذكية ====================
+       # ==================== تبويب الاستعلامات الذكية ====================
     with tab_inquiry:
-        st.markdown('<h2 class="move-to-right">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
+        # 🟢 حاوية وأنماط RTL خاصة بهذا التبويب فقط
+        st.markdown("""
+        <style>
+            #inquiry-rtl-wrap {
+                direction: rtl !important;
+                text-align: right !important;
+            }
+            #inquiry-rtl-wrap h1, #inquiry-rtl-wrap h2, #inquiry-rtl-wrap h3, 
+            #inquiry-rtl-wrap h4, #inquiry-rtl-wrap p, #inquiry-rtl-wrap span, #inquiry-rtl-wrap label {
+                direction: rtl !important;
+                text-align: right !important;
+            }
+            #inquiry-rtl-wrap input, #inquiry-rtl-wrap textarea, #inquiry-rtl-wrap select,
+            #inquiry-rtl-wrap [data-baseweb="input"], #inquiry-rtl-wrap [data-baseweb="select"] {
+                direction: rtl !important;
+                text-align: right !important;
+            }
+            #inquiry-rtl-wrap button, #inquiry-rtl-wrap [role="button"] {
+                direction: rtl !important;
+            }
+            #inquiry-rtl-wrap [data-testid="stMetric"] {
+                direction: rtl !important;
+                text-align: center !important;
+            }
+            #inquiry-rtl-wrap [data-testid="stDataFrame"] th, 
+            #inquiry-rtl-wrap [data-testid="stDataFrame"] td {
+                text-align: right !important;
+            }
+            #inquiry-rtl-wrap [data-testid="stHorizontalBlock"] {
+                direction: rtl !important;
+            }
+        </style>
+        <div id="inquiry-rtl-wrap">
+        """, unsafe_allow_html=True)
+
+        st.markdown('<h2 style="text-align: right !important; margin-bottom: 20px;">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
         
         # تهيئة الجلسة للفلاتر السريعة
         for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned']:
             if k not in st.session_state: st.session_state[k] = "الكل"
 
-        # 1️⃣ اختيار مصدر البيانات (يتكيف تلقائياً مع النظام الحالي)
-        st.markdown("### 📂 مصدر البيانات")
+        # 1️⃣ اختيار مصدر البيانات
+        st.markdown('<h3 style="text-align: right !important;">📂 مصدر البيانات</h3>', unsafe_allow_html=True)
         source_options = []
         if st.session_state.system_mode == "tawjihi": source_options.append("نظام الثانوية العامة")
         elif st.session_state.system_mode == "tawzif": source_options.append("نظام التوظيف")
         source_options.append("جميع المعلمين (حسب الوضع الحالي)")
         query_source = st.selectbox("", source_options, index=0, label_visibility="collapsed")
 
-        # 2️⃣ تقارير سريعة (أزرار جاهزة)
-        st.markdown("### ⚡ تقارير سريعة")
+        # 2️⃣ تقارير سريعة
+        st.markdown('<h3 style="text-align: right !important;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns(6)
         with q1:
             if st.button("👔 مدراء راغبين ويصلحون", use_container_width=True):
@@ -750,7 +785,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             if st.button("📋 سكرتارية راغبين ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "سكرتير", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
         with q3:
-            if st.button("👨‍🏫 معلمون راغبون ويصلحون", use_container_width=True):
+            if st.button("👨‍ معلمون راغبون ويصلحون", use_container_width=True):
                 st.session_state.update({'q_role': "معلم", 'q_pref': "يرغب", 'q_abl': "يصلح", 'q_assigned': "الكل"})
         with q4:
             if st.button("🔑 آذن راغبون ويصلحون", use_container_width=True):
@@ -765,7 +800,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         st.divider()
 
         # 3️⃣ الفلاتر المخصصة
-        st.markdown("### ⚙️ فلترة متقدمة")
+        st.markdown('<h3 style="text-align: right !important;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
         f1, f2, f3, f4 = st.columns(4)
         with f1:
             role_filter = st.selectbox("🎯 الوظيفة/المهمة:", 
@@ -824,11 +859,11 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
                 # 📈 رسم بياني للرغبة
                 if not df_res.empty:
-                    st.markdown("### 📈 توزيع الرغبة بين النتائج")
+                    st.markdown('<h4 style="text-align: right !important;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
                     st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
 
                 # 📋 جدول النتائج
-                st.markdown("### 📋 جدول النتائج التفصيلي")
+                st.markdown('<h4 style="text-align: right !important;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
                 display_cols = ['name', 'id', 'current_job', 'preference', 'ability', 'hall', 'city', 'phone']
                 safe_cols = [c for c in display_cols if c in df_res.columns]
                 st.dataframe(df_res[safe_cols], use_container_width=True)
@@ -862,6 +897,9 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         )
                 else:
                     st.info("لا توجد نتائج مطابقة للشروط المختارة.")
+
+        # إغلاق حاوية RTL
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================================
 # ✨✨✨ نظام تصحيح الثانوية العامة - وحدة مستقلة تماماً ✨✨✨
