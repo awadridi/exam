@@ -312,7 +312,7 @@ with header_col2:
 st.divider()
 
 # 🔴🔴🔴 التبويبات الأصلية تظهر فقط إذا لم يكن الوضع "تصحيح الثانوية" 🔴🔴🔴
-if st.session_state['system_mode'] != "tasheeh":
+if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
     
     tab_search, tab_auto, tab_upload, tab_manage, tab_logs = st.tabs([
         "🔍 البحث والتعيين", 
