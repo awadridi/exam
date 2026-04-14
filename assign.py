@@ -816,37 +816,39 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
             
         st.divider()
-        st.markdown("### 🔍 فحص وحذف التكرار في قاعدة البيانات")
+        st.markdown("### 🔍 فحص وحذف التكرار (فحص مباشر من قاعدة البيانات)")
         
-        # فحص مباشر من قاعدة البيانات
-        try:
-            df_db = pd.read_sql("SELECT id, name, subject FROM tasheeh_teachers", conn)
-            df_db['id_clean'] = df_db['id'].astype(str).str.strip()
+        # جلب البيانات مباشرة من قاعدة البيانات
+        df_raw = pd.read_sql("SELECT rowid, id, name, subject FROM tasheeh_teachers", conn)
+        
+        if not df_raw.empty:
+            # تنظيف الأرقام وإزالة المسافات
+            df_raw['id_trimmed'] = df_raw['id'].astype(str).str.strip()
             
             # البحث عن المكررات
-            duplicates = df_db[df_db.duplicated(subset=['id_clean'], keep=False)]
+            duplicates = df_raw[df_raw.duplicated(subset=['id_trimmed'], keep=False)]
             
             if len(duplicates) > 0:
-                st.warning(f"⚠️ تم العثور على `{len(duplicates)}` سجل مكرر في قاعدة البيانات")
-                st.write("**المكررات:**")
-                st.dataframe(duplicates[['id', 'id_clean', 'name', 'subject']], use_container_width=True)
+                st.error(f"🚨 تم العثور على `{len(duplicates)}` سجل مكرر!")
+                st.write("**تفاصيل المكررات:**")
+                st.dataframe(duplicates[['rowid', 'id', 'id_trimmed', 'name', 'subject']], use_container_width=True)
                 
                 # عرض الإحصائيات
-                total_ids = len(df_db)
-                unique_ids = df_db['id_clean'].nunique()
-                st.info(f"📊 إجمالي السجلات: `{total_ids}` | الهويات الفريدة: `{unique_ids}` | المكررات: `{total_ids - unique_ids}`")
+                total = len(df_raw)
+                unique = df_raw['id_trimmed'].nunique()
+                st.warning(f"📊 الإجمالي: `{total}` | الفريد: `{unique}` | المكرر: `{total - unique}`")
             else:
-                st.info("✅ لا يوجد تكرار في قاعدة البيانات")
-                st.write(f"📊 إجمالي المعلمين: `{len(df_db)}` | الهويات الفريدة: `{df_db['id_clean'].nunique()}`")
-                
-        except Exception as e:
-            st.error(f"خطأ في الفحص: {e}")
+                st.success("✅ لا يوجد تكرار في قاعدة البيانات")
+                st.write(f"📊 إجمالي المعلمين: `{len(df_raw)}`")
+        else:
+            st.info("⚠️ قاعدة البيانات فارغة")
 
-        if st.button("🗑️ حذف المكررات من قاعدة البيانات", type="secondary", use_container_width=True):
+        if st.button("🗑️ حذف المكررات الآن", type="secondary", use_container_width=True):
             try:
-                before = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0,0]
+                # عد السجلات قبل الحذف
+                before = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0, 0]
                 
-                # حذف المكررات باستخدام TRIM
+                # حذف المكررات (الاحتفاظ بأول rowid فقط)
                 c.execute("""
                     DELETE FROM tasheeh_teachers
                     WHERE rowid NOT IN (
@@ -857,18 +859,20 @@ if st.session_state.get('system_mode') == "tasheeh":
                 """)
                 conn.commit()
                 
-                after = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0,0]
+                # عد السجلات بعد الحذف
+                after = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0, 0]
                 deleted = before - after
                 
-                # تحديث الذاكرة
+                # تحديث الذاكرة فوراً
                 st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
                 st.cache_data.clear()
                 
                 if deleted > 0:
-                    st.success(f"✅ تم حذف `{deleted}` سجل مكرر بنجاح!")
+                    st.success(f"✅✅✅ تم حذف `{deleted}` سجل مكرر بنجاح!")
+                    st.balloons()
                     st.rerun()
                 else:
-                    st.info("ℹ️ لم يتم العثور على مكررات للحذف")
+                    st.warning("⚠️ لم يتم العثور على مكررات للحذف")
                     
             except Exception as e:
                 st.error(f"❌ خطأ: {e}")
