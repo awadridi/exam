@@ -699,9 +699,10 @@ if st.session_state.get('system_mode') == "tasheeh":
         except: st.session_state['tasheeh_halls'] = pd.DataFrame()
 
     # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
+        # 🔴🔴 استبدل دالة sync_tasheeh_data القديمة بهذه الجديدة 🔴🔴
     def sync_tasheeh_data():
         try:
-            with st.spinner("🔄 جاري المزامنة الذكية (منع التكرار)..."):
+            with st.spinner("🔄 جاري المزامنة والتنظيف العميق..."):
                 df_t = pd.read_csv(TEACHERS_URL, dtype=str)
                 df_t.columns = df_t.columns.str.strip().str.lower()
                 rename_map = {
@@ -710,18 +711,20 @@ if st.session_state.get('system_mode') == "tasheeh":
                     'رقم جواله': 'phone', 'هل له قريب مباشر او لا': 'relative'
                 }
                 df_t = df_t.rename(columns={k:v for k,v in rename_map.items() if k in df_t.columns})
+
+                # 🟢 1. تنظيف رقم الهوية من أي مسافات خفية أو زائدة (مهم جداً)
+                df_t['id'] = df_t['id'].astype(str).str.strip()
+                df_t['id'] = df_t['id'].str.replace(' ', '') # إزالة المسافات من داخل الرقم أيضاً
                 
-                # 🔴🔴 إزالة التكرار بناءً على رقم الهوية (الاحتفاظ بالأول فقط) 🔴🔴
-                before_count = len(df_t)
+                # 🟢 2. حذف التكرار في ملف الإكسل نفسه (نحتفظ بالصف الأول/المدرسة الأولى فقط)
+                before_csv = len(df_t)
                 df_t = df_t.drop_duplicates(subset=['id'], keep='first')
-                after_count = len(df_t)
-                
-                if before_count != after_count:
-                    st.info(f"📊 تم اكتشاف `{before_count - after_count}` تكرار في الإكسل وتم تجاهلها")
-                
-                # الإدخال في قاعدة البيانات
+                after_csv = len(df_t)
+                if before_csv > after_csv:
+                    st.warning(f"⚠️ تم تجاهل `{before_csv - after_csv}` تكرار موجود في ملف الإكسل")
+
                 for _, r in df_t.iterrows():
-                    tid = str(r.get('id','')).strip()
+                    tid = str(r.get('id','')).strip().replace(' ', '')
                     if not tid: continue
                     c.execute("""INSERT OR REPLACE INTO tasheeh_teachers 
                                  (id, name, subject, city, school, phone, relative) 
@@ -730,8 +733,21 @@ if st.session_state.get('system_mode') == "tasheeh":
                                str(r.get('city','')), str(r.get('school','')), 
                                str(r.get('phone','')), str(r.get('relative',''))))
                 conn.commit()
+
+                # 🟢 3. تنظيف قاعدة البيانات من الداخل (إزالة المسافات من الأرقام المخزنة سابقاً)
+                c.execute("UPDATE tasheeh_teachers SET id = TRIM(id)")
                 
-                # مزامنة القاعات
+                # 🟢 4. حذف المكررات المتبقية في قاعدة البيانات (نحتفظ بأول ظهور فقط)
+                c.execute("""
+                    DELETE FROM tasheeh_teachers
+                    WHERE rowid NOT IN (
+                        SELECT MIN(rowid)
+                        FROM tasheeh_teachers
+                        GROUP BY id
+                    )
+                """)
+                conn.commit()
+
                 df_h = pd.read_csv(HALLS_URL, dtype=str)
                 df_h.columns = df_h.columns.str.strip().str.upper()
                 for _, r in df_h.iterrows():
@@ -740,12 +756,10 @@ if st.session_state.get('system_mode') == "tasheeh":
                     c.execute("INSERT OR REPLACE INTO tasheeh_halls (hall_name, city) VALUES (?,?)",
                               (hname, str(r.get('ZLOC',''))))
                 conn.commit()
-                
-                # تحديث الجلسة
+
                 st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
                 st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
-                
-            st.success(f"✅ تم التحديث بنجاح! (عدد المعلمين: `{len(st.session_state['tasheeh_teachers'])}`)")
+            st.success(f"✅ تم التحديث بنجاح! (العدد النهائي النظيف: `{len(st.session_state['tasheeh_teachers'])}`)")
             st.rerun()
         except Exception as e:
             st.error(f"❌ خطأ أثناء المزامنة: {e}")
