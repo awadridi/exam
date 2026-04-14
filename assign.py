@@ -814,51 +814,51 @@ if st.session_state.get('system_mode') == "tasheeh":
         if not st.session_state['tasheeh_teachers'].empty:
             st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
             st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
-        st.divider()
-        st.markdown("### 🧹 تنظيف البيانات من التكرار")
+                st.divider()
+        st.markdown("### 🧹 تنظيف البيانات من التكرار (حسب رقم الهوية)")
         
-        # فحص عدد المكررات قبل الحذف
+        # 🔍 فحص مسبق دقيق
         if not st.session_state['tasheeh_teachers'].empty:
-            df_check = st.session_state['tasheeh_teachers']
-            duplicates = df_check[df_check.duplicated(subset=['id'], keep=False)]
-            num_duplicates = len(duplicates)
+            df_clean = st.session_state['tasheeh_teachers'].copy()
+            df_clean['id'] = df_clean['id'].astype(str).str.strip()
+            dup_ids = df_clean[df_clean.duplicated(subset=['id'], keep=False)]
             
-            if num_duplicates > 0:
-                st.warning(f"⚠️ تم العثور على `{num_duplicates}` سجل مكرر")
-                st.dataframe(duplicates[['name', 'id', 'subject']].head(10), use_container_width=True)
+            if len(dup_ids) > 0:
+                st.warning(f"⚠️ تم العثور على `{len(dup_ids)}` سجل مكرر (نفس رقم الهوية)")
+                st.dataframe(dup_ids[['name', 'id']].head(10), use_container_width=True)
             else:
-                st.info("✅ لا يوجد تكرار في البيانات حالياً")
-        
-        if st.button("🗑️ حذف المكررات (نفس الاسم والهوية)", type="secondary", use_container_width=True):
+                st.info("✅ لا يوجد تكرار في أرقام الهويات حالياً")
+
+        if st.button("🗑️ حذف المكررات (نفس رقم الهوية)", type="secondary", use_container_width=True):
             try:
-                # احسب عدد السجلات قبل الحذف
-                before_count = len(st.session_state['tasheeh_teachers'])
+                before = len(st.session_state['tasheeh_teachers'])
                 
+                # ✅ استخدام TRIM لضمان حذف المكررات حتى مع وجود مسافات
                 c.execute("""
-                    DELETE FROM tasheeh_teachers 
+                    DELETE FROM tasheeh_teachers
                     WHERE rowid NOT IN (
-                        SELECT MIN(rowid) 
-                        FROM tasheeh_teachers 
-                        GROUP BY id
+                        SELECT MIN(rowid)
+                        FROM tasheeh_teachers
+                        GROUP BY TRIM(id)
                     )
                 """)
                 conn.commit()
                 
-                # احسب عدد السجلات بعد الحذف
+                # تحديث الجلسة
                 st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
-                after_count = len(st.session_state['tasheeh_teachers'])
-                deleted_count = before_count - after_count
+                after = len(st.session_state['tasheeh_teachers'])
+                deleted = before - after
                 
                 st.cache_data.clear()
                 
-                if deleted_count > 0:
-                    st.success(f"✅ تم حذف `{deleted_count}` سجل مكرر بنجاح!")
-                    st.info(f"📊 العدد السابق: `{before_count}` | العدد الجديد: `{after_count}`")
+                if deleted > 0:
+                    st.success(f"✅ تم حذف `{deleted}` سجل مكرر بنجاح!")
+                    st.info(f"📊 العدد السابق: `{before}` | العدد الجديد: `{after}`")
                 else:
-                    st.info("ℹ️ لم يتم العثور على سجلات مكررة للحذف")
+                    st.info("ℹ️ لم يتم العثور على أرقام هوية مكررة للحذف (تأكد من المزامنة أولاً)")
                     
             except Exception as e:
-                st.error(f"❌ خطأ: {e}")
+                st.error(f"❌ خطأ أثناء الحذف: {e}")
     # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
