@@ -816,25 +816,37 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
             
         st.divider()
-        st.markdown("### 🧹 تنظيف البيانات من التكرار (حسب رقم الهوية)")
+        st.markdown("### 🔍 فحص وحذف التكرار في قاعدة البيانات")
         
-        # 🔍 فحص مسبق دقيق
-        if not st.session_state['tasheeh_teachers'].empty:
-            df_clean = st.session_state['tasheeh_teachers'].copy()
-            df_clean['id'] = df_clean['id'].astype(str).str.strip()
-            dup_ids = df_clean[df_clean.duplicated(subset=['id'], keep=False)]
+        # فحص مباشر من قاعدة البيانات
+        try:
+            df_db = pd.read_sql("SELECT id, name, subject FROM tasheeh_teachers", conn)
+            df_db['id_clean'] = df_db['id'].astype(str).str.strip()
             
-            if len(dup_ids) > 0:
-                st.warning(f"⚠️ تم العثور على `{len(dup_ids)}` سجل مكرر (نفس رقم الهوية)")
-                st.dataframe(dup_ids[['name', 'id']].head(10), use_container_width=True)
-            else:
-                st.info("✅ لا يوجد تكرار في أرقام الهويات حالياً")
-
-        if st.button("🗑️ حذف المكررات (نفس رقم الهوية)", type="secondary", use_container_width=True):
-            try:
-                before = len(st.session_state['tasheeh_teachers'])
+            # البحث عن المكررات
+            duplicates = df_db[df_db.duplicated(subset=['id_clean'], keep=False)]
+            
+            if len(duplicates) > 0:
+                st.warning(f"⚠️ تم العثور على `{len(duplicates)}` سجل مكرر في قاعدة البيانات")
+                st.write("**المكررات:**")
+                st.dataframe(duplicates[['id', 'id_clean', 'name', 'subject']], use_container_width=True)
                 
-                # ✅ استخدام TRIM لضمان حذف المكررات حتى مع وجود مسافات
+                # عرض الإحصائيات
+                total_ids = len(df_db)
+                unique_ids = df_db['id_clean'].nunique()
+                st.info(f"📊 إجمالي السجلات: `{total_ids}` | الهويات الفريدة: `{unique_ids}` | المكررات: `{total_ids - unique_ids}`")
+            else:
+                st.info("✅ لا يوجد تكرار في قاعدة البيانات")
+                st.write(f"📊 إجمالي المعلمين: `{len(df_db)}` | الهويات الفريدة: `{df_db['id_clean'].nunique()}`")
+                
+        except Exception as e:
+            st.error(f"خطأ في الفحص: {e}")
+
+        if st.button("🗑️ حذف المكررات من قاعدة البيانات", type="secondary", use_container_width=True):
+            try:
+                before = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0,0]
+                
+                # حذف المكررات باستخدام TRIM
                 c.execute("""
                     DELETE FROM tasheeh_teachers
                     WHERE rowid NOT IN (
@@ -845,21 +857,21 @@ if st.session_state.get('system_mode') == "tasheeh":
                 """)
                 conn.commit()
                 
-                # تحديث الجلسة
-                st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
-                after = len(st.session_state['tasheeh_teachers'])
+                after = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0,0]
                 deleted = before - after
                 
+                # تحديث الذاكرة
+                st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
                 st.cache_data.clear()
                 
                 if deleted > 0:
                     st.success(f"✅ تم حذف `{deleted}` سجل مكرر بنجاح!")
-                    st.info(f"📊 العدد السابق: `{before}` | العدد الجديد: `{after}`")
+                    st.rerun()
                 else:
-                    st.info("ℹ️ لم يتم العثور على أرقام هوية مكررة للحذف (تأكد من المزامنة أولاً)")
+                    st.info("ℹ️ لم يتم العثور على مكررات للحذف")
                     
             except Exception as e:
-                st.error(f"❌ خطأ أثناء الحذف: {e}")
+                st.error(f"❌ خطأ: {e}")
     # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
         # ==================== تبويب 2: التوزيع التلقائي ====================
