@@ -725,6 +725,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.info("سجل العمليات فارغ حالياً.")
 
            # ==================== تبويب الاستعلامات الذكية ====================
+        # ==================== تبويب الاستعلامات الذكية ====================
     with tab_inquiry:
         # 🟢 CSS للمحاذاة من اليمين لليسار
         st.markdown("""
@@ -743,10 +744,10 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.markdown('<h2 style="text-align: right; direction: rtl;">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
         
-        # 🔑 تهيئة الحالات في الجلسة
+        # 🔑 تهيئة الحالات في الجلسة (تمت إضافة q_city)
         if 'query_df' not in st.session_state: st.session_state.query_df = None
         if 'run_query' not in st.session_state: st.session_state.run_query = False
-        for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned', 'q_search']:
+        for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned', 'q_city', 'q_search']:
             if k not in st.session_state: st.session_state[k] = "الكل" if k != 'q_search' else ""
 
         # 1️⃣ مصدر البيانات
@@ -759,8 +760,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         # 2️⃣ تقارير سريعة
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns(6)
-        def run_quick_report(role, pref, abl, assign):
-            st.session_state.update({'q_role': role, 'q_pref': pref, 'q_abl': abl, 'q_assigned': assign})
+        def run_quick_report(role, pref, abl, assign, city="الكل"):
+            st.session_state.update({'q_role': role, 'q_pref': pref, 'q_abl': abl, 'q_assigned': assign, 'q_city': city})
             st.session_state.run_query = True
             st.rerun()
 
@@ -779,9 +780,14 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.divider()
 
-        # 3️⃣ الفلاتر المخصصة
+        # 3️⃣ الفلاتر المخصصة (تمت إضافة مكان السكن)
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
-        f1, f2, f3, f4 = st.columns(4)
+        
+        # جلب قائمة المدن/السكن لملء القائمة المنسدلة ديناميكياً
+        df_cache = get_cached_teachers()
+        cities_opts = ["الكل"] + sorted(df_cache['city'].dropna().unique().tolist()) if not df_cache.empty and 'city' in df_cache.columns else ["الكل"]
+        
+        f1, f2, f3, f4, f5 = st.columns(5)
         with f1:
             st.session_state.q_role = st.selectbox("🎯 الوظيفة/المهمة:", ["الكل", "مدير مدرسة", "سكرتير", "معلم", "آذن", "غير محدد"], index=0 if st.session_state.q_role=="الكل" else ["الكل","مدير مدرسة","سكرتير","معلم","آذن","غير محدد"].index(st.session_state.q_role), key="sel_role")
         with f2:
@@ -790,13 +796,15 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.session_state.q_abl = st.selectbox("🛡️ صلاحية المراقبة:", ["الكل", "يصلح", "لا يصلح", "غير محدد"], index=0 if st.session_state.q_abl=="الكل" else ["الكل","يصلح","لا يصلح","غير محدد"].index(st.session_state.q_abl), key="sel_abl")
         with f4:
             st.session_state.q_assigned = st.selectbox("📌 حالة التكليف:", ["الكل", "مكلف", "غير مكلف"], index=0 if st.session_state.q_assigned=="الكل" else ["الكل","مكلف","غير مكلف"].index(st.session_state.q_assigned), key="sel_assign")
+        with f5:
+            st.session_state.q_city = st.selectbox("🏡 مكان السكن:", cities_opts, index=0 if st.session_state.q_city=="الكل" else cities_opts.index(st.session_state.q_city), key="sel_city")
 
         st.session_state.q_search = st.text_input("🔍 بحث حر (اسم، هوية، مدرسة، قاعة، جوال):", value=st.session_state.q_search, key="txt_search")
 
         if st.button("🚀 تنفيذ الاستعلام", type="primary", use_container_width=True):
             st.session_state.run_query = True
 
-        # 🔍🔍 تنفيذ الاستعلام وحفظه في الجلسة (لحل مشكلة اختفاء البيانات عند التحميل)
+        # 🔍🔍 تنفيذ الاستعلام وحفظه في الجلسة
         if st.session_state.run_query:
             df = get_cached_teachers()
             if df.empty:
@@ -807,6 +815,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 if st.session_state.q_role != "الكل": mask &= (df['current_job'] == st.session_state.q_role)
                 if st.session_state.q_pref != "الكل": mask &= (df['preference'] == st.session_state.q_pref)
                 if st.session_state.q_abl != "الكل": mask &= (df['ability'] == st.session_state.q_abl)
+                if st.session_state.q_city != "الكل": mask &= (df['city'] == st.session_state.q_city) # 🟢 فلتر السكن الجديد
                 
                 hall_valid = (df['hall'].astype(str).str.len() > 0) & (df['hall'] != "nan") & (df['hall'].notna())
                 if st.session_state.q_assigned == "مكلف": mask &= hall_valid
@@ -816,9 +825,9 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     mask &= df.astype(str).apply(lambda col: col.str.contains(st.session_state.q_search, case=False, na=False)).any(axis=1)
 
                 st.session_state.query_df = df[mask].copy()
-            st.session_state.run_query = False # إعادة تعيين المشغل
+            st.session_state.run_query = False
 
-        # 📊 عرض النتائج والتصدير (يعتمد على الجلسة، لذا لا يختفي عند الضغط على تحميل)
+        # 📊 عرض النتائج والتصدير
         if st.session_state.query_df is not None and not st.session_state.query_df.empty:
             df_res = st.session_state.query_df
             total = len(df_res)
@@ -866,7 +875,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     data=output.getvalue(),
                     file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="dl_excel_inquiry_fixed"
+                    key="dl_excel_inquiry_v2"
                 )
         elif st.session_state.query_df is not None:
             st.info("لا توجد نتائج مطابقة للشروط المختارة.")
