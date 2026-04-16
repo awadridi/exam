@@ -2116,3 +2116,12 @@ if st.session_state.get('system_mode') == "other_assignments":
     
     conn_other.close()
     st.stop()
+
+
+# ✅ تحديث السجلات القديمة لعمود zjob2 (نفّذه مرة واحدة)
+for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
+    try:
+        c_other.execute(f"UPDATE {table_name} SET zjob2 = zwork WHERE zjob2 IS NULL OR zjob2 = ''")
+        conn_other.commit()
+    except:
+        pass
