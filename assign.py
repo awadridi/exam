@@ -217,6 +217,13 @@ def add_audit_log(action, details, old_value=None, new_value=None):
     conn.commit()
     st.cache_data.clear()
 
+# ✅ دالة تسجيل العمليات العادية (مطلوبة للتوافق مع الكود)
+def add_log(action, details):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("INSERT INTO logs (user, action, details, timestamp) VALUES (?, ?, ?, ?)", 
+              (st.session_state.username, action, details, now))
+    conn.commit()
+    st.cache_data.clear()
 # =====================================
 # 3. وظائف معالجة الملفات
 # =====================================
