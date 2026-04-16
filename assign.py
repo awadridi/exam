@@ -2073,9 +2073,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             df_committee = get_other_assignments('exam_committee')
             if not df_committee.empty:
                 st.dataframe(df_committee, use_container_width=True)
-                for t in ['guards', 'parcels', 'exam_device', 'exam_committee']:
-                    c_other.execute(f"UPDATE {t} SET zjob2 = zwork WHERE zjob2 IS NULL OR zjob2 = ''")
-                    conn_other.commit()
+    
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
