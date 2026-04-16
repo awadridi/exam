@@ -1718,20 +1718,43 @@ if st.session_state.get('system_mode') == "other_assignments":
         
         return doc
 
-    # الواجهة الرئيسية
+        # الواجهة الرئيسية
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
                     margin: 20px 0; text-align: center;">
-            <h2 style="color: #00ffcc; margin: 0;">📋 نظام التكليفات الأخرى</h2>
-            <p style="color: #bbb; margin: 10px 0 0 0;">الحرس | مرافقة الطرود | جهاز الامتحان | لجنة الامتحان</p>
+            <h2 style="color: #00ffcc; margin: 0; text-align: center;">📋 نظام التكليفات الأخرى</h2>
+            <p style="color: #bbb; margin: 10px 0 0 0; text-align: center;">الحرس | مرافقة الطرود | جهاز الامتحان | لجنة الامتحان</p>
         </div>
         
+        <!-- ✅ تنسيق الهيدر العلوي ليكون في المنتصف (فقط في تكليفات أخرى) -->
         <style>
         /* اجبار الاتجاه العام */
         .stApp {{
             direction: rtl !important;
             text-align: right !important;
+        }}
+        
+        /* ✅ الهيدر العلوي في المنتصف فقط لهذا النظام */
+        .custom-header-other {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #1a1c23;
+            color: white;
+            text-align: center !important;  /* ✅ النص في المنتصف */
+            padding: 15px 0;
+            z-index: 999999;
+            border-bottom: 2px solid #00ffcc;
+            line-height: 1.5;
+            direction: rtl;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+        }}
+        .custom-header-other div {{
+            text-align: center !important;  /* ✅ النصوص الداخلية في المنتصف */
+            display: block;
+            width: 100%;
         }}
         
         /* النصوص والعناوين */
@@ -1761,6 +1784,12 @@ if st.session_state.get('system_mode') == "other_assignments":
             text-align: right !important;
         }}
         </style>
+        
+        <!-- ✅ الهيدر الجديد في المنتصف -->
+        <div class="custom-header-other">
+            <div style="font-weight: bold; font-size: 1.2rem;">إعداد وتصميم : عوض نعمان ريده</div>
+            <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
+        </div>
     """, unsafe_allow_html=True)
     
     # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
