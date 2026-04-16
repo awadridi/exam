@@ -1669,15 +1669,12 @@ if st.session_state.get('system_mode') == "other_assignments":
         return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
     
         # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
+        # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
+    # ضعه مع الدوال الأخرى في بداية نظام other_assignments
     def delete_other_assignment(table_name, record_id):
         """حذف تكليف معين"""
-        # ✅ السطر المسؤول عن الحذف (مباعد بمسافة 4 داخل الدالة)
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
-        
-        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً وحذف السجل من ملف قاعدة البيانات
-        conn_other.commit() 
-    
-           # ✅ دالة إنشاء كتاب التكليف (مع إضافة ZJOB2 وتوضيح المتغيرات)
+        conn_other.commit()  # ✅ تأكيد الحفظ فوراً
     def generate_other_letter(row):
         if not os.path.exists(TEMPLATE_NAME):
             return None
@@ -1853,16 +1850,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_guard_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_guard"):
-                        # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
-                    def delete_other_assignment(table_name, record_id):
-                        """حذف تكليف معين"""
-                        # ✅ السطر المسؤول عن الحذف (مباعد بمسافة 4 داخل الدالة)
-                        c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
-                        
-                        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً وحذف السجل من ملف قاعدة البيانات
-                        conn_other.commit() تأكيد الحفظ فوراً
+                    delete_other_assignment('guards', del_id)  # ✅ استدعاء الدالة فقط
+                    st.success("✅ تم الحذف")
+                    st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
+         
     
         # ==================== تبويب مرافقة الطرود ====================
     with tab_parcels:
