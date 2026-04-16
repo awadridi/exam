@@ -1971,7 +1971,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
                 d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="d_zjob2_input")  # ✅ d_ بدلاً من g_
+                d_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="d_zjob2_input")  # ✅ d_ بدلاً من g_
                 d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
