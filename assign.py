@@ -990,10 +990,15 @@ if st.session_state.get('system_mode') == "tasheeh":
             return None
         doc = Document(TEMPLATE_NAME)
         repls = {
-            'ZNAME': data.get('name', '---'), 'ZID': data.get('id', '---'),
-            'ZTEST': exam_name, 'ZHALL': data.get('hall_name', '---'),
-            'ZLOC': data.get('hall_city', '---'), 'ZWORK': data.get('school', '---'),
-            'ZCITY': data.get('city', '---')
+            'ZNAME': data.get('name', '---'),
+            'ZID': data.get('id', '---'),
+            'ZTEST': exam_name,
+            'ZHALL': data.get('hall_name', '---'),
+            'ZLOC': data.get('hall_city', '---'),
+            'ZWORK': data.get('school', '---'),
+            'ZCITY': data.get('city', '---'),
+            # ✅ أضف التاريخ هنا أيضاً
+            'ZDATE': data.get('exam_date', '---')
         }
         for p in doc.paragraphs:
             for k, v in repls.items():
@@ -1336,7 +1341,10 @@ if st.session_state.get('system_mode') == "tasheeh":
                                         'ZHALL': str(a.get('hall_name', '---')),
                                         'ZLOC': str(a.get('hall_city', '---')), 
                                         'ZWORK': str(a.get('subject', '---')), 
-                                        'ZCITY': str(a.get('city', '---'))
+                                        'ZCITY': str(a.get('city', '---')),
+                                        'ZSUBJECT': str(a.get('subject', '---')),
+                                        # ✅ أضف هذا السطر هنا لجلب التاريخ
+                                        'ZDATE': str(a.get('exam_date', '---')) 
                                     }
                                     for p in temp_doc.paragraphs:
                                         for k, v in repls.items():
