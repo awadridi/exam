@@ -1444,7 +1444,6 @@ if st.session_state.get('system_mode') == "tasheeh":
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key=f"dl_excel_{filter_subj}"
                         )
-                        )
     # ==================== تبويب 4: سجل العمليات ====================
         # ==================== تبويب 4: سجل العمليات ====================
     with corr_tab4:
