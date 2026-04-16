@@ -2027,7 +2027,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel")
                 
                 st.divider()
-                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_device_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_device"):
                     delete_other_assignment('exam_device', del_id)
                     st.success("✅ تم الحذف"); st.rerun()
