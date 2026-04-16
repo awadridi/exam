@@ -1635,6 +1635,7 @@ if st.session_state.get('system_mode') == "tasheeh":
 
 
 # ============================================================================
+# ============================================================================
 # 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً
 # ============================================================================
 
@@ -1644,34 +1645,34 @@ if st.session_state.get('system_mode') == "other_assignments":
     conn_other = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
     c_other = conn_other.cursor()
     
-    # جداول منفصلة لكل نوع تكليف
     for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
         c_other.execute(f'''CREATE TABLE IF NOT EXISTS {table_name} 
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
                       zid TEXT, zname TEXT, zjob TEXT, zwork TEXT, 
-                      zloc TEXT, zjob2 TEXT, zcity TEXT, created_at TEXT)''')
+                      zloc TEXT, zcity TEXT, zdate TEXT, created_at TEXT)''')
+        try:
+            c_other.execute(f"ALTER TABLE {table_name} ADD COLUMN zdate TEXT")
+            conn_other.commit()
+        except:
+            pass
     conn_other.commit()
     
-    def add_other_assignment(table_name, zid, zname, zjob, zwork, zloc, zjob2, zcity):
-        """إضافة تكليف جديد"""
+    def add_other_assignment(table_name, zid, zname, zjob, zwork, zloc, zcity, zdate):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c_other.execute(f"""INSERT INTO {table_name} 
-                           (zid, zname, zjob, zwork, zloc, zjob2, zcity, created_at) 
-                           VALUES (?,?,?,?,?,?,?)""",
-                       (zid, zname, zjob, zwork, zloc, zjob2, zcity, now))
+                           (zid, zname, zjob, zwork, zloc, zcity, zdate, created_at) 
+                           VALUES (?,?,?,?,?,?,?,?)""",
+                       (zid, zname, zjob, zwork, zloc, zcity, zdate, now))
         conn_other.commit()
     
     def get_other_assignments(table_name):
-        """جلب جميع التكليفات من جدول معين"""
         return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
     
     def delete_other_assignment(table_name, record_id):
-        """حذف تكليف معين"""
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         conn_other.commit()
     
     def generate_other_letter(row):
-        """إنشاء كتاب تكليف Word"""
         if not os.path.exists(TEMPLATE_NAME):
             return None
         
@@ -1682,10 +1683,8 @@ if st.session_state.get('system_mode') == "other_assignments":
             'ZJOB': str(row.get('zjob', '---')),
             'ZWORK': str(row.get('zwork', '---')),
             'ZLOC': str(row.get('zloc', '---')),
-            'Zjob2': str(row.get('zjob2', '---')),
             'ZCITY': str(row.get('zcity', '---')),
-            # ✅ إضافة التاريخ
-            'ZDATE': st.session_state.get('other_assign_date', datetime.now().strftime("%Y/%m/%d"))
+            'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
         }
         
         for p in doc.paragraphs:
@@ -1707,8 +1706,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                         run.text = run.text.replace(k, str(v))
                                         run.bold = True
         
-        return doc
-    
+        return doc    
     # الواجهة الرئيسية
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
@@ -1763,23 +1761,9 @@ if st.session_state.get('system_mode') == "other_assignments":
         "🛡️ الحرس", "📦 مرافقة الطرود", "📱 جهاز الامتحان", "👥 لجنة الامتحان"
     ])
     
-    # ==================== تبويب الحرس ====================
+        # ==================== تبويب الحرس ====================
     with tab_guard:
         st.markdown("### 🛡️ إدارة تكليفات الحرس")
-        
-        # 📅 حقل تاريخ التكليف للحرس
-        if 'guard_assign_date' not in st.session_state:
-            st.session_state.guard_assign_date = datetime.now().strftime("%Y/%m/%d")
-        col_guard_date1, col_guard_date2 = st.columns([4, 1])
-        with col_guard_date1:
-            st.session_state.guard_assign_date = st.date_input(
-                "📅 تاريخ التكليف:", 
-                value=datetime.strptime(st.session_state.guard_assign_date, "%Y/%m/%d"),
-                key="guard_assign_date_input"
-            ).strftime("%Y/%m/%d")
-        with col_guard_date2:
-            st.info(f"📌 `{st.session_state.guard_assign_date}`")
-        st.divider()
         
         if 'guard_form_clear' not in st.session_state:
             st.session_state.guard_form_clear = False
@@ -1794,17 +1778,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                 g_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="g_zwork_input")
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
+                g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="g_zdate_input")
                 submit_guard = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_guard:
                     if g_zid and g_zname:
-                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zwork, g_zloc, g_zcity)
-                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
-                        # تفريغ الحقول
+                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
+                        st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.guard_form_clear = True
                         st.rerun()
                     else:
-                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+                        st.error("⚠️ يرجى إدخال الهوية والاسم")
         
         if st.session_state.guard_form_clear:
             st.session_state.guard_form_clear = False
@@ -1822,51 +1806,39 @@ if st.session_state.get('system_mode') == "other_assignments":
                         for _, row in df_guard.iterrows():
                             doc = generate_other_letter(row)
                             if doc:
-                                bio = io.BytesIO()
-                                doc.save(bio)
-                                bio.seek(0)
+                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
                                 docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
                         if docs:
                             st.success(f"✅ تم إنشاء {len(docs)} ملف")
                             for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, 
-                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                                 key=f"dl_guard_{fname}")
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_guard_{fname}")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_guard.to_excel(writer, index=False, sheet_name='الحرس')
-                        st.download_button("📥 تحميل Excel", output.getvalue(), 
-                                         "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            wb = writer.book; ws = writer.sheets['الحرس']
+                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
+                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
+                            for cn, val in enumerate(df_guard.columns): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_guard)):
+                                for cn in range(len(df_guard.columns)): ws.write(rn+1, cn, df_guard.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(df_guard.columns): ws.set_column(idx, idx, min(max(df_guard[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel")
                 
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_guard_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_guard"):
                     delete_other_assignment('guards', del_id)
-                    st.success("✅ تم الحذف")
-                    st.rerun()
+                    st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
-    # ==================== تبويب مرافقة الطرود ====================
+        # ==================== تبويب مرافقة الطرود ====================
     with tab_parcels:
         st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
-        
-        # 📅 حقل تاريخ التكليف لمرافقة الطرود
-        if 'parcels_assign_date' not in st.session_state:
-            st.session_state.parcels_assign_date = datetime.now().strftime("%Y/%m/%d")
-        col_parcels_date1, col_parcels_date2 = st.columns([4, 1])
-        with col_parcels_date1:
-            st.session_state.parcels_assign_date = st.date_input(
-                "📅 تاريخ التكليف:", 
-                value=datetime.strptime(st.session_state.parcels_assign_date, "%Y/%m/%d"),
-                key="parcels_assign_date_input"
-            ).strftime("%Y/%m/%d")
-        with col_parcels_date2:
-            st.info(f"📌 `{st.session_state.parcels_assign_date}`")
-        st.divider()
         
         if 'parcels_form_clear' not in st.session_state:
             st.session_state.parcels_form_clear = False
@@ -1881,16 +1853,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                 p_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="p_zwork_input")
                 p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
                 p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
+                p_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="p_zdate_input")
                 submit_parcels = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_parcels:
                     if p_zid and p_zname:
-                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zwork, p_zloc, p_zcity)
-                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
+                        st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.parcels_form_clear = True
                         st.rerun()
                     else:
-                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+                        st.error("⚠️ يرجى إدخال الهوية والاسم")
         
         if st.session_state.parcels_form_clear:
             st.session_state.parcels_form_clear = False
@@ -1908,51 +1881,39 @@ if st.session_state.get('system_mode') == "other_assignments":
                         for _, row in df_parcels.iterrows():
                             doc = generate_other_letter(row)
                             if doc:
-                                bio = io.BytesIO()
-                                doc.save(bio)
-                                bio.seek(0)
+                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
                                 docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
                         if docs:
                             st.success(f"✅ تم إنشاء {len(docs)} ملف")
                             for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname,
-                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                                 key=f"dl_parcels_{fname}")
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_parcels_{fname}")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_parcels.to_excel(writer, index=False, sheet_name='مرافقة الطرود')
-                        st.download_button("📥 تحميل Excel", output.getvalue(),
-                                         "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            df_parcels.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
+                            wb = writer.book; ws = writer.sheets['مرافقة_الطرود']
+                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
+                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
+                            for cn, val in enumerate(df_parcels.columns): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_parcels)):
+                                for cn in range(len(df_parcels.columns)): ws.write(rn+1, cn, df_parcels.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(df_parcels.columns): ws.set_column(idx, idx, min(max(df_parcels[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel")
                 
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_parcels_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_parcels"):
                     delete_other_assignment('parcels', del_id)
-                    st.success("✅ تم الحذف")
-                    st.rerun()
+                    st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
-    # ==================== تبويب جهاز الامتحان ====================
+        # ==================== تبويب جهاز الامتحان ====================
     with tab_device:
         st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
-        
-        # 📅 حقل تاريخ التكليف لجهاز الامتحان
-        if 'device_assign_date' not in st.session_state:
-            st.session_state.device_assign_date = datetime.now().strftime("%Y/%m/%d")
-        col_device_date1, col_device_date2 = st.columns([4, 1])
-        with col_device_date1:
-            st.session_state.device_assign_date = st.date_input(
-                "📅 تاريخ التكليف:", 
-                value=datetime.strptime(st.session_state.device_assign_date, "%Y/%m/%d"),
-                key="device_assign_date_input"
-            ).strftime("%Y/%m/%d")
-        with col_device_date2:
-            st.info(f"📌 `{st.session_state.device_assign_date}`")
-        st.divider()
         
         if 'device_form_clear' not in st.session_state:
             st.session_state.device_form_clear = False
@@ -1967,16 +1928,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="d_zwork_input")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
+                d_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="d_zdate_input")
                 submit_device = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_device:
                     if d_zid and d_zname:
-                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zwork, d_zloc, d_zcity)
-                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
+                        st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.device_form_clear = True
                         st.rerun()
                     else:
-                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+                        st.error("⚠️ يرجى إدخال الهوية والاسم")
         
         if st.session_state.device_form_clear:
             st.session_state.device_form_clear = False
@@ -1994,51 +1956,39 @@ if st.session_state.get('system_mode') == "other_assignments":
                         for _, row in df_device.iterrows():
                             doc = generate_other_letter(row)
                             if doc:
-                                bio = io.BytesIO()
-                                doc.save(bio)
-                                bio.seek(0)
+                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
                                 docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
                         if docs:
                             st.success(f"✅ تم إنشاء {len(docs)} ملف")
                             for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname,
-                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                                 key=f"dl_device_{fname}")
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_device_{fname}")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_device.to_excel(writer, index=False, sheet_name='جهاز الامتحان')
-                        st.download_button("📥 تحميل Excel", output.getvalue(),
-                                         "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            df_device.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
+                            wb = writer.book; ws = writer.sheets['جهاز_الامتحان']
+                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
+                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
+                            for cn, val in enumerate(df_device.columns): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_device)):
+                                for cn in range(len(df_device.columns)): ws.write(rn+1, cn, df_device.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(df_device.columns): ws.set_column(idx, idx, min(max(df_device[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel")
                 
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_device_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_device"):
                     delete_other_assignment('exam_device', del_id)
-                    st.success("✅ تم الحذف")
-                    st.rerun()
+                    st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
-    # ==================== تبويب لجنة الامتحان ====================
+        # ==================== تبويب لجنة الامتحان ====================
     with tab_committee:
         st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
-        
-        # 📅 حقل تاريخ التكليف للجنة الامتحان
-        if 'committee_assign_date' not in st.session_state:
-            st.session_state.committee_assign_date = datetime.now().strftime("%Y/%m/%d")
-        col_committee_date1, col_committee_date2 = st.columns([4, 1])
-        with col_committee_date1:
-            st.session_state.committee_assign_date = st.date_input(
-                "📅 تاريخ التكليف:", 
-                value=datetime.strptime(st.session_state.committee_assign_date, "%Y/%m/%d"),
-                key="committee_assign_date_input"
-            ).strftime("%Y/%m/%d")
-        with col_committee_date2:
-            st.info(f"📌 `{st.session_state.committee_assign_date}`")
-        st.divider()
         
         if 'committee_form_clear' not in st.session_state:
             st.session_state.committee_form_clear = False
@@ -2053,16 +2003,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                 c_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="c_zwork_input")
                 c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
                 c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
+                c_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="c_zdate_input")
                 submit_committee = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_committee:
                     if c_zid and c_zname:
-                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zwork, c_zloc, c_zcity)
-                        st.success("✅ تم الإضافة بنجاح! الحقول ستُفرغ تلقائياً")
+                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
+                        st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.committee_form_clear = True
                         st.rerun()
                     else:
-                        st.error("⚠️ يرجى إدخال الهوية والاسم على الأقل")
+                        st.error("⚠️ يرجى إدخال الهوية والاسم")
         
         if st.session_state.committee_form_clear:
             st.session_state.committee_form_clear = False
@@ -2080,33 +2031,41 @@ if st.session_state.get('system_mode') == "other_assignments":
                         for _, row in df_committee.iterrows():
                             doc = generate_other_letter(row)
                             if doc:
-                                bio = io.BytesIO()
-                                doc.save(bio)
-                                bio.seek(0)
+                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
                                 docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
                         if docs:
                             st.success(f"✅ تم إنشاء {len(docs)} ملف")
                             for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname,
-                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                                 key=f"dl_committee_{fname}")
+                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_committee_{fname}")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_committee.to_excel(writer, index=False, sheet_name='لجنة الامتحان')
-                        st.download_button("📥 تحميل Excel", output.getvalue(),
-                                         "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            df_committee.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
+                            wb = writer.book; ws = writer.sheets['لجنة_الامتحان']
+                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
+                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
+                            for cn, val in enumerate(df_committee.columns): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_committee)):
+                                for cn in range(len(df_committee.columns)): ws.write(rn+1, cn, df_committee.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(df_committee.columns): ws.set_column(idx, idx, min(max(df_committee[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel")
                 
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_committee_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_committee"):
                     delete_other_assignment('exam_committee', del_id)
-                    st.success("✅ تم الحذف")
-                    st.rerun()
+                    st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
+    
+    st.divider()
+    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY, ZDATE")
+    
+    conn_other.close()
+    st.stop()
     
     st.divider()
     st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY, ZDATE")
