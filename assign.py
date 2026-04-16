@@ -1656,13 +1656,20 @@ if st.session_state.get('system_mode') == "other_assignments":
         except:
             pass
     conn_other.commit()
+        # ✅ إضافة عمود zjob2 للوظيفة الحالية
+    for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
+        try:
+            c_other.execute(f"ALTER TABLE {table_name} ADD COLUMN zjob2 TEXT")
+            conn_other.commit()
+        except:
+            pass  # العمود موجود مسبقاً
     
-    def add_other_assignment(table_name, zid, zname, zjob, zwork, zloc, zcity, zdate):
+        def add_other_assignment(table_name, zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c_other.execute(f"""INSERT INTO {table_name} 
-                           (zid, zname, zjob, zwork, zloc, zcity, zdate, created_at) 
-                           VALUES (?,?,?,?,?,?,?,?)""",
-                       (zid, zname, zjob, zwork, zloc, zcity, zdate, now))
+                           (zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate, created_at) 
+                           VALUES (?,?,?,?,?,?,?,?,?)""",
+                       (zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate, now))
         conn_other.commit()
     
     def get_other_assignments(table_name):
@@ -1675,23 +1682,18 @@ if st.session_state.get('system_mode') == "other_assignments":
         """حذف تكليف معين"""
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         conn_other.commit()  # ✅ تأكيد الحفظ فوراً
-    def generate_other_letter(row):
+        def generate_other_letter(row):
         if not os.path.exists(TEMPLATE_NAME):
             return None
         
         doc = Document(TEMPLATE_NAME)
         
-        # التعيينات حسب طلبك:
-        # ZJOB: المهمة (حارس، مرافق...) -> تأتي من عمود zjob
-        # ZJOB2: وظيفة الموظف الحالية (معلم، إداري...) -> تأتي من عمود zwork
-        # ZWORK: وظيفته في التكليف (نفس المهمة ZJOB) -> تأتي من عمود zjob
-        
         repls = {
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
-            'ZJOB': str(row.get('zjob', '---')),        # المهمة (حارس، مرافق...)
-            'ZJOB2': str(row.get('zwork', '---')),      # وظيفة الموظف الحالية (معلم، إداري...)
-            'ZWORK': str(row.get('zjob', '---')),       # وظيفته في التكليف (نفس المهمة)
+            'ZJOB': str(row.get('zjob', '---')),         # المهمة (حارس، مرافق...)
+            'ZJOB2': str(row.get('zjob2', '---')),       # الوظيفة الحالية (معلم، إداري...)
+            'ZWORK': str(row.get('zwork', '---')),       # وظيفته في التكليف
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
@@ -1794,6 +1796,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
                 g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
+                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="معلم", key="g_zjob2_input")  # ✅ جديد
                 g_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="g_zwork_input")
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
