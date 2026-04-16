@@ -746,6 +746,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 st.error(f"خطأ أثناء التحديث: {e}")
 
     # ==================== تبويب الإدارة ====================
+        # ==================== تبويب الإدارة ====================
     with tab_manage:
         # ✅ لوحة التحكم الإحصائية المتقدمة
         st.markdown("### 📊 لوحة التحكم المتقدمة")
@@ -823,6 +824,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.success("✅ تم إنشاء الملف المضغوط بنجاح!")
         
         st.divider()
+        
+        # ✅ عرض تفاصيل القاعة (مع تعريف الأعمدة بشكل آمن)
         if assigned_halls:
             h_choice = st.selectbox("اختر قاعة لعرض الكادر والإحصائيات:", [""] + assigned_halls)
             if h_choice:
@@ -843,8 +846,11 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.markdown(styled_df.to_html(), unsafe_allow_html=True)
 
                 st.markdown("<br>", unsafe_allow_html=True)
+                
+                # ✅ تعريف الأعمدة هنا لضمان وجودها قبل الاستخدام
                 col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
-                with col_btn1:
+                
+                with col_btns1:
                     if st.button(f"🗑️ تفريغ قاعة {h_choice}", key=f"del_hall_{h_choice}"):
                         c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE hall=?", (st.session_state.username, h_choice))
                         conn.commit()
