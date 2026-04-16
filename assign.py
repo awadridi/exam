@@ -132,8 +132,8 @@ st.markdown("""
     </style>
     
     <div class="custom-header">
-        <div style="font-weight: bold; font-size: 1.2rem;">إعداد وتصميم : عوض نعمان ريده</div>
-        <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
+        <div style="font-weight: bold; font-size: 1.2rem; text-align: center;">إعداد وتصميم : عوض نعمان ريده</div>
+        <div style="font-size: 1rem; color: #00ffcc; text-align: center;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -726,7 +726,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         c_m3.metric("المتبقي", remaining_count)
         
        
-        
         st.divider()
         st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
         df_export = df_all_teachers.copy()
@@ -1676,12 +1675,11 @@ if st.session_state.get('system_mode') == "other_assignments":
         return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
     
         # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
-        # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
-    # ضعه مع الدوال الأخرى في بداية نظام other_assignments
     def delete_other_assignment(table_name, record_id):
         """حذف تكليف معين"""
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         conn_other.commit()  # ✅ تأكيد الحفظ فوراً
+        
     def generate_other_letter(row):
         if not os.path.exists(TEMPLATE_NAME):
             return None
@@ -1720,14 +1718,6 @@ if st.session_state.get('system_mode') == "other_assignments":
         
         return doc
 
-    # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
-    def delete_other_assignment(table_name, record_id):
-        """حذف تكليف معين"""
-        # ✅ السطر المسؤول عن الحذف (مباعد بمسافة واحدة داخل الدالة)
-        c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
-        
-        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً وحذف السجل من ملف
-        conn_other.commit() 
     # الواجهة الرئيسية
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
@@ -1796,8 +1786,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
                 g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="g_zjob2_input")  # ✅ جديد
-                g_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="g_zwork_input")
+                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="g_zjob2_input")  # ✅ key فريد + value فارغ
+                g_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="حارس", key="g_zwork_input")
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
                 g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="g_zdate_input")
@@ -1805,7 +1795,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_guard:
                     if g_zid and g_zname:
-                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
+                        # ✅ تمرير zjob2 كمتغير منفصل (9 معاملات)
+                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zjob2, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.guard_form_clear = True
                         st.rerun()
@@ -1874,8 +1865,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input")
                 p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input")
                 p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="g_zjob2_input")
-                p_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="p_zwork_input")
+                p_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="p_zjob2_input")  # ✅ p_ بدلاً من g_
+                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="مرافق طرود", key="p_zwork_input")
                 p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
                 p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
                 p_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="p_zdate_input")
@@ -1883,7 +1874,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_parcels:
                     if p_zid and p_zname:
-                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
+                        # ✅ تمرير zjob2 كمتغير منفصل
+                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zjob2, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.parcels_form_clear = True
                         st.rerun()
@@ -1950,8 +1942,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
                 d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="g_zjob2_input")
-                d_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="d_zwork_input")
+                d_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="d_zjob2_input")  # ✅ d_ بدلاً من g_
+                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="جهاز امتحان", key="d_zwork_input")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
                 d_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="d_zdate_input")
@@ -1959,7 +1951,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_device:
                     if d_zid and d_zname:
-                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
+                        # ✅ تمرير zjob2 كمتغير منفصل
+                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zjob2, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.device_form_clear = True
                         st.rerun()
@@ -2026,8 +2019,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input")
                 c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input")
                 c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="g_zjob2_input")
-                c_zwork = st.text_input("الوظيفة الحالية (ZWORK)", key="c_zwork_input")
+                c_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="c_zjob2_input")  # ✅ c_ بدلاً من g_
+                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="عضو لجنة امتحان", key="c_zwork_input")
                 c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
                 c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
                 c_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="c_zdate_input")
@@ -2035,7 +2028,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_committee:
                     if c_zid and c_zname:
-                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
+                        # ✅ تمرير zjob2 كمتغير منفصل
+                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zjob2, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.committee_form_clear = True
                         st.rerun()
@@ -2089,13 +2083,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
     st.divider()
-    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY, ZDATE")
-    
-    conn_other.close()
-    st.stop()
-    
-    st.divider()
-    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY, ZDATE")
+    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZJOB2, ZWORK, ZLOC, ZCITY, ZDATE")
     
     conn_other.close()
     st.stop()
