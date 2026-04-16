@@ -1247,70 +1247,66 @@ if st.session_state.get('system_mode') == "tasheeh":
     # ==================== تبويب 3: كتب التكليف ====================
         # ==================== تبويب 3: كتب التكليف وإدارتها ====================
         # ==================== تبويب 3: إحصائيات التكليفات والكتب ====================
+        # ==================== تبويب 3: كتب التكليف وإدارتها ====================
     with corr_tab3:
+        
+        # 1. تحميل البيانات الأساسية
         assigns = st.session_state.get('tasheeh_assignments', [])
         
-        # التحقق من وجود البيانات
-        if 'tasheeh_teachers' not in st.session_state or st.session_state['tasheeh_teachers'].empty:
-            st.warning("⚠️ يرجى تحميل البيانات أولاً من تبويب 'رفع البيانات' لعرض الإحصائيات.")
+        if not assigns:
+            st.info("📌 لم يتم توزيع أي تكليفات بعد. اذهب لتبويب التوزيع التلقائي.")
         else:
             st.markdown("### 📊 إحصائيات التكليفات")
             
-            # 1. قائمة المواد المتاحة من بيانات المعلمين
+            # 2. فلترة المواد
             teachers_df = st.session_state['tasheeh_teachers']
             subjects_list = sorted(teachers_df['subject'].dropna().unique().tolist()) if not teachers_df.empty else []
             
             col_f1, col_f2 = st.columns([1, 2])
             with col_f1:
-                filter_subj = st.selectbox("🔍 عرض إحصائيات مادة محددة:", ["الكل"] + subjects_list, index=0)
+                filter_subj = st.selectbox("🔍 عرض إحصائيات مادة محددة:", ["الكل"] + subjects_list, index=0, key="filter_subj_selectbox")
             
-            # 2. فلترة البيانات للحسابات
-            assignments_list = st.session_state.get('tasheeh_assignments', [])
-            df_assigns = pd.DataFrame(assignments_list) if assignments_list else pd.DataFrame()
+            df_assigns = pd.DataFrame(assigns)
             
             if filter_subj != "الكل":
-                # فلترة حسب المادة المختارة
                 pool_count = len(teachers_df[teachers_df['subject'] == filter_subj])
                 assigned_df = df_assigns[df_assigns['subject'] == filter_subj] if not df_assigns.empty else pd.DataFrame()
-                assigned_count = len(assigned_df)
-                remaining_count = pool_count - assigned_count
             else:
-                # عرض الكل
                 pool_count = len(teachers_df)
-                assigned_count = len(df_assigns)
                 assigned_df = df_assigns
-                remaining_count = pool_count - assigned_count
+            
+            assigned_count = len(assigned_df)
+            remaining_count = pool_count - assigned_count
 
-            # 3. عرض المقاييس (Metrics)
+            # 3. عرض المقاييس
             c_m1, c_m2, c_m3 = st.columns(3)
-            with c_m1:
-                st.metric("📚 إجمالي المعلمين (المادة)", pool_count)
-            with c_m2:
-                st.metric("✅ تم تكليفهم", assigned_count)
-            with c_m3:
-                st.metric("⏳ المتبقي للتكليف", remaining_count)
+            with c_m1: st.metric("📚 إجمالي المعلمين (المادة)", pool_count)
+            with c_m2: st.metric("✅ تم تكليفهم", assigned_count)
+            with c_m3: st.metric("⏳ المتبقي للتكليف", remaining_count)
 
             st.divider()
 
             # 4. عرض الجدول
             st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
             if not assigned_df.empty:
-                display_cols = ['name', 'subject', 'hall_name', 'hall_city']
-                # التأكد من وجود الأعمدة
+                display_cols = ['name', 'subject', 'hall_name', 'hall_city', 'exam_date']
                 safe_cols = [c for c in display_cols if c in assigned_df.columns]
                 st.dataframe(assigned_df[safe_cols], use_container_width=True)
             else:
-                st.info(f"لا يوجد تكليفات لـ {filter_subj}.")
-                
+                st.info("لا يوجد تكليفات لهذه المادة.")
+
             st.divider()
+
+            # 5. أزرار التحكم (تحميل وحذف وتصدير)
             st.markdown("### ⚙️ إدارة وتصدير")
-
-            # ✅ 1. تعريف الأعمدة (ضروري جداً أن يكون هنا قبل الاستخدام)
+            
+            # ✅ تعريف الأعمدة مرة واحدة فقط
             col_btn1, col_btn2 = st.columns(2)
-
-            # ✅ 2. زر تحميل الوورد (العمود الأول)
+            
+            # === العمود 1: تحميل الوورد ===
             with col_btn1:
-                if st.button("📥 تحميل وورد للمادة الحالية", type="primary", use_container_width=True, disabled=assigned_df.empty):
+                btn_key_word = f"btn_word_export_{filter_subj}"
+                if st.button("📥 تحميل وورد للمادة الحالية", type="primary", use_container_width=True, disabled=assigned_df.empty, key=btn_key_word):
                     if not os.path.exists(TEMPLATE_NAME):
                         st.error("❌ القالب غير موجود")
                     else:
@@ -1329,8 +1325,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                                         'ZHALL': str(a.get('hall_name', '---')),
                                         'ZLOC': str(a.get('hall_city', '---')), 
                                         'ZWORK': str(a.get('subject', '---')), 
-                                        'ZCITY': str(a.get('city', '---')),
-                                        'ZSUBJECT': str(a.get('subject', '---'))
+                                        'ZCITY': str(a.get('city', '---'))
                                     }
                                     for p in temp_doc.paragraphs:
                                         for k, v in repls.items():
@@ -1349,7 +1344,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                                                                 if k in run.text:
                                                                     run.text = run.text.replace(k, v)
                                                                     run.bold = True
-                                                    
+                                    
                                     elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
                                     for element in elements:
                                         final_doc.element.body.append(copy.deepcopy(element))
@@ -1372,18 +1367,20 @@ if st.session_state.get('system_mode') == "tasheeh":
                                     data=out.getvalue(),
                                     file_name=f"تكليفات_{filter_subj}_{datetime.now().strftime('%Y%m%d')}.docx",
                                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_word_filtered_tasheeh"
+                                    key=f"dl_word_{filter_subj}"
                                 )
                             except Exception as e:
                                 st.error(f"خطأ: {e}")
 
-            # ✅ 3. أزرار الحذف والإكسل (العمود الثاني - مجمعة معاً لتجنب التكرار)
+            # === العمود 2: الحذف وتصدير الإكسل ===
             with col_btn2:
                 st.markdown("#### 📊 خيارات التصدير")
                 
                 # زر الحذف
                 del_btn_label = f"🗑️ حذف تكليفات {filter_subj}" if filter_subj != "الكل" else "🗑️ حذف جميع التكليفات"
-                if st.button(del_btn_label, type="secondary", use_container_width=True, disabled=assigned_df.empty):
+                del_btn_key = f"btn_delete_{filter_subj}"
+                
+                if st.button(del_btn_label, type="secondary", use_container_width=True, disabled=assigned_df.empty, key=del_btn_key):
                     if filter_subj == "الكل":
                         c.execute("DELETE FROM tasheeh_assignments")
                     else:
@@ -1401,7 +1398,9 @@ if st.session_state.get('system_mode') == "tasheeh":
                 st.divider()
                 
                 # ✅ زر الإكسل المنسق
-                if st.button("📥 تصدير إكسل منسق", type="primary", use_container_width=True, disabled=assigned_df.empty):
+                excel_btn_key = f"btn_excel_export_{filter_subj}"
+                
+                if st.button("📥 تصدير إكسل منسق", type="primary", use_container_width=True, disabled=assigned_df.empty, key=excel_btn_key):
                     if assigned_df.empty:
                         st.warning("⚠️ لا توجد بيانات لتصديرها!")
                     else:
@@ -1443,107 +1442,8 @@ if st.session_state.get('system_mode') == "tasheeh":
                             data=out.getvalue(),
                             file_name=f"تكليفات_{filter_subj}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_excel_{filter_subj}_formatted"
+                            key=f"dl_excel_{filter_subj}"
                         )
-                
-                if st.button(del_btn_label, type="secondary", use_container_width=True, disabled=assigned_df.empty):
-                    if filter_subj == "الكل":
-                        c.execute("DELETE FROM tasheeh_assignments")
-                    else:
-                        c.execute("DELETE FROM tasheeh_assignments WHERE subject=?", (filter_subj,))
-                    conn.commit()
-                    
-                    if filter_subj == "الكل":
-                        st.session_state['tasheeh_assignments'] = []
-                    else:
-                        st.session_state['tasheeh_assignments'] = [a for a in st.session_state['tasheeh_assignments'] if a['subject'] != filter_subj]
-                    
-                    st.success(f"✅ تم حذف تكليفات {filter_subj}")
-                    st.rerun()
-
-            with col_btn2:
-                if st.button("📊 تصدير إكسل"):
-                    df = pd.DataFrame(st.session_state['tasheeh_assignments'])
-                    out = io.BytesIO()
-                    df.to_excel(out, index=False)
-                    out.seek(0)
-                    st.download_button(
-                        "📥 تحميل إكسل", 
-                        out.getvalue(), 
-                        f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", 
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="dl_excel_tasheeh_unique"
-                    )
-            
-            st.divider()
-            st.markdown("### 📊 تصدير البيانات")
-            
-            col_btn1, col_btn2 = st.columns(2)
-            
-            with col_btn1:
-                if st.button("📊 تصدير كملف إكسل منسق", type="secondary", use_container_width=True):
-                    if not assigns:
-                        st.warning("⚠️ لا توجد تكليفات لتصديرها!")
-                    else:
-                        df = pd.DataFrame(assigns)
-                        
-                        # 🇵🇸 تحويل أسماء الأعمدة للعربية
-                        arabic_map = {
-                            'id': 'رقم الهوية', 'name': 'اسم المصحح', 'subject': 'المبحث',
-                            'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_name': 'الامتحان',
-                            'exam_date': 'التاريخ', 'exam_day': 'اليوم', 'city': 'مكان السكن', 
-                            'school': 'المدرسة', 'timestamp': 'وقت التكليف'
-                        }
-                        # الاحتفاظ فقط بالأعمدة الموجودة فعلياً في البيانات
-                        valid_cols = [c for c in df.columns if c in arabic_map]
-                        df_export = df[valid_cols].rename(columns=arabic_map)
-
-                        out = io.BytesIO()
-                        with pd.ExcelWriter(out, engine='xlsxwriter') as writer:
-                            df_export.to_excel(writer, index=False, sheet_name='تكليفات التصحيح')
-                            workbook = writer.book
-                            worksheet = writer.sheets['تكليفات التصحيح']
-
-                            # 🎨 تنسيق العناوين (خط 14 عريض)
-                            header_fmt = workbook.add_format({
-                                'font_size': 14, 'bold': True, 'align': 'center',
-                                'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc',
-                                'border': 1, 'text_wrap': True
-                            })
-                            
-                            # 📝 تنسيق البيانات (خط 14 عريض، محاذى لليمين)
-                            cell_fmt = workbook.add_format({
-                                'font_size': 14, 'bold': True, 'align': 'right',
-                                'valign': 'vcenter', 'border': 1, 'text_wrap': True
-                            })
-
-                            # 📐 إعدادات الصفحة والطباعة
-                            worksheet.right_to_left()              # اتجاه من اليمين لليسار
-                            worksheet.set_landscape()              # اتجاه أفقي
-                            worksheet.fit_to_pages(1, 0)           # احتواء العرض في صفحة واحدة
-                            worksheet.set_default_row(height=28)   # ارتفاع مريح للصفوف
-
-                            # تطبيق التنسيق على صف العناوين
-                            for col_num, value in enumerate(df_export.columns):
-                                worksheet.write(0, col_num, value, header_fmt)
-
-                            # تطبيق التنسيق على جميع الخلايا
-                            for row_num in range(len(df_export)):
-                                for col_num in range(len(df_export.columns)):
-                                    worksheet.write(row_num + 1, col_num, df_export.iloc[row_num, col_num], cell_fmt)
-
-                            # 📏 ضبط عرض الأعمدة تلقائياً مع حد أقصى
-                            for idx, col in enumerate(df_export.columns):
-                                max_len = max(df_export[col].astype(str).map(len).max(), len(str(col))) + 4
-                                worksheet.set_column(idx, idx, min(max_len, 35), cell_fmt)
-
-                        out.seek(0)
-                        st.download_button(
-                            label="📥 تحميل ملف إكسل منسق",
-                            data=out.getvalue(),
-                            file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="dl_excel_tasheeh_pro_formatted"
                         )
     # ==================== تبويب 4: سجل العمليات ====================
         # ==================== تبويب 4: سجل العمليات ====================
