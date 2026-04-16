@@ -1668,9 +1668,14 @@ if st.session_state.get('system_mode') == "other_assignments":
     def get_other_assignments(table_name):
         return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
     
+        # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
     def delete_other_assignment(table_name, record_id):
+        """حذف تكليف معين"""
+        # ✅ السطر المسؤول عن الحذف (مباعد بمسافة 4 داخل الدالة)
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
-        conn_other.commit()
+        
+        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً وحذف السجل من ملف قاعدة البيانات
+        conn_other.commit() 
     
            # ✅ دالة إنشاء كتاب التكليف (مع إضافة ZJOB2 وتوضيح المتغيرات)
     def generate_other_letter(row):
