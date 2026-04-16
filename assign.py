@@ -1301,15 +1301,88 @@ if st.session_state.get('system_mode') == "tasheeh":
                 st.dataframe(assigned_df[safe_cols], use_container_width=True)
             else:
                 st.info(f"لا يوجد تكليفات لـ {filter_subj}.")
-                st.divider()
+                
+            st.divider()
+            st.markdown("### ⚙️ إدارة وتصدير")
+
+            # ✅ 1. تعريف الأعمدة (ضروري جداً أن يكون هنا قبل الاستخدام)
+            col_btn1, col_btn2 = st.columns(2)
+
+            # ✅ 2. زر تحميل الوورد (العمود الأول)
+            with col_btn1:
+                if st.button("📥 تحميل وورد للمادة الحالية", type="primary", use_container_width=True, disabled=assigned_df.empty):
+                    if not os.path.exists(TEMPLATE_NAME):
+                        st.error("❌ القالب غير موجود")
+                    else:
+                        with st.spinner("جاري الإنشاء..."):
+                            try:
+                                final_doc = Document(TEMPLATE_NAME)
+                                final_doc._body.clear_content()
+                                current_list = assigned_df.to_dict('records') 
+                                
+                                for i, a in enumerate(current_list):
+                                    temp_doc = Document(TEMPLATE_NAME)
+                                    repls = {
+                                        'ZNAME': str(a.get('name', '---')), 
+                                        'ZID': str(a.get('id', '---')),
+                                        'ZTEST': str(a.get('exam_name', '---')), 
+                                        'ZHALL': str(a.get('hall_name', '---')),
+                                        'ZLOC': str(a.get('hall_city', '---')), 
+                                        'ZWORK': str(a.get('subject', '---')), 
+                                        'ZCITY': str(a.get('city', '---')),
+                                        'ZSUBJECT': str(a.get('subject', '---'))
+                                    }
+                                    for p in temp_doc.paragraphs:
+                                        for k, v in repls.items():
+                                            if k in p.text:
+                                                for run in p.runs:
+                                                    if k in run.text:
+                                                        run.text = run.text.replace(k, v)
+                                                        run.bold = True
+                                    for table in temp_doc.tables:
+                                        for row in table.rows:
+                                            for cell in row.cells:
+                                                for p in cell.paragraphs:
+                                                    for k, v in repls.items():
+                                                        if k in p.text:
+                                                            for run in p.runs:
+                                                                if k in run.text:
+                                                                    run.text = run.text.replace(k, v)
+                                                                    run.bold = True
+                                                    
+                                    elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+                                    for element in elements:
+                                        final_doc.element.body.append(copy.deepcopy(element))
+                                    
+                                    if i < len(current_list) - 1:
+                                        p = OxmlElement('w:p')
+                                        r = OxmlElement('w:r')
+                                        br = OxmlElement('w:br')
+                                        br.set(qn('w:type'), 'page')
+                                        r.append(br)
+                                        p.append(r)
+                                        final_doc.element.body.append(p)
+                                
+                                out = io.BytesIO()
+                                final_doc.save(out)
+                                out.seek(0)
+                                st.success(f"✅ تم إنشاء ملف {filter_subj} بنجاح")
+                                st.download_button(
+                                    label="📥 تحميل الآن",
+                                    data=out.getvalue(),
+                                    file_name=f"تكليفات_{filter_subj}_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="dl_word_filtered_tasheeh"
+                                )
+                            except Exception as e:
+                                st.error(f"خطأ: {e}")
+
+            # ✅ 3. أزرار الحذف والإكسل (العمود الثاني - مجمعة معاً لتجنب التكرار)
             with col_btn2:
                 st.markdown("#### 📊 خيارات التصدير")
                 
-                # زر حذف التكليفات (كما هو)
-                del_btn_label = f"🗑️ حذف تكليفات {filter_subj}"
-                if filter_subj == "الكل":
-                     del_btn_label = "🗑️ حذف جميع التكليفات"
-                
+                # زر الحذف
+                del_btn_label = f"🗑️ حذف تكليفات {filter_subj}" if filter_subj != "الكل" else "🗑️ حذف جميع التكليفات"
                 if st.button(del_btn_label, type="secondary", use_container_width=True, disabled=assigned_df.empty):
                     if filter_subj == "الكل":
                         c.execute("DELETE FROM tasheeh_assignments")
@@ -1327,12 +1400,11 @@ if st.session_state.get('system_mode') == "tasheeh":
                 
                 st.divider()
                 
-                # ✅ زر الإكسل المنسق الجديد
+                # ✅ زر الإكسل المنسق
                 if st.button("📥 تصدير إكسل منسق", type="primary", use_container_width=True, disabled=assigned_df.empty):
                     if assigned_df.empty:
                         st.warning("⚠️ لا توجد بيانات لتصديرها!")
                     else:
-                        # 🇵🇸 تحويل الأعمدة للعربية
                         arabic_map = {
                             'id': 'رقم الهوية', 'name': 'اسم المصحح', 'subject': 'المبحث',
                             'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_name': 'الامتحان',
@@ -1348,35 +1420,19 @@ if st.session_state.get('system_mode') == "tasheeh":
                             workbook = writer.book
                             worksheet = writer.sheets['تكليفات التصحيح']
 
-                            # 🎨 تنسيق العناوين (خط 14 عريض)
-                            header_fmt = workbook.add_format({
-                                'font_size': 14, 'bold': True, 'align': 'center',
-                                'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc',
-                                'border': 1, 'text_wrap': True
-                            })
-                            
-                            # 📝 تنسيق البيانات (خط 14 عريض، محاذى لليمين)
-                            cell_fmt = workbook.add_format({
-                                'font_size': 14, 'bold': True, 'align': 'right',
-                                'valign': 'vcenter', 'border': 1, 'text_wrap': True
-                            })
+                            header_fmt = workbook.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'text_wrap': True})
+                            cell_fmt = workbook.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
-                            # 📐 إعدادات الصفحة والطباعة
-                            worksheet.right_to_left()              # ✅ اتجاه من اليمين لليسار
-                            worksheet.set_landscape()              # ✅ اتجاه أفقي
-                            worksheet.fit_to_pages(1, 0)           # ✅ احتواء العرض في صفحة واحدة
-                            worksheet.set_default_row(height=28)   # ارتفاع مريح
+                            worksheet.right_to_left()
+                            worksheet.set_landscape()
+                            worksheet.fit_to_pages(1, 0)
+                            worksheet.set_default_row(height=28)
 
-                            # تطبيق التنسيق على العناوين
                             for col_num, value in enumerate(df_export.columns):
                                 worksheet.write(0, col_num, value, header_fmt)
-
-                            # تطبيق التنسيق على جميع الخلايا
                             for row_num in range(len(df_export)):
                                 for col_num in range(len(df_export.columns)):
                                     worksheet.write(row_num + 1, col_num, df_export.iloc[row_num, col_num], cell_fmt)
-
-                            # 📏 ضبط عرض الأعمدة تلقائياً
                             for idx, col in enumerate(df_export.columns):
                                 max_len = max(df_export[col].astype(str).map(len).max(), len(str(col))) + 4
                                 worksheet.set_column(idx, idx, min(max_len, 35), cell_fmt)
