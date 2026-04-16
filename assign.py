@@ -508,8 +508,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         
 
     # ==================== تبويب التوزيع التلقائي ====================
+        # ==================== تبويب التوزيع التلقائي ====================
     with tab_auto:
-       
         st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
         
         # 📅 حقل تاريخ التكليف (للتوزيع الجماعي)
@@ -526,6 +526,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.info(f"📌 `{st.session_state.assign_date_bulk}`")
         st.divider()
         
+        # ✅ تعريف المتغيرات المطلوبة (بدون عرض لوحة التحكم)
+        df_all = get_cached_teachers()  # ← هذا السطر كان مفقوداً!
         hall_map_auto = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
         
         df_qualified = df_all[(df_all['ability'] == 'يصلح') & (df_all['preference'] == 'يرغب') & (df_all['current_job'] == 'معلم') & ((df_all['hall'] == '') | (df_all['hall'].isna()))]
@@ -650,7 +652,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.rerun()
                 else:
                     st.warning("⚠️ لم تختر أي شخص!")
-                    
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
         st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
