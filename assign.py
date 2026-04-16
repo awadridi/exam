@@ -754,7 +754,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.download_button(label="📥 تحميل إكسل معدل", data=output_all.getvalue(), file_name=f"كشف_عام_{datetime.now().strftime('%Y%m%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-        # ✅ زر التصدير المضغوط (رقم 4)
         st.divider()
         st.markdown("### 📦 التصدير الجماعي")
         assigned_halls = sorted(df_all_teachers[df_all_teachers['hall'].astype(str).str.len() > 0]['hall'].unique().tolist())
@@ -767,11 +766,9 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         for hall in assigned_halls:
                             df_hall = df_all_teachers[df_all_teachers['hall'] == hall]
                             for _, row in df_hall.iterrows():
-                                doc = generate_single_doc(row)
-                                if doc:
-                                    doc_buffer = io.BytesIO()
-                                    doc.save(doc_buffer)
-                                    doc_buffer.seek(0)
+                                # ✅ التعديل هنا: الدالة تعيد الملف جاهزاً، نأخذ المحتوى مباشرة
+                                doc_buffer = generate_single_doc(row)
+                                if doc_buffer:
                                     filename = f"تكليف_{row['name']}_{row['id']}.docx"
                                     zip_file.writestr(filename, doc_buffer.getvalue())
                     
@@ -783,8 +780,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         mime="application/zip"
                     )
                     st.success("✅ تم إنشاء الملف المضغوط بنجاح!")
-        
-        st.divider()
         
         # ✅ عرض تفاصيل القاعة (مع تعريف الأعمدة بشكل آمن)
         if assigned_halls:
