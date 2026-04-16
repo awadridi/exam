@@ -1664,14 +1664,14 @@ if st.session_state.get('system_mode') == "other_assignments":
         except:
             pass  # العمود موجود مسبقاً
     
-        def add_other_assignment(table_name, zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate):
+    def add_other_assignment(table_name, zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c_other.execute(f"""INSERT INTO {table_name} 
                            (zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate, created_at) 
                            VALUES (?,?,?,?,?,?,?,?,?)""",
                        (zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate, now))
         conn_other.commit()
-    
+        
     def get_other_assignments(table_name):
         return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
     
