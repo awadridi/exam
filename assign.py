@@ -505,48 +505,11 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                                 if f_word: 
                                     st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
                             
-                            # ✅ زر معاينة للطباعة
-                            if st.button("🖨️ معاينة للطباعة", key=f"print_{st.session_state.system_mode}_{row['id']}"):
-                                st.markdown(f"""
-                                <div class="print-preview">
-                                    <h3 style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px;">كتاب تكليف</h3>
-                                    <table>
-                                        <tr><td style="width: 30%; font-weight: bold;">الاسم:</td><td>{row['name']}</td></tr>
-                                        <tr><td style="font-weight: bold;">رقم الهوية:</td><td>{row['id']}</td></tr>
-                                        <tr><td style="font-weight: bold;">المهمة:</td><td>{row['role'] or '---'}</td></tr>
-                                        <tr><td style="font-weight: bold;">القاعة:</td><td>{row['hall'] or '---'}</td></tr>
-                                        <tr><td style="font-weight: bold;">تاريخ التكليف:</td><td>{st.session_state.assign_date}</td></tr>
-                                    </table>
-                                    <div style="margin-top: 30px; text-align: center;">
-                                        <p>توقيع المسؤول: ........................</p>
-                                        <p>تاريخ: {datetime.now().strftime('%Y/%m/%d')}</p>
-                                    </div>
-                                </div>
-                                <script>window.print();</script>
-                                """, unsafe_allow_html=True)
+                        
 
     # ==================== تبويب التوزيع التلقائي ====================
     with tab_auto:
-        # ✅ لوحة التحكم الإحصائية (رقم 2)
-        st.markdown("### 📊 لوحة التحكم الإحصائية")
-        df_all = get_cached_teachers()
-        total_teachers = len(df_all)
-        qualified = len(df_all[(df_all['ability'] == 'يصلح') & (df_all['preference'] == 'يرغب') & (df_all['current_job'] == 'معلم')])
-        assigned = len(df_all[(df_all['hall'].astype(str).str.len() > 0) & (df_all['hall'] != 'nan')])
-        
-        c_dash1, c_dash2, c_dash3, c_dash4 = st.columns(4)
-        with c_dash1: st.metric("👥 إجمالي المعلمين", total_teachers)
-        with c_dash2: st.metric("✅ المؤهلين للتكليف", qualified)
-        with c_dash3: st.metric("🎯 تم تكليفهم", assigned)
-        with c_dash4: st.metric("⏳ المتبقين", qualified - assigned if qualified > assigned else 0)
-        
-        # رسم بياني بسيط
-        if not df_all.empty:
-            chart_data = df_all['current_job'].value_counts().head(5)
-            st.bar_chart(chart_data, use_container_width=True, horizontal=True)
-        
-        st.divider()
-        
+       
         st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
         
         # 📅 حقل تاريخ التكليف (للتوزيع الجماعي)
