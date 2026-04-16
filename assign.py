@@ -887,7 +887,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
 if st.session_state.get('system_mode') == "tasheeh":
     
-    # 1️⃣ إنشاء جداول التخزين الدائم في قاعدة البيانات
+        # 1️⃣ إنشاء جداول التخزين الدائم في قاعدة البيانات
     c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_teachers (
         id TEXT PRIMARY KEY, name TEXT, subject TEXT, city TEXT, 
         school TEXT, phone TEXT, relative TEXT
@@ -895,6 +895,17 @@ if st.session_state.get('system_mode') == "tasheeh":
     c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_halls (
         hall_name TEXT PRIMARY KEY, city TEXT
     )''')
+    
+    # ✅ إضافة جدول التكليفات المفقود (هذا هو الحل)
+    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        teacher_id TEXT, teacher_name TEXT, subject TEXT,
+        hall_name TEXT, hall_city TEXT, exam_name TEXT,
+        exam_date TEXT, exam_day TEXT, 
+        school TEXT, city TEXT,
+        created_at TEXT, created_by TEXT
+    )''')
+    
     conn.commit()
     
     # 2️⃣ تحميل البيانات تلقائياً من القاعدة عند فتح الموقع
