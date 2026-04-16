@@ -1248,6 +1248,7 @@ if st.session_state.get('system_mode') == "tasheeh":
         # ==================== تبويب 3: كتب التكليف وإدارتها ====================
         # ==================== تبويب 3: إحصائيات التكليفات والكتب ====================
     with corr_tab3:
+        assigns = st.session_state.get('tasheeh_assignments', [])
         
         # التحقق من وجود البيانات
         if 'tasheeh_teachers' not in st.session_state or st.session_state['tasheeh_teachers'].empty:
@@ -1410,16 +1411,75 @@ if st.session_state.get('system_mode') == "tasheeh":
                     )
             
             st.divider()
-            if st.button("📊 تصدير كملف إكسل"):
-                df = pd.DataFrame(assigns)
-                out = io.BytesIO()
-                df.to_excel(out, index=False)
-                out.seek(0)
-                st.download_button("📥 تحميل إكسل", out.getvalue(), 
-                                   f"تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx", 
-                                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                   key="dl_excel_tasheeh_unique")
-    
+            st.markdown("### 📊 تصدير البيانات")
+            
+            col_btn1, col_btn2 = st.columns(2)
+            
+            with col_btn1:
+                if st.button("📊 تصدير كملف إكسل منسق", type="secondary", use_container_width=True):
+                    if not assigns:
+                        st.warning("⚠️ لا توجد تكليفات لتصديرها!")
+                    else:
+                        df = pd.DataFrame(assigns)
+                        
+                        # 🇵🇸 تحويل أسماء الأعمدة للعربية
+                        arabic_map = {
+                            'id': 'رقم الهوية', 'name': 'اسم المصحح', 'subject': 'المبحث',
+                            'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_name': 'الامتحان',
+                            'exam_date': 'التاريخ', 'exam_day': 'اليوم', 'city': 'مكان السكن', 
+                            'school': 'المدرسة', 'timestamp': 'وقت التكليف'
+                        }
+                        # الاحتفاظ فقط بالأعمدة الموجودة فعلياً في البيانات
+                        valid_cols = [c for c in df.columns if c in arabic_map]
+                        df_export = df[valid_cols].rename(columns=arabic_map)
+
+                        out = io.BytesIO()
+                        with pd.ExcelWriter(out, engine='xlsxwriter') as writer:
+                            df_export.to_excel(writer, index=False, sheet_name='تكليفات التصحيح')
+                            workbook = writer.book
+                            worksheet = writer.sheets['تكليفات التصحيح']
+
+                            # 🎨 تنسيق العناوين (خط 14 عريض)
+                            header_fmt = workbook.add_format({
+                                'font_size': 14, 'bold': True, 'align': 'center',
+                                'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc',
+                                'border': 1, 'text_wrap': True
+                            })
+                            
+                            # 📝 تنسيق البيانات (خط 14 عريض، محاذى لليمين)
+                            cell_fmt = workbook.add_format({
+                                'font_size': 14, 'bold': True, 'align': 'right',
+                                'valign': 'vcenter', 'border': 1, 'text_wrap': True
+                            })
+
+                            # 📐 إعدادات الصفحة والطباعة
+                            worksheet.right_to_left()              # اتجاه من اليمين لليسار
+                            worksheet.set_landscape()              # اتجاه أفقي
+                            worksheet.fit_to_pages(1, 0)           # احتواء العرض في صفحة واحدة
+                            worksheet.set_default_row(height=28)   # ارتفاع مريح للصفوف
+
+                            # تطبيق التنسيق على صف العناوين
+                            for col_num, value in enumerate(df_export.columns):
+                                worksheet.write(0, col_num, value, header_fmt)
+
+                            # تطبيق التنسيق على جميع الخلايا
+                            for row_num in range(len(df_export)):
+                                for col_num in range(len(df_export.columns)):
+                                    worksheet.write(row_num + 1, col_num, df_export.iloc[row_num, col_num], cell_fmt)
+
+                            # 📏 ضبط عرض الأعمدة تلقائياً مع حد أقصى
+                            for idx, col in enumerate(df_export.columns):
+                                max_len = max(df_export[col].astype(str).map(len).max(), len(str(col))) + 4
+                                worksheet.set_column(idx, idx, min(max_len, 35), cell_fmt)
+
+                        out.seek(0)
+                        st.download_button(
+                            label="📥 تحميل ملف إكسل منسق",
+                            data=out.getvalue(),
+                            file_name=f"تكليفات_تصحيح_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="dl_excel_tasheeh_pro_formatted"
+                        )
     # ==================== تبويب 4: سجل العمليات ====================
         # ==================== تبويب 4: سجل العمليات ====================
     with corr_tab4:
