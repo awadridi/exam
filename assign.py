@@ -1649,16 +1649,16 @@ if st.session_state.get('system_mode') == "other_assignments":
         c_other.execute(f'''CREATE TABLE IF NOT EXISTS {table_name} 
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
                       zid TEXT, zname TEXT, zjob TEXT, zwork TEXT, 
-                      zloc TEXT, zcity TEXT, created_at TEXT)''')
+                      zloc TEXT, zjob TEXT, zcity TEXT, created_at TEXT)''')
     conn_other.commit()
     
     def add_other_assignment(table_name, zid, zname, zjob, zwork, zloc, zcity):
         """إضافة تكليف جديد"""
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c_other.execute(f"""INSERT INTO {table_name} 
-                           (zid, zname, zjob, zwork, zloc, zcity, created_at) 
+                           (zid, zname, zjob, zwork, zloc, zjob, zcity, created_at) 
                            VALUES (?,?,?,?,?,?,?)""",
-                       (zid, zname, zjob, zwork, zloc, zcity, now))
+                       (zid, zname, zjob, zwork, zloc, zjob, zcity, now))
         conn_other.commit()
     
     def get_other_assignments(table_name):
@@ -1682,6 +1682,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             'ZJOB': str(row.get('zjob', '---')),
             'ZWORK': str(row.get('zwork', '---')),
             'ZLOC': str(row.get('zloc', '---')),
+            'Zjob': str(row.get('zjob', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             # ✅ إضافة التاريخ
             'ZDATE': st.session_state.get('other_assign_date', datetime.now().strftime("%Y/%m/%d"))
