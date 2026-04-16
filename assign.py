@@ -1690,7 +1690,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
             'ZJOB': str(row.get('zjob', '---')),         # المهمة (حارس، مرافق...)
-            'ZJOB2': str(row.get('zjob2', '---')) if row.get('zjob2') and str(row.get('zjob2')).strip() else '---',  # ✅ الأهم       # الوظيفة الحالية (معلم، إداري...)
+            'ZJOB2': str(row.get('zjob2', '---')),  # ✅ الأهم       # الوظيفة الحالية (معلم، إداري...)
             'ZWORK': str(row.get('zwork', '---')),       # وظيفته في التكليف
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
