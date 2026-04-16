@@ -1786,7 +1786,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
                 g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="g_zjob2_input")  # ✅ key فريد + value فارغ
+                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="g_zjob2_input")  # ✅ key فريد + value فارغ
                 g_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="g_zwork_input")
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
@@ -1865,7 +1865,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input")
                 p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input")
                 p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                p_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="p_zjob2_input")  # ✅ p_ بدلاً من g_
+                p_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="p_zjob2_input")  # ✅ p_ بدلاً من g_
                 p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="p_zwork_input")
                 p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
                 p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
@@ -1942,7 +1942,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
                 d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="d_zjob2_input")  # ✅ d_ بدلاً من g_
+                d_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="d_zjob2_input")  # ✅ d_ بدلاً من g_
                 d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
@@ -2019,7 +2019,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input")
                 c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input")
                 c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                c_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="c_zjob2_input")  # ✅ c_ بدلاً من g_
+                c_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", key="c_zjob2_input")  # ✅ c_ بدلاً من g_
                 c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="c_zwork_input")
                 c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
                 c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
