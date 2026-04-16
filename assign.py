@@ -725,10 +725,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         c_m2.metric("تم إنجازهم", assigned_count)
         c_m3.metric("المتبقي", remaining_count)
         
-        # رسم بياني للتوزيع حسب المدينة
-        if not df_all_teachers.empty:
-            city_dist = df_all_teachers['city'].value_counts().head(10)
-            st.bar_chart(city_dist, use_container_width=True)
+       
         
         st.divider()
         st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
