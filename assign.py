@@ -1682,9 +1682,9 @@ if st.session_state.get('system_mode') == "other_assignments":
         """حذف تكليف معين"""
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         conn_other.commit()  # ✅ تأكيد الحفظ فوراً
-        def generate_other_letter(row):
-        if not os.path.exists(TEMPLATE_NAME):
-            return None
+    def generate_other_letter(row):
+    if not os.path.exists(TEMPLATE_NAME):
+        return None
         
         doc = Document(TEMPLATE_NAME)
         
