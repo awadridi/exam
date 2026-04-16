@@ -1871,11 +1871,18 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel")
                 
                 st.divider()
-                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_guard_num")
-                if st.button("🗑️ حذف السجل", key="btn_del_guard"):
-                    delete_other_assignment('guards', del_id)  # ✅ استدعاء الدالة فقط
-                    st.success("✅ تم الحذف")
-                    st.rerun()
+                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
+                df_guard_display = df_guard[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_guard_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
+                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_guard_display.iterrows()],
+                                            key="guard_delete_select")
+                if st.button("🗑️ حذف السجل المحدد", key="btn_del_guard"):
+                    if delete_choice and delete_choice != "":
+                        selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
+                        delete_other_assignment('guards', selected_id)
+                        st.success("✅ تم الحذف")
+                        st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
          
@@ -1950,10 +1957,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel")
                 
                 st.divider()
-                del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_parcels_num")
-                if st.button("🗑️ حذف السجل", key="btn_del_parcels"):
-                    delete_other_assignment('parcels', del_id)
-                    st.success("✅ تم الحذف"); st.rerun()
+                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
+                df_parcels_display = df_parcels[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_parcels_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
+                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_parcels_display.iterrows()],
+                                            key="parcels_delete_select")
+                if st.button("🗑️ حذف السجل المحدد", key="btn_del_parcels"):
+                    if delete_choice and delete_choice != "":
+                        selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
+                        delete_other_assignment('parcels', selected_id)
+                        st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
@@ -2027,9 +2041,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel")
                 
                 st.divider()
-                if st.button("🗑️ حذف السجل", key="btn_del_device"):
-                    delete_other_assignment('exam_device', del_id)
-                    st.success("✅ تم الحذف"); st.rerun()
+                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
+                df_device_display = df_device[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_device_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
+                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_device_display.iterrows()],
+                                            key="device_delete_select")
+                if st.button("🗑️ حذف السجل المحدد", key="btn_del_device"):
+                    if delete_choice and delete_choice != "":
+                        selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
+                        delete_other_assignment('exam_device', selected_id)
+                        st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
@@ -2103,9 +2125,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel")
                 
                 st.divider()
-                if st.button("🗑️ حذف السجل", key="btn_del_committee"):
-                    delete_other_assignment('exam_committee', del_id)
-                    st.success("✅ تم الحذف"); st.rerun()
+                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
+                df_committee_display = df_committee[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_committee_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
+                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_committee_display.iterrows()],
+                                            key="committee_delete_select")
+                if st.button("🗑️ حذف السجل المحدد", key="btn_del_committee"):
+                    if delete_choice and delete_choice != "":
+                        selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
+                        delete_other_assignment('exam_committee', selected_id)
+                        st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
