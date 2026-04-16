@@ -1672,17 +1672,24 @@ if st.session_state.get('system_mode') == "other_assignments":
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         conn_other.commit()
     
+        # ✅ دالة إنشاء كتاب التكليف (مع إضافة ZJOB2 وتوضيح المتغيرات)
     def generate_other_letter(row):
         if not os.path.exists(TEMPLATE_NAME):
             return None
         
         doc = Document(TEMPLATE_NAME)
+        
+        # التعيينات حسب طلبك:
+        # ZJOB: المهمة (حارس، مرافق...) -> تأتي من عمود zjob
+        # ZJOB2: وظيفة الموظف الحالية (معلم، إداري...) -> تأتي من عمود zwork
+        # ZWORK: وظيفته في التكليف (نفس المهمة ZJOB) -> تأتي من عمود zjob
+        
         repls = {
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
-            'ZJOB': str(row.get('zjob', '---')),        # المهمة (حارس، مرافق، إلخ)
-            'ZWORK': str(row.get('zwork', '---')),      # وظيفته في التكليف
-            'ZJOB2': str(row.get('zwork', '---')),      # وظيفته الأصلية قبل التكليف
+            'ZJOB': str(row.get('zjob', '---')),      # المهمة (حارس، مرافق...)
+            'ZJOB2': str(row.get('zwork', '---')),    # وظيفة الموظف الحالية (معلم، إداري...)
+            'ZWORK': str(row.get('zjob', '---')),     # وظيفته في التكليف (نفس ZJOB)
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
@@ -1706,8 +1713,17 @@ if st.session_state.get('system_mode') == "other_assignments":
                                     if k in run.text:
                                         run.text = run.text.replace(k, str(v))
                                         run.bold = True
-    
-        return doc    
+        
+        return doc
+
+    # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
+    def delete_other_assignment(table_name, record_id):
+        """حذف تكليف معين"""
+        # ✅ السطر المسؤول عن الحذف
+        c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
+        
+        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً
+        conn_other.commit() 
     # الواجهة الرئيسية
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
