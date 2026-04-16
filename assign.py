@@ -1672,7 +1672,7 @@ if st.session_state.get('system_mode') == "other_assignments":
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         conn_other.commit()
     
-        # ✅ دالة إنشاء كتاب التكليف (مع إضافة ZJOB2 وتوضيح المتغيرات)
+           # ✅ دالة إنشاء كتاب التكليف (مع إضافة ZJOB2 وتوضيح المتغيرات)
     def generate_other_letter(row):
         if not os.path.exists(TEMPLATE_NAME):
             return None
@@ -1687,9 +1687,9 @@ if st.session_state.get('system_mode') == "other_assignments":
         repls = {
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
-            'ZJOB': str(row.get('zjob', '---')),      # المهمة (حارس، مرافق...)
-            'ZJOB2': str(row.get('zwork', '---')),    # وظيفة الموظف الحالية (معلم، إداري...)
-            'ZWORK': str(row.get('zjob', '---')),     # وظيفته في التكليف (نفس ZJOB)
+            'ZJOB': str(row.get('zjob', '---')),        # المهمة (حارس، مرافق...)
+            'ZJOB2': str(row.get('zwork', '---')),      # وظيفة الموظف الحالية (معلم، إداري...)
+            'ZWORK': str(row.get('zjob', '---')),       # وظيفته في التكليف (نفس المهمة)
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
@@ -1719,10 +1719,10 @@ if st.session_state.get('system_mode') == "other_assignments":
     # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
     def delete_other_assignment(table_name, record_id):
         """حذف تكليف معين"""
-        # ✅ السطر المسؤول عن الحذف
+        # ✅ السطر المسؤول عن الحذف (مباعد بمسافة واحدة داخل الدالة)
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
         
-        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً
+        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً وحذف السجل من ملف
         conn_other.commit() 
     # الواجهة الرئيسية
     st.markdown(f"""
