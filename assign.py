@@ -63,7 +63,6 @@ def switch_to_other_assignments():
     st.cache_data.clear()
     st.rerun()
 
-# 🔧 التعديل 1: إضافة الوضع الثالث
 # 🔧 التعديل 1: إضافة الوضع الثالث والرابع
 if st.session_state['system_mode'] == "tawjihi":
     DB_NAME = "data_system_v26.db"
@@ -203,7 +202,9 @@ def process_doc(doc_obj, row, h_name, h_city):
         'ZWORK': str(row.get('school', '')),
         'ZCITY': str(row.get('city', '')),
         'ZREL': str(row.get('relative', 'لا يوجد')),
-        'ZRELEXAM': str(row.get('relative_exam', '---'))
+        'ZRELEXAM': str(row.get('relative_exam', '---')),
+        # ✅ إضافة التاريخ
+        'ZDATE': st.session_state.get('assign_date', datetime.now().strftime("%Y/%m/%d"))
     }
 
     for p in doc_obj.paragraphs:
@@ -228,7 +229,7 @@ def process_doc(doc_obj, row, h_name, h_city):
 
 def generate_single_doc(row):
     if not os.path.exists(TEMPLATE_NAME):
-        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود، يرجى رفعه من تبويب 'رفع البيانات'")
+        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
         return None
     doc = Document(TEMPLATE_NAME)
     doc = process_doc(doc, row, row['hall'], row['hall_city'])
@@ -237,7 +238,7 @@ def generate_single_doc(row):
 
 def generate_bulk_word(df, h_name):
     if not os.path.exists(TEMPLATE_NAME):
-        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود، يرجى رفعه من تبويب 'رفع البيانات'")
+        st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
         return None
         
     final_doc = Document(TEMPLATE_NAME)
@@ -322,6 +323,21 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
     # ==================== تبويب البحث ====================
     with tab_search:
         st.markdown(f'<h2 class="move-to-right">إدارة الموظفين - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
+        
+        # 📅 حقل تاريخ التكليف (للتوزيع الفردي)
+        if 'assign_date' not in st.session_state:
+            st.session_state.assign_date = datetime.now().strftime("%Y/%m/%d")
+        col_date1, col_date2 = st.columns([4, 1])
+        with col_date1:
+            st.session_state.assign_date = st.date_input(
+                "📅 تاريخ التكليف:", 
+                value=datetime.strptime(st.session_state.assign_date, "%Y/%m/%d"),
+                key="assign_date_search"
+            ).strftime("%Y/%m/%d")
+        with col_date2:
+            st.info(f"📌 `{st.session_state.assign_date}`")
+        st.divider()
+        
         df_h_data = get_cached_halls()
         hall_map = {r['hall_name']: r['city'] for _, r in df_h_data.iterrows()}
         
@@ -436,6 +452,21 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
     # ==================== تبويب التوزيع التلقائي ====================
     with tab_auto:
         st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
+        
+        # 📅 حقل تاريخ التكليف (للتوزيع الجماعي)
+        if 'assign_date_bulk' not in st.session_state:
+            st.session_state.assign_date_bulk = datetime.now().strftime("%Y/%m/%d")
+        col_date_bulk1, col_date_bulk2 = st.columns([4, 1])
+        with col_date_bulk1:
+            st.session_state.assign_date_bulk = st.date_input(
+                "📅 تاريخ التكليف الجماعي:", 
+                value=datetime.strptime(st.session_state.assign_date_bulk, "%Y/%m/%d"),
+                key="assign_date_bulk_auto"
+            ).strftime("%Y/%m/%d")
+        with col_date_bulk2:
+            st.info(f"📌 `{st.session_state.assign_date_bulk}`")
+        st.divider()
+        
         df_all = get_cached_teachers()
         hall_map_auto = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
         
@@ -553,15 +584,13 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.rerun()
                 else:
                     st.warning("⚠️ لم تختر أي شخص!")
+                    
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
-        st.markdown(f'<h2 class="move-to-right">تحديث القالب والبيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
-        up_tpl = st.file_uploader(f"ارفع قالب الوورد ({TEMPLATE_NAME})", type="docx")
-        if up_tpl:
-            with open(TEMPLATE_NAME, "wb") as f:
-                f.write(up_tpl.getbuffer())
-            add_log("تحديث قالب", f"تم رفع قالب {TEMPLATE_NAME} جديد")
-            st.success("تم تحديث قالب الوورد بنجاح")
+        st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
+        
+        # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
+        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
         
         st.divider()
         if st.button("🗑️ مسح البيانات المكررة"):
@@ -725,7 +754,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.info("سجل العمليات فارغ حالياً.")
 
            # ==================== تبويب الاستعلامات الذكية ====================
-        # ==================== تبويب الاستعلامات الذكية ====================
     with tab_inquiry:
         # 🟢 CSS للمحاذاة من اليمين لليسار
         st.markdown("""
@@ -919,8 +947,6 @@ if st.session_state.get('system_mode') == "tasheeh":
         except: st.session_state['tasheeh_halls'] = pd.DataFrame()
 
     # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
-        # 🔴🔴 استبدل دالة sync_tasheeh_data القديمة بهذه الجديدة 🔴🔴
-        # 🔴🔴 استبدل دالة sync_tasheeh_data القديمة بهذه الجديدة 🔴🔴
     def sync_tasheeh_data():
         try:
             with st.spinner("🔄 جاري المزامنة والتنظيف العميق..."):
@@ -1090,22 +1116,8 @@ if st.session_state.get('system_mode') == "tasheeh":
     with corr_tab1:
         st.markdown("### 📥 إدارة البيانات وقالب التكليف")
         
-        st.markdown("**1️⃣ رفع قالب وورد التصحيح**")
-        st.caption("يجب أن يحتوي القالب على الرموز: ZNAME, ZID, ZHALL, ZLOC, ZTEST, ZWORK, ZCITY")
-        
-        uploaded_tasheeh_tpl = st.file_uploader(
-            "📄 اختر ملف القالب (template_tasheeh.docx)", 
-            type="docx", 
-            key="tasheeh_tpl_uploader_unique"
-        )
-        if uploaded_tasheeh_tpl is not None:
-            try:
-                with open(TEMPLATE_NAME, "wb") as f:
-                    f.write(uploaded_tasheeh_tpl.getbuffer())
-                st.success("✅ تم حفظ القالب بنجاح!")
-                st.cache_data.clear()
-            except Exception as e:
-                st.error(f"❌ خطأ: {e}")
+        # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
+        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
         
         st.divider()
         st.markdown("**2️⃣ المزامنة مع Google Sheets**")
@@ -1180,9 +1192,6 @@ if st.session_state.get('system_mode') == "tasheeh":
             except Exception as e:
                 st.error(f"❌ خطأ: {e}")
     # ==================== تبويب 2: التوزيع التلقائي ====================
-        # ==================== تبويب 2: التوزيع التلقائي ====================
-        # ==================== تبويب 2: التوزيع التلقائي ====================
-        # ==================== تبويب 2: التوزيع التلقائي (المعدل بالتحكم اليدوي) ====================
     with corr_tab2:
         if st.session_state['tasheeh_teachers'].empty or st.session_state['tasheeh_halls'].empty:
             st.warning("⚠️ يرجى مزامنة البيانات أولاً من تبويب 'رفع البيانات'")
@@ -1261,9 +1270,6 @@ if st.session_state.get('system_mode') == "tasheeh":
                         st.error("❌ لم يتم التوزيع.")
     
     # ==================== تبويب 3: كتب التكليف ====================
-        # ==================== تبويب 3: كتب التكليف وإدارتها ====================
-        # ==================== تبويب 3: إحصائيات التكليفات والكتب ====================
-        # ==================== تبويب 3: كتب التكليف وإدارتها ====================
     with corr_tab3:
         
         # 1. تحميل البيانات الأساسية
@@ -1464,7 +1470,6 @@ if st.session_state.get('system_mode') == "tasheeh":
                             key=f"dl_excel_{filter_subj}"
                         )
     # ==================== تبويب 4: سجل العمليات ====================
-        # ==================== تبويب 4: سجل العمليات ====================
     with corr_tab4:
         st.markdown("### 📜 سجل العمليات الخاص بالتصحيح")
         
@@ -1541,7 +1546,9 @@ if st.session_state.get('system_mode') == "other_assignments":
             'ZJOB': str(row.get('zjob', '---')),
             'ZWORK': str(row.get('zwork', '---')),
             'ZLOC': str(row.get('zloc', '---')),
-            'ZCITY': str(row.get('zcity', '---'))
+            'ZCITY': str(row.get('zcity', '---')),
+            # ✅ إضافة التاريخ
+            'ZDATE': st.session_state.get('other_assign_date', datetime.now().strftime("%Y/%m/%d"))
         }
         
         for p in doc.paragraphs:
@@ -1610,17 +1617,8 @@ if st.session_state.get('system_mode') == "other_assignments":
         </style>
     """, unsafe_allow_html=True)
     
-    # 📄 رفع قالب Word
-    st.markdown("### 📄 إعدادات القالب")
-    uploaded_tpl = st.file_uploader("📄 ارفع قالب Word (template_other.docx)", type="docx", key="tpl_other_upload")
-    if uploaded_tpl is not None:
-        try:
-            with open(TEMPLATE_NAME, "wb") as f:
-                f.write(uploaded_tpl.getbuffer())
-            st.success("✅ تم حفظ القالب بنجاح!")
-        except Exception as e:
-            st.error(f"❌ خطأ: {e}")
-    
+    # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
+    st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
     st.divider()
     
     # التبويبات الأربعة
@@ -1631,6 +1629,20 @@ if st.session_state.get('system_mode') == "other_assignments":
     # ==================== تبويب الحرس ====================
     with tab_guard:
         st.markdown("### 🛡️ إدارة تكليفات الحرس")
+        
+        # 📅 حقل تاريخ التكليف للحرس
+        if 'guard_assign_date' not in st.session_state:
+            st.session_state.guard_assign_date = datetime.now().strftime("%Y/%m/%d")
+        col_guard_date1, col_guard_date2 = st.columns([4, 1])
+        with col_guard_date1:
+            st.session_state.guard_assign_date = st.date_input(
+                "📅 تاريخ التكليف:", 
+                value=datetime.strptime(st.session_state.guard_assign_date, "%Y/%m/%d"),
+                key="guard_assign_date_input"
+            ).strftime("%Y/%m/%d")
+        with col_guard_date2:
+            st.info(f"📌 `{st.session_state.guard_assign_date}`")
+        st.divider()
         
         if 'guard_form_clear' not in st.session_state:
             st.session_state.guard_form_clear = False
@@ -1705,6 +1717,20 @@ if st.session_state.get('system_mode') == "other_assignments":
     with tab_parcels:
         st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
         
+        # 📅 حقل تاريخ التكليف لمرافقة الطرود
+        if 'parcels_assign_date' not in st.session_state:
+            st.session_state.parcels_assign_date = datetime.now().strftime("%Y/%m/%d")
+        col_parcels_date1, col_parcels_date2 = st.columns([4, 1])
+        with col_parcels_date1:
+            st.session_state.parcels_assign_date = st.date_input(
+                "📅 تاريخ التكليف:", 
+                value=datetime.strptime(st.session_state.parcels_assign_date, "%Y/%m/%d"),
+                key="parcels_assign_date_input"
+            ).strftime("%Y/%m/%d")
+        with col_parcels_date2:
+            st.info(f"📌 `{st.session_state.parcels_assign_date}`")
+        st.divider()
+        
         if 'parcels_form_clear' not in st.session_state:
             st.session_state.parcels_form_clear = False
         
@@ -1776,6 +1802,20 @@ if st.session_state.get('system_mode') == "other_assignments":
     # ==================== تبويب جهاز الامتحان ====================
     with tab_device:
         st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
+        
+        # 📅 حقل تاريخ التكليف لجهاز الامتحان
+        if 'device_assign_date' not in st.session_state:
+            st.session_state.device_assign_date = datetime.now().strftime("%Y/%m/%d")
+        col_device_date1, col_device_date2 = st.columns([4, 1])
+        with col_device_date1:
+            st.session_state.device_assign_date = st.date_input(
+                "📅 تاريخ التكليف:", 
+                value=datetime.strptime(st.session_state.device_assign_date, "%Y/%m/%d"),
+                key="device_assign_date_input"
+            ).strftime("%Y/%m/%d")
+        with col_device_date2:
+            st.info(f"📌 `{st.session_state.device_assign_date}`")
+        st.divider()
         
         if 'device_form_clear' not in st.session_state:
             st.session_state.device_form_clear = False
@@ -1849,6 +1889,20 @@ if st.session_state.get('system_mode') == "other_assignments":
     with tab_committee:
         st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
         
+        # 📅 حقل تاريخ التكليف للجنة الامتحان
+        if 'committee_assign_date' not in st.session_state:
+            st.session_state.committee_assign_date = datetime.now().strftime("%Y/%m/%d")
+        col_committee_date1, col_committee_date2 = st.columns([4, 1])
+        with col_committee_date1:
+            st.session_state.committee_assign_date = st.date_input(
+                "📅 تاريخ التكليف:", 
+                value=datetime.strptime(st.session_state.committee_assign_date, "%Y/%m/%d"),
+                key="committee_assign_date_input"
+            ).strftime("%Y/%m/%d")
+        with col_committee_date2:
+            st.info(f"📌 `{st.session_state.committee_assign_date}`")
+        st.divider()
+        
         if 'committee_form_clear' not in st.session_state:
             st.session_state.committee_form_clear = False
         
@@ -1918,7 +1972,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
     st.divider()
-    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY")
+    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZWORK, ZLOC, ZCITY, ZDATE")
     
     conn_other.close()
     st.stop()
