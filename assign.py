@@ -1853,9 +1853,14 @@ if st.session_state.get('system_mode') == "other_assignments":
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_guard_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_guard"):
+                        # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
                     def delete_other_assignment(table_name, record_id):
-                    c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
-                    conn_other.commit()  # ✅ تأكيد الحفظ فوراً
+                        """حذف تكليف معين"""
+                        # ✅ السطر المسؤول عن الحذف (مباعد بمسافة 4 داخل الدالة)
+                        c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
+                        
+                        # ✅ هذا السطر ضروري جداً ليتم الحفظ فعلياً وحذف السجل من ملف قاعدة البيانات
+                        conn_other.commit() تأكيد الحفظ فوراً
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
