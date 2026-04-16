@@ -1302,7 +1302,7 @@ if st.session_state.get('system_mode') == "tasheeh":
             else:
                 st.info(f"لا يوجد تكليفات لـ {filter_subj}.")
 
-            st.divider()
+        st.divider()
 
             with col_btn2:
                 st.markdown("#### 📊 خيارات التصدير")
