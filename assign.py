@@ -185,6 +185,13 @@ c.execute('''CREATE TABLE IF NOT EXISTS logs
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT,
               old_value TEXT, new_value TEXT)''')  # ✅ إضافة حقول التدقيق
 conn.commit()
+# ✅ إضافة أعمدة التدقيق المفصل إذا لم تكن موجودة
+try:
+    c.execute("ALTER TABLE logs ADD COLUMN old_value TEXT")
+    c.execute("ALTER TABLE logs ADD COLUMN new_value TEXT")
+    conn.commit()
+except:
+    pass  # الأعمدة موجودة مسبقاً
 # إضافة عمود الملاحظات (مرة واحدة فقط)
 try:
     c.execute("ALTER TABLE teachers ADD COLUMN notes TEXT DEFAULT ''")
@@ -884,11 +891,29 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.error(f"خطأ أثناء الحذف: {e}")
         st.divider()
         # ✅ عرض السجلات مع تفاصيل التدقيق
-        df_l = pd.read_sql("""SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', 
-                              CASE WHEN old_value IS NOT NULL THEN old_value || ' → ' || new_value 
-                                   ELSE details END as 'التغيير',
-                              timestamp as 'الوقت' 
-                              FROM logs ORDER BY id DESC LIMIT 100""", conn)
+                # عرض السجلات (كود آمن يمنع الخطأ)
+        try:
+            df_l = pd.read_sql("""
+                SELECT user as 'الموظف', 
+                       action as 'الإجراء', 
+                       details as 'التفاصيل', 
+                       CASE 
+                           WHEN old_value IS NOT NULL AND new_value IS NOT NULL 
+                           THEN old_value || ' → ' || new_value 
+                           ELSE details 
+                       END as 'التغيير',
+                       timestamp as 'الوقت' 
+                FROM logs ORDER BY id DESC LIMIT 100
+            """, conn)
+        except:
+            # في حال عدم وجود الأعمدة الجديدة، اعرض البيانات القديمة فقط
+            df_l = pd.read_sql("""
+                SELECT user as 'الموظف', 
+                       action as 'الإجراء', 
+                       details as 'التفاصيل', 
+                       timestamp as 'الوقت' 
+                FROM logs ORDER BY id DESC LIMIT 100
+            """, conn)
         if not df_l.empty:
             st.dataframe(df_l, use_container_width=True)
         else:
