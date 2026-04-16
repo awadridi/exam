@@ -1680,8 +1680,9 @@ if st.session_state.get('system_mode') == "other_assignments":
         repls = {
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
-            'ZJOB': str(row.get('zjob', '---')),
-            'ZWORK': str(row.get('zwork', '---')),
+            'ZJOB': str(row.get('zjob', '---')),        # المهمة (حارس، مرافق، إلخ)
+            'ZWORK': str(row.get('zwork', '---')),      # وظيفته في التكليف
+            'ZJOB2': str(row.get('zwork', '---')),      # وظيفته الأصلية قبل التكليف
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
@@ -1705,7 +1706,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                     if k in run.text:
                                         run.text = run.text.replace(k, str(v))
                                         run.bold = True
-        
+    
         return doc    
     # الواجهة الرئيسية
     st.markdown(f"""
@@ -1831,8 +1832,9 @@ if st.session_state.get('system_mode') == "other_assignments":
                 st.divider()
                 del_id = st.number_input("🔢 أدخل رقم السجل للحذف", min_value=0, step=1, key="del_guard_num")
                 if st.button("🗑️ حذف السجل", key="btn_del_guard"):
-                    delete_other_assignment('guards', del_id)
-                    st.success("✅ تم الحذف"); st.rerun()
+                    def delete_other_assignment(table_name, record_id):
+                    c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
+                    conn_other.commit()  # ✅ تأكيد الحفظ فوراً
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
