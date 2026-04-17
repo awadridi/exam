@@ -1657,17 +1657,17 @@ if st.session_state.get('system_mode') == "other_assignments":
         # ✅ إضافة عمود zjob2 للوظيفة الحالية
     for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
         try:
-            c_other.execute(f"ALTER TABLE {table_name} ADD COLUMN zjob2 TEXT")
+            c_other.execute(f"ALTER TABLE {table_name} ADD COLUMN zjobb TEXT")
             conn_other.commit()
         except:
             pass  # العمود موجود مسبقاً
     
-    def add_other_assignment(table_name, zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate):
+    def add_other_assignment(table_name, zid, zname, zjob, zjobb, zwork, zloc, zcity, zdate):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c_other.execute(f"""INSERT INTO {table_name} 
-                           (zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate, created_at) 
+                           (zid, zname, zjob, zjobb, zwork, zloc, zcity, zdate, created_at) 
                            VALUES (?,?,?,?,?,?,?,?,?)""",
-                       (zid, zname, zjob, zjob2, zwork, zloc, zcity, zdate, now))
+                       (zid, zname, zjob, zjobb, zwork, zloc, zcity, zdate, now))
         conn_other.commit()
         
     def get_other_assignments(table_name):
@@ -1689,7 +1689,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
             'ZJOB': str(row.get('zjob', '---')),         # المهمة (حارس، مرافق...)
-            'ZJOB2': str(row.get('zjob2', '---')),  # ✅ الأهم       # الوظيفة الحالية (معلم، إداري...)
+            'ZJOBb': str(row.get('zjobb', '---')),  # ✅ الأهم       # الوظيفة الحالية (معلم، إداري...)
             'ZWORK': str(row.get('zwork', '---')),       # وظيفته في التكليف
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
@@ -1814,7 +1814,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
                 g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="g_zjob2_input")  # ✅ key فريد + value فارغ
+                g_zjobb = st.text_input("الوظيفة الحالية (ZJOBb)", value="", key="g_zjobb_input")  # ✅ key فريد + value فارغ
                 g_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="g_zwork_input")
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
@@ -1824,7 +1824,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 if submit_guard:
                     if g_zid and g_zname:
                         # ✅ تمرير zjob2 كمتغير منفصل (9 معاملات)
-                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zjob2, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
+                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_zjobb, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.guard_form_clear = True
                         st.rerun()
@@ -1871,7 +1871,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 st.divider()
                 # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
-                df_guard_display = df_guard[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_guard_display = df_guard[['id', 'zname', 'zjob', 'zjobb']].copy()
                 df_guard_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
                                             [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_guard_display.iterrows()],
@@ -1900,7 +1900,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input")
                 p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input")
                 p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                p_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="p_zjob2_input")  # ✅ p_ بدلاً من g_
+                p_zjobb = st.text_input("الوظيفة الحالية (ZJOBb)", value="", key="p_zjobb_input")  # ✅ p_ بدلاً من g_
                 p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="p_zwork_input")
                 p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
                 p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
@@ -1910,7 +1910,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 if submit_parcels:
                     if p_zid and p_zname:
                         # ✅ تمرير zjob2 كمتغير منفصل
-                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zjob2, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
+                        add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_zjobb, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.parcels_form_clear = True
                         st.rerun()
@@ -1957,7 +1957,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 st.divider()
                 # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
-                df_parcels_display = df_parcels[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_parcels_display = df_parcels[['id', 'zname', 'zjob', 'zjobb']].copy()
                 df_parcels_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
                                             [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_parcels_display.iterrows()],
@@ -1984,7 +1984,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
                 d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_zjob2 = st.text_input("الوظيفة الحالية (ZJOB2)", value="", key="d_zjob2_input")  # ✅ d_ بدلاً من g_
+                d_zjobb = st.text_input("الوظيفة الحالية (ZJOBb)", value="", key="d_zjobb_input")  # ✅ d_ بدلاً من g_
                 d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
@@ -1994,7 +1994,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 if submit_device:
                     if d_zid and d_zname:
                         # ✅ تمرير zjob2 كمتغير منفصل
-                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zjob2, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
+                        add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_zjobb, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.device_form_clear = True
                         st.rerun()
@@ -2041,7 +2041,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 st.divider()
                 # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
-                df_device_display = df_device[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_device_display = df_device[['id', 'zname', 'zjob', 'zjobb']].copy()
                 df_device_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
                                             [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_device_display.iterrows()],
@@ -2068,7 +2068,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input")
                 c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input")
                 c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                c_zjob2 = st.text_input("الوظيفة الحالية (zjob2)", value="", key="c_zjob2_input")  # ✅ c_ بدلاً من g_
+                c_zjobb = st.text_input("الوظيفة الحالية (zjobb)", value="", key="c_zjobb_input")  # ✅ c_ بدلاً من g_
                 c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="c_zwork_input")
                 c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
                 c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
@@ -2078,7 +2078,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 if submit_committee:
                     if c_zid and c_zname:
                         # ✅ تمرير zjob2 كمتغير منفصل
-                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zjob2, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
+                        add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_zjobb, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.committee_form_clear = True
                         st.rerun()
@@ -2125,7 +2125,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 st.divider()
                 # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
-                df_committee_display = df_committee[['id', 'zname', 'zjob', 'zjob2']].copy()
+                df_committee_display = df_committee[['id', 'zname', 'zjob', 'zjobb']].copy()
                 df_committee_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
                                             [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_committee_display.iterrows()],
@@ -2139,7 +2139,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
     st.divider()
-    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZJOB2, ZWORK, ZLOC, ZCITY, ZDATE")
+    st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZJOBb, ZWORK, ZLOC, ZCITY, ZDATE")
     
     conn_other.close()
     st.stop()
