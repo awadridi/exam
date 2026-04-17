@@ -656,7 +656,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
         
         # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
-        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
+       
         
         # ✅ التحقق من المزامنة التلقائية (رقم 6)
         last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
@@ -1257,7 +1257,7 @@ if st.session_state.get('system_mode') == "tasheeh":
         st.markdown("### 📥 إدارة البيانات وقالب التكليف")
         
         # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
-        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
+       
         
         st.divider()
         st.markdown("**2️⃣ المزامنة مع Google Sheets**")
@@ -1809,7 +1809,7 @@ if st.session_state.get('system_mode') == "other_assignments":
     """, unsafe_allow_html=True)
     
     # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
-    st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
+    
     st.divider()
     
     # التبويبات الأربعة
