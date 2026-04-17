@@ -505,7 +505,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                                 if f_word: 
                                     st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
                             
-                        
 
     # ==================== تبويب التوزيع التلقائي ====================
         # ==================== تبويب التوزيع التلقائي ====================
@@ -1149,34 +1148,41 @@ if st.session_state.get('system_mode') == "tasheeh":
         if not os.path.exists(TEMPLATE_NAME):
             return None
         doc = Document(TEMPLATE_NAME)
+        
+        # ✅ إصلاح 1: ZWORK يأخذ قيمة school بشكل صحيح مع fallback
         repls = {
-            'ZNAME': data.get('name', '---'),
-            'ZID': data.get('id', '---'),
-            'ZTEST': exam_name,
-            'ZHALL': data.get('hall_name', '---'),
-            'ZLOC': data.get('hall_city', '---'),
-            'ZWORK': data.get('school', '---'),
-            'ZCITY': data.get('city', '---'),
-            # ✅ أضف التاريخ هنا أيضاً
-            'ZDATE': data.get('exam_date', '---')
+            'ZNAME': str(data.get('name', '---')),
+            'ZID': str(data.get('id', '---')),
+            'ZTEST': str(exam_name),
+            'ZHALL': str(data.get('hall_name', '---')),
+            'ZLOC': str(data.get('hall_city', '---')),
+            'ZWORK': str(data.get('school', data.get('ZWORK', '---'))),  # ✅ fallback آمن
+            'ZSCHOOL': str(data.get('school', '---')),  # ✅ حقل إضافي للقالب
+            'ZCITY': str(data.get('city', '---')),
+            'ZSUBJECT': str(data.get('subject', '---')),
+            'ZDATE': str(data.get('exam_date', '---'))
         }
+        
+        # ✅ دالة مساعدة للاستبدال في الفقرات والجداول
+        def replace_in_element(element, k, v):
+            for run in element.runs:
+                if k in run.text:
+                    run.text = run.text.replace(k, str(v))
+                    run.bold = True
+        
         for p in doc.paragraphs:
             for k, v in repls.items():
                 if k in p.text:
-                    for run in p.runs:
-                        if k in run.text:
-                            run.text = run.text.replace(k, str(v))
-                            run.bold = True
+                    replace_in_element(p, k, v)
+        
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for p in cell.paragraphs:
                         for k, v in repls.items():
                             if k in p.text:
-                                for run in p.runs:
-                                    if k in run.text:
-                                        run.text = run.text.replace(k, str(v))
-                                        run.bold = True
+                                replace_in_element(p, k, v)
+        
         return doc
     
     st.markdown("""
@@ -1474,15 +1480,17 @@ if st.session_state.get('system_mode') == "tasheeh":
                                 
                                 for i, a in enumerate(current_list):
                                     temp_doc = Document(TEMPLATE_NAME)
+                                    # ✅ إصلاح 1: ZWORK يأخذ school بشكل صحيح
                                     repls = {
                                         'ZNAME': str(a.get('name', '---')), 
                                         'ZID': str(a.get('id', '---')),
                                         'ZTEST': str(a.get('exam_name', '---')), 
                                         'ZHALL': str(a.get('hall_name', '---')),
                                         'ZLOC': str(a.get('hall_city', '---')), 
-                                        'ZWORK': str(a.get('school', '---')),        # ← غيّر 'subject' لاسم العمود الصحيح
+                                        'ZWORK': str(a.get('school', a.get('ZWORK', '---'))),  # ✅ fallback آمن
+                                        'ZSCHOOL': str(a.get('school', '---')),  # ✅ حقل إضافي
                                         'ZCITY': str(a.get('city', '---')),
-                                        'ZSUBJECT': str(a.get('subject', '---')),    # ← المادة تفضل هنا بشكل منفصل
+                                        'ZSUBJECT': str(a.get('subject', '---')),
                                         'ZDATE': str(a.get('exam_date', '---')) 
                                     }
                                     for p in temp_doc.paragraphs:
@@ -1685,12 +1693,15 @@ if st.session_state.get('system_mode') == "other_assignments":
         
         doc = Document(TEMPLATE_NAME)
         
+        # ✅ إصلاح 2: إخفاء ZWORK للحرس فقط + إصلاح ZJOBb
+        is_guard = str(row.get('zjob', '')).strip() == 'حارس'
+        
         repls = {
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
             'ZJOB': str(row.get('zjob', '---')),         # المهمة (حارس، مرافق...)
-            'ZJOBb': str(row.get('zjobb', '---')),  # ✅ الأهم       # الوظيفة الحالية (معلم، إداري...)
-            'ZWORK': str(row.get('zwork', '---')),       # وظيفته في التكليف
+            'ZJOBb': str(row.get('zjobb', '---')),  # ✅ الوظيفة الحالية (معلم، إداري...)
+            'ZWORK': '' if is_guard else str(row.get('zwork', '---')),       # ✅ إخفاء للحرس
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
@@ -1714,6 +1725,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                                     if k in run.text:
                                         run.text = run.text.replace(k, str(v))
                                         run.bold = True
+        
+        # 🧹 حذف فقرة ZWORK نهائياً إذا كانت فارغة (خاص بالحرس)
+        if is_guard:
+            for p in doc.paragraphs[:]:  # [:] لتجنب خطأ التعديل أثناء التكرار
+                if 'ZWORK' in p.text or (p.text.strip() == ''):
+                    p._element.getparent().remove(p._element)
         
         return doc
 
