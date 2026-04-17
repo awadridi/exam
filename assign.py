@@ -1859,7 +1859,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_guard"):
                         docs = []
                         for _, row in df_guard.iterrows():
                             doc = generate_other_letter(row)
@@ -1872,7 +1872,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_guard_{fname}")
                 
                 with col_btn2:
-                    if st.button("📊 تصدير Excel"):
+                    if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_guard.to_excel(writer, index=False, sheet_name='الحرس')
@@ -1893,7 +1893,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
                                             [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_guard_display.iterrows()],
                                             key="guard_delete_select")
-                if st.button("🗑️ حذف السجل المحدد", key="btn_del_guard"):
+                if st.button("🗑️ حذف السجل المحدد", key="btn_del_guard"):  # ✅ أضف key هنا
                     if delete_choice and delete_choice != "":
                         selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
                         delete_other_assignment('guards', selected_id)
@@ -1945,7 +1945,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_parcels"):
                         docs = []
                         for _, row in df_parcels.iterrows():
                             doc = generate_other_letter(row)
@@ -1958,7 +1958,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_parcels_{fname}")
                 
                 with col_btn2:
-                    if st.button("📊 تصدير Excel"):
+                    if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_parcels.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
@@ -2029,7 +2029,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_device"):
                         docs = []
                         for _, row in df_device.iterrows():
                             doc = generate_other_letter(row)
@@ -2042,7 +2042,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_device_{fname}")
                 
                 with col_btn2:
-                    if st.button("📊 تصدير Excel"):
+                   if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_device.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
@@ -2113,7 +2113,7 @@ if st.session_state.get('system_mode') == "other_assignments":
     
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary"):
+                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_committee"):
                         docs = []
                         for _, row in df_committee.iterrows():
                             doc = generate_other_letter(row)
@@ -2126,7 +2126,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_committee_{fname}")
                 
                 with col_btn2:
-                    if st.button("📊 تصدير Excel"):
+                    if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_committee.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
