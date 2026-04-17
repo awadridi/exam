@@ -1480,10 +1480,9 @@ if st.session_state.get('system_mode') == "tasheeh":
                                         'ZTEST': str(a.get('exam_name', '---')), 
                                         'ZHALL': str(a.get('hall_name', '---')),
                                         'ZLOC': str(a.get('hall_city', '---')), 
-                                        'ZWORK': str(a.get('subject', '---')), 
+                                        'ZWORK': str(a.get('school', '---')),        # ← غيّر 'subject' لاسم العمود الصحيح
                                         'ZCITY': str(a.get('city', '---')),
-                                        'ZSUBJECT': str(a.get('subject', '---')),
-                                        # ✅ أضف هذا السطر هنا لجلب التاريخ
+                                        'ZSUBJECT': str(a.get('subject', '---')),    # ← المادة تفضل هنا بشكل منفصل
                                         'ZDATE': str(a.get('exam_date', '---')) 
                                     }
                                     for p in temp_doc.paragraphs:
