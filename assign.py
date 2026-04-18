@@ -1308,7 +1308,18 @@ if st.session_state.get('system_mode') == "tasheeh":
             if len(duplicates) > 0:
                 st.error(f"🚨 تم العثور على `{len(duplicates)}` سجل مكرر!")
                 st.write("**تفاصيل المكررات:**")
-                st.dataframe(duplicates[['rowid', 'id', 'id_trimmed', 'name', 'subject']], use_container_width=True)
+                
+                # ✅ إنشاء نسخة للعرض مع أسماء أعمدة عربية
+                df_dup_display = duplicates[['rowid', 'id', 'id_trimmed', 'name', 'subject']].copy()
+                df_dup_display = df_dup_display.rename(columns={
+                    'rowid': 'رقم الصف',
+                    'id': 'رقم الهوية',
+                    'id_trimmed': 'رقم الهوية (منظف)',
+                    'name': 'الاسم',
+                    'subject': 'المبحث'
+                })
+                
+                st.dataframe(df_dup_display, use_container_width=True)
                 
                 # عرض الإحصائيات
                 total = len(df_raw)
