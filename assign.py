@@ -2108,7 +2108,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             df_device = get_other_assignments('exam_device')
             if not df_device.empty:
                          # ✅ تحويل الأعمدة للعربي
-                df_display = df_guard.copy()
+                df_display = df_device.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
@@ -2125,7 +2125,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
-                st.dataframe(df_device, use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True)
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
@@ -2210,7 +2210,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             df_committee = get_other_assignments('exam_committee')
             if not df_committee.empty:
                          # ✅ تحويل الأعمدة للعربي
-                df_display = df_guard.copy()
+                df_display = df_committee.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
@@ -2227,7 +2227,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
-                st.dataframe(df_committee, use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True)
     
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
