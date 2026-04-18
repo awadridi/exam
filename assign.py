@@ -1471,11 +1471,25 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.divider()
 
             # 4. عرض الجدول
+            # 4. عرض الجدول
             st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
             if not assigned_df.empty:
-                display_cols = ['name', 'subject', 'hall_name', 'hall_city', 'exam_date']
-                safe_cols = [c for c in display_cols if c in assigned_df.columns]
-                st.dataframe(assigned_df[safe_cols], use_container_width=True)
+                # ✅ تحويل أسماء الأعمدة للعربي
+                df_display = assigned_df.copy()
+                arabic_cols = {
+                    'name': 'الاسم',
+                    'subject': 'المبحث',
+                    'hall_name': 'القاعة',
+                    'hall_city': 'المدينة',
+                    'exam_date': 'التاريخ',
+                    'id': 'رقم الهوية',
+                    'exam_day': 'اليوم'
+                }
+                df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
+                
+                display_cols = ['الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
+                safe_cols = [c for c in display_cols if c in df_display.columns]
+                st.dataframe(df_display[safe_cols], use_container_width=True)
             else:
                 st.info("لا يوجد تكليفات لهذه المادة.")
 
