@@ -64,11 +64,21 @@ if 'system_mode' not in st.session_state:
 
 def switch_system(mode):
     st.session_state['system_mode'] = mode
+    # ✅ إصلاح: إغلاق شاشة الاستعلام عند تغيير النظام
+    if 'run_query' in st.session_state:
+        st.session_state.run_query = False
+    if 'query_df' in st.session_state:
+        st.session_state.query_df = None
     st.cache_data.clear()
     st.rerun()
 
 def switch_to_other_assignments():
     st.session_state['system_mode'] = "other_assignments"
+    # ✅ إصلاح: إغلاق شاشة الاستعلام عند الانتقال لتكليفات أخرى
+    if 'run_query' in st.session_state:
+        st.session_state.run_query = False
+    if 'query_df' in st.session_state:
+        st.session_state.query_df = None
     st.cache_data.clear()
     st.rerun()
 
@@ -1941,13 +1951,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة الحرس**")
             df_guard = get_other_assignments('guards')
             if not df_guard.empty:
-                # ✅ تحويل الأعمدة للعربي (استخدم ZSCHOOL بدلاً من zjobb)
+                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_guard.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL مش zjobb
+                    'ZSCHOOL': 'الوظيفة الحالية',
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
@@ -1960,8 +1970,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
-                
-                # ... بقية الكود ...
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
@@ -1999,7 +2007,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
                                             [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_guard_display.iterrows()],
                                             key="guard_delete_select")
-                if st.button("🗑️ حذف السجل المحدد", key="btn_del_guard"):  # ✅ أضف key هنا
+                if st.button("🗑️ حذف السجل المحدد", key="btn_del_guard"):
                     if delete_choice and delete_choice != "":
                         selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
                         delete_other_assignment('guards', selected_id)
@@ -2047,16 +2055,18 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة مرافقة الطرود**")
             df_parcels = get_other_assignments('parcels')
             if not df_parcels.empty:
+                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_parcels.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL
+                    'ZSCHOOL': 'الوظيفة الحالية',
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
-                    'zdate': 'التاريخ'
+                    'zdate': 'التاريخ',
+                    'created_at': 'وقت الإنشاء'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
                 
@@ -2146,13 +2156,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة جهاز الامتحان**")
             df_device = get_other_assignments('exam_device')
             if not df_device.empty:
-                # ✅ تحويل الأعمدة للعربي (استخدم ZSCHOOL بدلاً من zjobb)
+                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_device.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL
+                    'ZSCHOOL': 'الوظيفة الحالية',
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
@@ -2248,13 +2258,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة لجنة الامتحان**")
             df_committee = get_other_assignments('exam_committee')
             if not df_committee.empty:
-                # ✅ تحويل الأعمدة للعربي (استخدم ZSCHOOL بدلاً من zjobb)
+                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_committee.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL
+                    'ZSCHOOL': 'الوظيفة الحالية',
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
