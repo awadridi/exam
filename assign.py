@@ -62,23 +62,22 @@ if 'popover_counter' not in st.session_state:
 if 'system_mode' not in st.session_state:
     st.session_state['system_mode'] = "tawjihi"
 
-def switch_system(mode):
-    st.session_state['system_mode'] = mode
-    # ✅ إصلاح: إغلاق شاشة الاستعلام عند تغيير النظام
+def _clear_inquiry_state():
+    """دالة مساعدة لإغلاق شاشة الاستعلام"""
     if 'run_query' in st.session_state:
         st.session_state.run_query = False
     if 'query_df' in st.session_state:
         st.session_state.query_df = None
+
+def switch_system(mode):
+    st.session_state['system_mode'] = mode
+    _clear_inquiry_state()  # ✅ إغلاق الاستعلام عند تغيير النظام
     st.cache_data.clear()
     st.rerun()
 
 def switch_to_other_assignments():
     st.session_state['system_mode'] = "other_assignments"
-    # ✅ إصلاح: إغلاق شاشة الاستعلام عند الانتقال لتكليفات أخرى
-    if 'run_query' in st.session_state:
-        st.session_state.run_query = False
-    if 'query_df' in st.session_state:
-        st.session_state.query_df = None
+    _clear_inquiry_state()  # ✅ إغلاق الاستعلام عند الانتقال لتكليفات أخرى
     st.cache_data.clear()
     st.rerun()
 
@@ -180,17 +179,17 @@ c.execute('''CREATE TABLE IF NOT EXISTS teachers
              (id TEXT PRIMARY KEY, name TEXT, phone TEXT, school TEXT, city TEXT, 
              role TEXT, hall TEXT, hall_city TEXT, updated_by TEXT,
              preference TEXT, current_job TEXT, ability TEXT,
-             relative TEXT, relative_exam TEXT)''')
+             relative TEXT, relative_exam TEXT, gender TEXT)''')  # ✅ إضافة عمود الجنس
 
-# 🔧 التعديل 2: إضافة عمود subject
-for col in ['relative', 'relative_exam', 'subject']:
+# 🔧 التعديل 2: إضافة عمود subject و gender
+for col in ['relative', 'relative_exam', 'subject', 'gender']:
     try:
         c.execute(f"ALTER TABLE teachers ADD COLUMN {col} TEXT DEFAULT ''")
         conn.commit()
     except:
         pass
 
-c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT)''')
+c.execute('''CREATE TABLE IF NOT EXISTS halls (hall_name TEXT PRIMARY KEY, city TEXT, capacity INTEGER)''')  # ✅ إضافة سعة القاعة
 c.execute('''CREATE TABLE IF NOT EXISTS logs 
              (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, action TEXT, details TEXT, timestamp TEXT,
               old_value TEXT, new_value TEXT)''')  # ✅ إضافة حقول التدقيق
@@ -234,6 +233,7 @@ def add_log(action, details):
               (st.session_state.username, action, details, now))
     conn.commit()
     st.cache_data.clear()
+
 # =====================================
 # 3. وظائف معالجة الملفات
 # =====================================
@@ -517,7 +517,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                             
 
     # ==================== تبويب التوزيع التلقائي ====================
-        # ==================== تبويب التوزيع التلقائي ====================
     with tab_auto:
         st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
         
@@ -536,8 +535,9 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         st.divider()
         
         # ✅ تعريف المتغيرات المطلوبة (بدون عرض لوحة التحكم)
-        df_all = get_cached_teachers()  # ← هذا السطر كان مفقوداً!
-        hall_map_auto = {r['hall_name']: r['city'] for _, r in get_cached_halls().iterrows()}
+        df_all = get_cached_teachers()
+        df_halls = get_cached_halls()
+        hall_map_auto = {r['hall_name']: r['city'] for _, r in df_halls.iterrows()}
         
         df_qualified = df_all[(df_all['ability'] == 'يصلح') & (df_all['preference'] == 'يرغب') & (df_all['current_job'] == 'معلم') & ((df_all['hall'] == '') | (df_all['hall'].isna()))]
         can_and_wants = len(df_qualified)
@@ -561,38 +561,54 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
 
             if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
-                # 🔴🔴 الحصول على معلومات القاعة المستهدفة 🔴🔴
                 target_hall_city = hall_map_auto.get(target_h, "")
                 
-                # 🔴 فلترة المعلمين المستبعدين (للثانوية العامة فقط)
+                # ✅ التحقق من سعة القاعة
+                hall_capacity = df_halls[df_halls['hall_name'] == target_h]['capacity'].values
+                capacity = int(hall_capacity[0]) if len(hall_capacity) > 0 and pd.notna(hall_capacity[0]) else 999
+                
+                # ✅ حساب عدد المكلفين الحاليين في القاعة
+                current_assigned = len(df_all[(df_all['hall'] == target_h) & (df_all['hall'].notna()) & (df_all['hall'] != '')])
+                
+                # ✅ فلترة المعلمين المستبعدين (للثانوية العامة فقط)
                 if st.session_state.system_mode == "tawjihi":
-                    # استبعاد من يسكن في نفس مدينة القاعة
                     df_pool_filtered = df_pool[df_pool['city'] != target_hall_city].copy()
-                    
-                    # استبعاد من يعمل في نفس المدرسة/القاعة
                     df_pool_filtered = df_pool_filtered[df_pool_filtered['school'] != target_h].copy()
-                    
                     excluded_count = len(df_pool) - len(df_pool_filtered)
                     if excluded_count > 0:
                         st.info(f"ℹ️ تم استبعاد `{excluded_count}` معلم (من نفس المدينة أو المدرسة)")
-                    
                     df_pool = df_pool_filtered
                 
-                # التأكد من وجود عدد كافٍ للتوزيع
                 actual_num = min(int(num_to_assign), len(df_pool))
+                
+                # ✅ التحقق من السعة
+                if current_assigned + actual_num > capacity:
+                    remaining = capacity - current_assigned
+                    if remaining <= 0:
+                        st.error(f"⚠️ سعة القاعة `{target_h}` ممتلئة! لا يمكن إضافة مراقبين جدد.")
+                    else:
+                        st.warning(f"⚠️ سعة القاعة `{target_h}` تسمح بـ `{remaining}` مراقب إضافي فقط (من أصل {actual_num} المطلوب)")
+                        if st.checkbox("✅ أوافق على تكليف العدد المتاح فقط", key="agree_partial_assign"):
+                            actual_num = remaining
+                        else:
+                            st.stop()
                 
                 if actual_num == 0:
                     st.warning("⚠️ لا يوجد معلمين متاحين للتوزيع بعد تطبيق الشروط")
                 else:
-                    selected_sample = df_pool.sample(n=actual_num)
+                    # ✅ التوزيع العادل حسب الجنس
+                    males = df_pool[df_pool['gender'].astype(str).str.strip().str.lower() == 'ذكر'].sample(n=min(actual_num//2 + actual_num%2, len(df_pool[df_pool['gender'].astype(str).str.strip().str.lower() == 'ذكر'])), random_state=42)
+                    females = df_pool[~df_pool.index.isin(males.index)].sample(n=min(actual_num - len(males), len(df_pool[~df_pool.index.isin(males.index)])), random_state=42)
+                    selected_sample = pd.concat([males, females]).sample(frac=1, random_state=42)  # خلط العشوائي
+                    
                     for _, r in selected_sample.iterrows():
                         old_hall = r['hall']
                         c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?", 
                                   (target_h, target_hall_city, r['id']))
                         add_audit_log("توزيع تلقائي", f"توزيع {r['name']} على قاعة {target_h}", old_hall, target_h)
                     conn.commit()
-                    add_log("توزيع تلقائي", f"توزيع {actual_num} معلم على قاعة {target_h}")
-                    st.success(f"✅ تم توزيع {actual_num} بنجاح!")
+                    add_log("توزيع تلقائي", f"توزيع {len(selected_sample)} معلم على قاعة {target_h}")
+                    st.success(f"✅ تم توزيع {len(selected_sample)} بنجاح!")
                     time.sleep(1)
                     st.rerun()
 
@@ -611,64 +627,92 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
         if target_h2:
+            # ✅ التحقق من حدود الأدوار في القاعة
+            current_roles = df_all[df_all['hall'] == target_h2]['role'].value_counts().to_dict()
+            presidents_count = current_roles.get('رئيس قاعة', 0)
+            assistants_count = current_roles.get('مساعد رئيس قاعة', 0)
+            janitors_count = current_roles.get('آذن', 0)
+            
             col_s1, col_s2, col_s3 = st.columns(3)
             
             with col_s1:
-                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), key="sel_manager")
+                # ✅ تعطيل الاختيار إذا كان هناك رئيس قاعة بالفعل
+                if presidents_count >= 1:
+                    st.warning("⚠️ هذه القاعة لها رئيس قاعة بالفعل")
+                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), 
+                                          key="sel_manager", disabled=(presidents_count >= 1))
             with col_s2:
-                # ✅ التعديل هنا: قائمة متعددة تتيح اختيار مساعد أو مساعدان
-                sel_secretaries = st.multiselect("📋 مساعدي الرئيس (بحد أقصى 2):", df_secretaries['name'].tolist(), max_selections=2, key="sel_secretaries_multi")
+                # ✅ تحديد الحد الأقصى للمساعدين (2)
+                remaining_assistants = max(0, 2 - assistants_count)
+                if remaining_assistants == 0:
+                    st.warning("⚠️ وصل الحد الأقصى للمساعدين (2)")
+                sel_secretaries = st.multiselect("📋 مساعدي الرئيس (بحد أقصى 2):", df_secretaries['name'].tolist(), 
+                                                max_selections=remaining_assistants, key="sel_secretaries_multi",
+                                                disabled=(remaining_assistants == 0))
             with col_s3:
-                sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), key="sel_janitor")
+                # ✅ تعطيل الاختيار إذا كان هناك آذن بالفعل
+                if janitors_count >= 1:
+                    st.warning("⚠️ هذه القاعة لها آذن بالفعل")
+                sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), 
+                                          key="sel_janitor", disabled=(janitors_count >= 1))
             
             if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
                 saved = []
+                error_occurred = False
                 
                 # حفظ رئيس القاعة
                 if sel_manager:
-                    manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
-                    old_hall = df_managers[df_managers['name'] == sel_manager]['hall'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                              (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
-                    add_audit_log("تعيين رئيس قاعة", f"تعيين {sel_manager}", old_hall, target_h2)
-                    saved.append(f"رئيس قاعة: {sel_manager}")
+                    if presidents_count >= 1:
+                        st.error("❌ لا يمكن تعيين أكثر من رئيس قاعة واحد لكل قاعة!")
+                        error_occurred = True
+                    else:
+                        manager_id = df_managers[df_managers['name'] == sel_manager]['id'].values[0]
+                        old_hall = df_managers[df_managers['name'] == sel_manager]['hall'].values[0]
+                        c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                                  (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
+                        add_audit_log("تعيين رئيس قاعة", f"تعيين {sel_manager}", old_hall, target_h2)
+                        saved.append(f"رئيس قاعة: {sel_manager}")
                 
-                # ✅ حفظ المساعدين (واحد أو اثنين)
-                for sec_name in sel_secretaries:
-                    if sec_name:
-                        sec_id = df_secretaries[df_secretaries['name'] == sec_name]['id'].values[0]
-                        old_hall = df_secretaries[df_secretaries['name'] == sec_name]['hall'].values[0]
-                        c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                                  (target_h2, hall_map_auto[target_h2], st.session_state.username, sec_id))
-                        add_audit_log("تعيين مساعد رئيس", f"تعيين {sec_name}", old_hall, target_h2)
-                        saved.append(f"مساعد رئيس: {sec_name}")
+                # ✅ حفظ المساعدين (بحد أقصى 2)
+                if not error_occurred:
+                    for sec_name in sel_secretaries:
+                        if sec_name and assistants_count + len(saved) < 2:
+                            sec_id = df_secretaries[df_secretaries['name'] == sec_name]['id'].values[0]
+                            old_hall = df_secretaries[df_secretaries['name'] == sec_name]['hall'].values[0]
+                            c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                                      (target_h2, hall_map_auto[target_h2], st.session_state.username, sec_id))
+                            add_audit_log("تعيين مساعد رئيس", f"تعيين {sec_name}", old_hall, target_h2)
+                            saved.append(f"مساعد رئيس: {sec_name}")
                 
                 # حفظ الآذن
-                if sel_janitor:
-                    janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
-                    old_hall = df_janitors[df_janitors['name'] == sel_janitor]['hall'].values[0]
-                    c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
-                              (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
-                    add_audit_log("تعيين آذن", f"تعيين {sel_janitor}", old_hall, target_h2)
-                    saved.append(f"آذن: {sel_janitor}")
+                if not error_occurred and sel_janitor:
+                    if janitors_count >= 1:
+                        st.error("❌ لا يمكن تعيين أكثر من آذن واحد لكل قاعة!")
+                        error_occurred = True
+                    else:
+                        janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
+                        old_hall = df_janitors[df_janitors['name'] == sel_janitor]['hall'].values[0]
+                        c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
+                                  (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
+                        add_audit_log("تعيين آذن", f"تعيين {sel_janitor}", old_hall, target_h2)
+                        saved.append(f"آذن: {sel_janitor}")
                 
-                if saved:
+                if saved and not error_occurred:
                     conn.commit()
                     add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
                     st.success(f"✅ تم الحفظ: {' | '.join(saved)}")
                     time.sleep(0.5)
                     st.cache_data.clear()
                     st.rerun()
-                else:
+                elif not saved and not error_occurred:
                     st.warning("⚠️ لم تختر أي شخص!")
+
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
         st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
         
-        # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
         st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
         
-        # ✅ التحقق من المزامنة التلقائية (رقم 6)
         last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
         st.caption(f"🕐 آخر مزامنة: {last_sync}")
         
@@ -698,17 +742,16 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 conn.commit()
                 
                 if st.session_state['system_mode'] == 'tawjihi':
-                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability FROM teachers_temp t WHERE teachers.id = t.id")
-                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability) SELECT id, name, phone, school, city, current_job, preference, ability FROM teachers_temp")
+                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
+                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, gender) SELECT id, name, phone, school, city, current_job, preference, ability, gender FROM teachers_temp")
                 else:
-                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, relative = t.relative, relative_exam = t.relative_exam FROM teachers_temp t WHERE teachers.id = t.id")
-                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam) SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam FROM teachers_temp")
+                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, relative = t.relative, relative_exam = t.relative_exam, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
+                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender) SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender FROM teachers_temp")
                 conn.commit()
                 dfh = pd.read_csv(HALLS_URL)
                 dfh.to_sql('halls', conn, if_exists='replace', index=False)
                 conn.commit()
                 
-                # ✅ تحديث وقت المزامنة
                 st.session_state[LAST_SYNC_KEY] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
                 add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
@@ -719,9 +762,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 st.error(f"خطأ أثناء التحديث: {e}")
 
     # ==================== تبويب الإدارة ====================
-        # ==================== تبويب الإدارة ====================
     with tab_manage:
-        # ✅ لوحة التحكم الإحصائية المتقدمة
         st.markdown("### 📊 لوحة التحكم المتقدمة")
         df_all_teachers = get_cached_teachers()
         
@@ -734,7 +775,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         c_m2.metric("تم إنجازهم", assigned_count)
         c_m3.metric("المتبقي", remaining_count)
         
-       
         st.divider()
         st.markdown('<h3 class="move-to-right">📦 تصدير البيانات المعدلة</h3>', unsafe_allow_html=True)
         df_export = df_all_teachers.copy()
@@ -774,7 +814,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         for hall in assigned_halls:
                             df_hall = df_all_teachers[df_all_teachers['hall'] == hall]
                             for _, row in df_hall.iterrows():
-                                # ✅ التعديل هنا: الدالة تعيد الملف جاهزاً، نأخذ المحتوى مباشرة
                                 doc_buffer = generate_single_doc(row)
                                 if doc_buffer:
                                     filename = f"تكليف_{row['name']}_{row['id']}.docx"
@@ -789,7 +828,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     )
                     st.success("✅ تم إنشاء الملف المضغوط بنجاح!")
         
-        # ✅ عرض تفاصيل القاعة (مع تعريف الأعمدة بشكل آمن)
         if assigned_halls:
             h_choice = st.selectbox("اختر قاعة لعرض الكادر والإحصائيات:", [""] + assigned_halls)
             if h_choice:
@@ -811,7 +849,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # ✅ تعريف الأعمدة هنا لضمان وجودها قبل الاستخدام
                 col_btns1, col_btns2, col_btns3 = st.columns([1, 1.2, 1.2])
                 
                 with col_btns1:
@@ -856,7 +893,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
     # ==================== تبويب السجلات ====================
     with tab_logs:
         st.markdown('<h2 class="move-to-right">📜 سجل العمليات</h2>', unsafe_allow_html=True)
-        if is_admin():  # ✅ فقط الأدمن يمكنه حذف السجلات
+        if is_admin():
             if st.button("🗑️ حذف كافة السجلات نهائياً", key="clear_all_logs"):
                 try:
                     c.execute("DELETE FROM logs")
@@ -867,8 +904,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 except Exception as e:
                     st.error(f"خطأ أثناء الحذف: {e}")
         st.divider()
-        # ✅ عرض السجلات مع تفاصيل التدقيق
-                # عرض السجلات (كود آمن يمنع الخطأ)
         try:
             df_l = pd.read_sql("""
                 SELECT user as 'الموظف', 
@@ -883,7 +918,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 FROM logs ORDER BY id DESC LIMIT 100
             """, conn)
         except:
-            # في حال عدم وجود الأعمدة الجديدة، اعرض البيانات القديمة فقط
             df_l = pd.read_sql("""
                 SELECT user as 'الموظف', 
                        action as 'الإجراء', 
@@ -896,9 +930,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         else:
             st.info("سجل العمليات فارغ حالياً.")
 
-           # ==================== تبويب الاستعلامات الذكية ====================
+    # ==================== تبويب الاستعلامات الذكية ====================
     with tab_inquiry:
-        # 🟢 CSS للمحاذاة من اليمين لليسار
         st.markdown("""
         <style>
         .stApp [data-testid="stVerticalBlock"] > div:first-child { direction: rtl !important; text-align: right !important; }
@@ -915,20 +948,17 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.markdown('<h2 style="text-align: right; direction: rtl;">🔎 نظام الاستعلامات الذكية والتحليلات</h2>', unsafe_allow_html=True)
         
-        # 🔑 تهيئة الحالات في الجلسة (تمت إضافة q_city)
         if 'query_df' not in st.session_state: st.session_state.query_df = None
         if 'run_query' not in st.session_state: st.session_state.run_query = False
         for k in ['q_role', 'q_pref', 'q_abl', 'q_assigned', 'q_city', 'q_search']:
             if k not in st.session_state: st.session_state[k] = "الكل" if k != 'q_search' else ""
 
-        # 1️⃣ مصدر البيانات
         st.markdown('<h3 style="text-align: right; direction: rtl;">📂 مصدر البيانات</h3>', unsafe_allow_html=True)
         source_options = ["جميع المعلمين (حسب الوضع الحالي)"]
         if st.session_state.system_mode == "tawjihi": source_options.insert(0, "نظام الثانوية العامة")
         elif st.session_state.system_mode == "tawzif": source_options.insert(0, "نظام التوظيف")
         st.selectbox("", source_options, index=0, label_visibility="collapsed", disabled=True)
 
-        # 2️⃣ تقارير سريعة
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns(6)
         def run_quick_report(role, pref, abl, assign, city="الكل"):
@@ -951,10 +981,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 
         st.divider()
 
-        # 3️⃣ الفلاتر المخصصة (تمت إضافة مكان السكن)
         st.markdown('<h3 style="text-align: right; direction: rtl;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
         
-        # جلب قائمة المدن/السكن لملء القائمة المنسدلة ديناميكياً
         df_cache = get_cached_teachers()
         cities_opts = ["الكل"] + sorted(df_cache['city'].dropna().unique().tolist()) if not df_cache.empty and 'city' in df_cache.columns else ["الكل"]
         
@@ -975,7 +1003,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         if st.button("🚀 تنفيذ الاستعلام", type="primary", use_container_width=True):
             st.session_state.run_query = True
 
-        # 🔍🔍 تنفيذ الاستعلام وحفظه في الجلسة
         if st.session_state.run_query:
             df = get_cached_teachers()
             if df.empty:
@@ -986,7 +1013,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 if st.session_state.q_role != "الكل": mask &= (df['current_job'] == st.session_state.q_role)
                 if st.session_state.q_pref != "الكل": mask &= (df['preference'] == st.session_state.q_pref)
                 if st.session_state.q_abl != "الكل": mask &= (df['ability'] == st.session_state.q_abl)
-                if st.session_state.q_city != "الكل": mask &= (df['city'] == st.session_state.q_city) # 🟢 فلتر السكن الجديد
+                if st.session_state.q_city != "الكل": mask &= (df['city'] == st.session_state.q_city)
                 
                 hall_valid = (df['hall'].astype(str).str.len() > 0) & (df['hall'] != "nan") & (df['hall'].notna())
                 if st.session_state.q_assigned == "مكلف": mask &= hall_valid
@@ -998,89 +1025,82 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 st.session_state.query_df = df[mask].copy()
             st.session_state.run_query = False
 
-        # 📊 عرض النتائج والتصدير
-if st.session_state.query_df is not None and not st.session_state.query_df.empty:
-    df_res = st.session_state.query_df
-    total = len(df_res)
-    hall_valid_mask = (df_res['hall'].astype(str).str.len() > 0) & (df_res['hall'] != "nan") & (df_res['hall'].notna())
-    assigned = len(df_res[hall_valid_mask])
-    unassigned = total - assigned
-    pct = (assigned / max(total, 1)) * 100
+        if st.session_state.query_df is not None and not st.session_state.query_df.empty:
+            df_res = st.session_state.query_df
+            total = len(df_res)
+            hall_valid_mask = (df_res['hall'].astype(str).str.len() > 0) & (df_res['hall'] != "nan") & (df_res['hall'].notna())
+            assigned = len(df_res[hall_valid_mask])
+            unassigned = total - assigned
+            pct = (assigned / max(total, 1)) * 100
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📊 إجمالي النتائج", total)
-    c2.metric("✅ المكلفون", assigned)
-    c3.metric("⏳ غير مكلفين", unassigned)
-    c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("📊 إجمالي النتائج", total)
+            c2.metric("✅ المكلفون", assigned)
+            c3.metric("⏳ غير مكلفين", unassigned)
+            c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
 
-    st.markdown('<h4 style="text-align: right; direction: rtl;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
-    st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
+            st.markdown('<h4 style="text-align: right; direction: rtl;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
+            st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
 
-    st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
-    
-    # ✅✅✅ الجديد: إنشاء نسخة للعرض وتغيير أسماء الأعمدة للعربي
-    df_display = df_res.copy()
-    arabic_map = {
-        'name': 'الاسم',
-        'id': 'رقم الهوية',
-        'current_job': 'الوظيفة',
-        'preference': 'الرغبة',
-        'ability': 'الصلاحية',
-        'hall': 'القاعة',
-        'city': 'السكن',
-        'phone': 'الجوال',
-        'school': 'المدرسة',
-        'role': 'المهمة',
-        'hall_city': 'مدينة القاعة',
-        'notes': 'ملاحظات'
-    }
-    # تطبيق التغيير فقط على الأعمدة الموجودة فعلياً
-    df_display = df_display.rename(columns={k: v for k, v in arabic_map.items() if k in df_display.columns})
-
-    # ترتيب الأعمدة اللي بدك تظهر في الجدول
-    display_cols = ['الاسم', 'رقم الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
-    safe_cols = [c for c in display_cols if c in df_display.columns]
-    
-    st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
-
-    st.divider()
-    if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            # ✅ نستخدم df_display عشان يطلع بالإكسل بنفس الأسماء العربية
-            df_export = df_display[safe_cols].copy()
-            df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
+            st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
             
-            wb = writer.book
-            ws = writer.sheets['نتائج_الاستعلام']
-            header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center'})
-            cell_fmt = wb.add_format({'border': 1, 'align': 'right'})
-            ws.right_to_left()
-            ws.set_landscape()
-            ws.fit_to_pages(1, 0)
-            for col_num, col_name in enumerate(df_export.columns):
-                ws.write(0, col_num, col_name, header_fmt)
-                max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
-                ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
-        
-        st.download_button(
-            label="📥 تحميل ملف Excel",
-            data=output.getvalue(),
-            file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="dl_excel_inquiry_v2"
-        )
-elif st.session_state.query_df is not None:
-    st.info("لا توجد نتائج مطابقة للشروط المختارة.")
+            df_display = df_res.copy()
+            arabic_map = {
+                'name': 'الاسم',
+                'id': 'رقم الهوية',
+                'current_job': 'الوظيفة',
+                'preference': 'الرغبة',
+                'ability': 'الصلاحية',
+                'hall': 'القاعة',
+                'city': 'السكن',
+                'phone': 'الجوال',
+                'school': 'المدرسة',
+                'role': 'المهمة',
+                'hall_city': 'مدينة القاعة',
+                'notes': 'ملاحظات',
+                'gender': 'الجنس'
+            }
+            df_display = df_display.rename(columns={k: v for k, v in arabic_map.items() if k in df_display.columns})
+
+            display_cols = ['الاسم', 'رقم الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
+            safe_cols = [c for c in display_cols if c in df_display.columns]
+            
+            st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
+
+            st.divider()
+            if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df_export = df_display[safe_cols].copy()
+                    df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
+                    
+                    wb = writer.book
+                    ws = writer.sheets['نتائج_الاستعلام']
+                    header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center'})
+                    cell_fmt = wb.add_format({'border': 1, 'align': 'right'})
+                    ws.right_to_left()
+                    ws.set_landscape()
+                    ws.fit_to_pages(1, 0)
+                    for col_num, col_name in enumerate(df_export.columns):
+                        ws.write(0, col_num, col_name, header_fmt)
+                        max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
+                        ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
+                
+                st.download_button(
+                    label="📥 تحميل ملف Excel",
+                    data=output.getvalue(),
+                    file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_excel_inquiry_v2"
+                )
+        elif st.session_state.query_df is not None:
+            st.info("لا توجد نتائج مطابقة للشروط المختارة.")
 
 # ============================================================================
 # ✨✨✨ نظام تصحيح الثانوية العامة - وحدة مستقلة تماماً ✨✨✨
 # ============================================================================
-# 🔴 هذا القسم يظهر فقط إذا كان الوضع == "tasheeh"
-
 if st.session_state.get('system_mode') == "tasheeh":
     
-        # 1️⃣ إنشاء جداول التخزين الدائم في قاعدة البيانات
     c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_teachers (
         id TEXT PRIMARY KEY, name TEXT, subject TEXT, city TEXT, 
         school TEXT, phone TEXT, relative TEXT
@@ -1089,7 +1109,6 @@ if st.session_state.get('system_mode') == "tasheeh":
         hall_name TEXT PRIMARY KEY, city TEXT
     )''')
     
-    # ✅ إضافة جدول التكليفات المفقود (هذا هو الحل)
     c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         teacher_id TEXT, teacher_name TEXT, subject TEXT,
@@ -1101,7 +1120,6 @@ if st.session_state.get('system_mode') == "tasheeh":
     
     conn.commit()
     
-    # 2️⃣ تحميل البيانات تلقائياً من القاعدة عند فتح الموقع
     if 'tasheeh_teachers' not in st.session_state:
         try:
             st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
@@ -1111,7 +1129,6 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
         except: st.session_state['tasheeh_halls'] = pd.DataFrame()
 
-    # 3️⃣ دالة المزامنة الذكية (تحديث + إضافة بدون تكرار)
     def sync_tasheeh_data():
         try:
             with st.spinner("🔄 جاري المزامنة والتنظيف العميق..."):
@@ -1124,11 +1141,9 @@ if st.session_state.get('system_mode') == "tasheeh":
                 }
                 df_t = df_t.rename(columns={k:v for k,v in rename_map.items() if k in df_t.columns})
 
-                # 🟢 1. تنظيف رقم الهوية من أي مسافات خفية أو زائدة (مهم جداً)
                 df_t['id'] = df_t['id'].astype(str).str.strip()
-                df_t['id'] = df_t['id'].str.replace(' ', '') # إزالة المسافات من داخل الرقم أيضاً
+                df_t['id'] = df_t['id'].str.replace(' ', '')
                 
-                # 🟢 2. حذف التكرار في ملف الإكسل نفسه (نحتفظ بالصف الأول/المدرسة الأولى فقط)
                 before_csv = len(df_t)
                 df_t = df_t.drop_duplicates(subset=['id'], keep='first')
                 after_csv = len(df_t)
@@ -1146,10 +1161,8 @@ if st.session_state.get('system_mode') == "tasheeh":
                                str(r.get('phone','')), str(r.get('relative',''))))
                 conn.commit()
 
-                # 🟢 3. تنظيف قاعدة البيانات من الداخل (إزالة المسافات من الأرقام المخزنة سابقاً)
                 c.execute("UPDATE tasheeh_teachers SET id = TRIM(id)")
                 
-                # 🟢 4. حذف المكررات المتبقية في قاعدة البيانات (نحتفظ بأول ظهور فقط)
                 c.execute("""
                     DELETE FROM tasheeh_teachers
                     WHERE rowid NOT IN (
@@ -1181,21 +1194,19 @@ if st.session_state.get('system_mode') == "tasheeh":
             return None
         doc = Document(TEMPLATE_NAME)
         
-        # ✅ إصلاح 1: ZWORK يأخذ قيمة school بشكل صحيح مع fallback
         repls = {
             'ZNAME': str(data.get('name', '---')),
             'ZID': str(data.get('id', '---')),
             'ZTEST': str(exam_name),
             'ZHALL': str(data.get('hall_name', '---')),
             'ZLOC': str(data.get('hall_city', '---')),
-            'ZWORK': str(data.get('school', data.get('ZWORK', '---'))),  # ✅ fallback آمن
-            'ZSCHOOL': str(data.get('school', '---')),  # ✅ حقل إضافي للقالب
+            'ZWORK': str(data.get('school', data.get('ZWORK', '---'))),
+            'ZSCHOOL': str(data.get('school', '---')),
             'ZCITY': str(data.get('city', '---')),
             'ZSUBJECT': str(data.get('subject', '---')),
             'ZDATE': str(data.get('exam_date', '---'))
         }
         
-        # ✅ دالة مساعدة للاستبدال في الفقرات والجداول
         def replace_in_element(element, k, v):
             for run in element.runs:
                 if k in run.text:
@@ -1226,69 +1237,24 @@ if st.session_state.get('system_mode') == "tasheeh":
         </div>
         
         <style>
-        /* RTL - اجبار كل العناصر على الاتجاه من اليمين لليسار */
-        * {
-            direction: rtl !important;
-        }
-        
-        body, .stApp, main, section, div[class*="st-"] {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* النصوص والعناوين */
-        h1, h2, h3, h4, h5, h6, p, span, label {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* حقول الإدخال */
-        input[type="text"], input[type="number"], input[type="date"], 
-        textarea, select, [data-baseweb="input"], [data-baseweb="select"] {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* الأزرار */
-        button, [role="button"] {
-            direction: rtl !important;
-        }
-        
-        /* الجداول */
-        table, thead, tbody, tr, th, td {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* التبويبات */
-        [data-testid="stTabs"], [data-testid="stTab"], .stTabs {
-            direction: rtl !important;
-        }
-        
-        /* الصناديق والمحتوى */
-        .stAlert, .stInfo, .stSuccess, .stWarning, .stError,
-        [data-testid="stAlert"], [data-testid="stMarkdown"] {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* القوائم المنسدلة */
-        [data-testid="stSelectbox"], [data-testid="stMultiselect"] {
-            direction: rtl !important;
-        }
+        * { direction: rtl !important; }
+        body, .stApp, main, section, div[class*="st-"] { direction: rtl !important; text-align: right !important; }
+        h1, h2, h3, h4, h5, h6, p, span, label { direction: rtl !important; text-align: right !important; }
+        input[type="text"], input[type="number"], input[type="date"], textarea, select, [data-baseweb="input"], [data-baseweb="select"] { direction: rtl !important; text-align: right !important; }
+        button, [role="button"] { direction: rtl !important; }
+        table, thead, tbody, tr, th, td { direction: rtl !important; text-align: right !important; }
+        [data-testid="stTabs"], [data-testid="stTab"], .stTabs { direction: rtl !important; }
+        .stAlert, .stInfo, .stSuccess, .stWarning, .stError, [data-testid="stAlert"], [data-testid="stMarkdown"] { direction: rtl !important; text-align: right !important; }
+        [data-testid="stSelectbox"], [data-testid="stMultiselect"] { direction: rtl !important; }
         </style>
     """, unsafe_allow_html=True)
            
-    
     corr_tab1, corr_tab2, corr_tab3, corr_tab4 = st.tabs([
         "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات"
     ])
     
-    # ==================== تبويب 1: رفع البيانات والمزامنة ====================
     with corr_tab1:
         st.markdown("### 📥 إدارة البيانات وقالب التكليف")
-        
-        # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
         st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
         
         st.divider()
@@ -1300,7 +1266,6 @@ if st.session_state.get('system_mode') == "tasheeh":
             
         if not st.session_state['tasheeh_teachers'].empty:
             st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
-            # ✅ عرض الجدول بأسماء أعمدة عربية
             df_teachers_display = st.session_state['tasheeh_teachers'].copy()
             arabic_teachers = {
                 'id': 'رقم الهوية', 'name': 'الاسم', 'subject': 'المبحث',
@@ -1312,21 +1277,15 @@ if st.session_state.get('system_mode') == "tasheeh":
         st.divider()
         st.markdown("### 🔍 فحص وحذف التكرار (فحص مباشر من قاعدة البيانات)")
         
-        # جلب البيانات مباشرة من قاعدة البيانات
         df_raw = pd.read_sql("SELECT rowid, id, name, subject FROM tasheeh_teachers", conn)
         
         if not df_raw.empty:
-            # تنظيف الأرقام وإزالة المسافات
             df_raw['id_trimmed'] = df_raw['id'].astype(str).str.strip()
-            
-            # البحث عن المكررات
             duplicates = df_raw[df_raw.duplicated(subset=['id_trimmed'], keep=False)]
             
             if len(duplicates) > 0:
                 st.error(f"🚨 تم العثور على `{len(duplicates)}` سجل مكرر!")
                 st.write("**تفاصيل المكررات:**")
-                
-                # ✅ إنشاء نسخة للعرض مع أسماء أعمدة عربية
                 df_dup_display = duplicates[['rowid', 'id', 'id_trimmed', 'name', 'subject']].copy()
                 df_dup_display = df_dup_display.rename(columns={
                     'rowid': 'رقم الصف',
@@ -1335,10 +1294,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                     'name': 'الاسم',
                     'subject': 'المبحث'
                 })
-                
                 st.dataframe(df_dup_display, use_container_width=True, hide_index=True)
-                
-                # عرض الإحصائيات
                 total = len(df_raw)
                 unique = df_raw['id_trimmed'].nunique()
                 st.warning(f"📊 الإجمالي: `{total}` | الفريد: `{unique}` | المكرر: `{total - unique}`")
@@ -1350,10 +1306,7 @@ if st.session_state.get('system_mode') == "tasheeh":
 
         if st.button("🗑️ حذف المكررات الآن", type="secondary", use_container_width=True):
             try:
-                # عد السجلات قبل الحذف
                 before = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0, 0]
-                
-                # حذف المكررات (الاحتفاظ بأول rowid فقط)
                 c.execute("""
                     DELETE FROM tasheeh_teachers
                     WHERE rowid NOT IN (
@@ -1363,25 +1316,19 @@ if st.session_state.get('system_mode') == "tasheeh":
                     )
                 """)
                 conn.commit()
-                
-                # عد السجلات بعد الحذف
                 after = pd.read_sql("SELECT COUNT(*) FROM tasheeh_teachers", conn).iloc[0, 0]
                 deleted = before - after
-                
-                # تحديث الذاكرة فوراً
                 st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
                 st.cache_data.clear()
-                
                 if deleted > 0:
                     st.success(f"✅✅✅ تم حذف `{deleted}` سجل مكرر بنجاح!")
                     st.balloons()
                     st.rerun()
                 else:
                     st.warning("⚠️ لم يتم العثور على مكررات للحذف")
-                    
             except Exception as e:
                 st.error(f"❌ خطأ: {e}")
-    # ==================== تبويب 2: التوزيع التلقائي ====================
+
     with corr_tab2:
         if st.session_state['tasheeh_teachers'].empty or st.session_state['tasheeh_halls'].empty:
             st.warning("⚠️ يرجى مزامنة البيانات أولاً من تبويب 'رفع البيانات'")
@@ -1393,32 +1340,24 @@ if st.session_state.get('system_mode') == "tasheeh":
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                # 1️⃣ اختيار القاعة من بيانات الإكسل
                 hall_opts = sorted(halls['hall_name'].unique().tolist())
                 selected_hall = st.selectbox("🏫 اختر القاعة:", hall_opts, index=0)
-                
             with col2:
-                # 2️⃣ اختيار المادة من بيانات المعلمين
                 subj_opts = sorted(teachers['subject'].dropna().unique().tolist())
                 selected_subj = st.selectbox("📚 اختر المادة:", subj_opts, index=0)
-                
             with col3:
-                # 3️⃣ اختيار التاريخ يدوياً
                 default_date = datetime(2026, 6, 20)
                 selected_date = st.date_input("📅 تاريخ بداية التصحيح:", value=default_date, min_value=datetime(2026, 1, 1))
             
-            # تنسيق التاريخ واليوم
             date_str = selected_date.strftime("%Y/%m/%d")
             days_ar = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
             day_name = days_ar[selected_date.weekday()]
             
-            # عرض ملخص سريع قبل التوزيع
             hall_row = halls[halls['hall_name'] == selected_hall]
             hall_city = hall_row['city'].values[0] if not hall_row.empty else "غير محدد"
             st.info(f"📍 القاعة: `{selected_hall}` | 🌆 المدينة: `{hall_city}` | 📅 التاريخ: `{date_str} ({day_name})`")
 
             if st.button("🚀 توزيع المصححين", type="primary", use_container_width=True):
-                # تصفية المعلمين (استبعاد من له قريب + تصفية حسب المادة)
                 teachers_filtered = teachers[teachers['relative'].astype(str).str.lower() != 'true']
                 pool = teachers_filtered[teachers_filtered['subject'] == selected_subj]
                 
@@ -1428,24 +1367,16 @@ if st.session_state.get('system_mode') == "tasheeh":
                     assignments = []
                     for _, t in pool.iterrows():
                         assignments.append({
-                            'id': t.get('id',''), 
-                            'name': t.get('name',''), 
-                            'subject': t.get('subject',''),
-                            'hall_name': selected_hall,      # القاعة المختارة
-                            'hall_city': hall_city,          # المدينة المجلوبة تلقائياً من الإكسل
-                            'exam_name': selected_subj,      # اسم المادة هو اسم الامتحان
-                            'exam_date': date_str,           # التاريخ المختار
-                            'exam_day': day_name,            # اليوم المحسوب تلقائياً
-                            'school': t.get('school',''), 
-                            'city': t.get('city',''),
-                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
+                            'id': t.get('id',''), 'name': t.get('name',''), 'subject': t.get('subject',''),
+                            'hall_name': selected_hall, 'hall_city': hall_city, 'exam_name': selected_subj,
+                            'exam_date': date_str, 'exam_day': day_name, 'school': t.get('school',''), 
+                            'city': t.get('city',''), 'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
                         })
                     
                     if assignments:
                         st.session_state['tasheeh_assignments'] = assignments
                         add_log("توزيع تصحيح", f"توزيع {len(assignments)} معلم - {selected_subj} في {selected_hall} بتاريخ {date_str}")
                         st.success(f"✅ تم توزيع {len(assignments)} معلم بنجاح!")
-                        
                         for a in assignments:
                             try:
                                 c.execute("""INSERT INTO tasheeh_assignments 
@@ -1459,18 +1390,13 @@ if st.session_state.get('system_mode') == "tasheeh":
                     else:
                         st.error("❌ لم يتم التوزيع.")
     
-    # ==================== تبويب 3: كتب التكليف ====================
     with corr_tab3:
-        
-        # 1. تحميل البيانات الأساسية
         assigns = st.session_state.get('tasheeh_assignments', [])
         
         if not assigns:
             st.info("📌 لم يتم توزيع أي تكليفات بعد. اذهب لتبويب التوزيع التلقائي.")
         else:
             st.markdown("### 📊 إحصائيات التكليفات")
-            
-            # 2. فلترة المواد
             teachers_df = st.session_state['tasheeh_teachers']
             subjects_list = sorted(teachers_df['subject'].dropna().unique().tolist()) if not teachers_df.empty else []
             
@@ -1490,30 +1416,20 @@ if st.session_state.get('system_mode') == "tasheeh":
             assigned_count = len(assigned_df)
             remaining_count = pool_count - assigned_count
 
-            # 3. عرض المقاييس
             c_m1, c_m2, c_m3 = st.columns(3)
             with c_m1: st.metric("📚 إجمالي المعلمين (المادة)", pool_count)
             with c_m2: st.metric("✅ تم تكليفهم", assigned_count)
             with c_m3: st.metric("⏳ المتبقي للتكليف", remaining_count)
 
             st.divider()
-
-            # 4. عرض الجدول
             st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
             if not assigned_df.empty:
-                # ✅ تحويل أسماء الأعمدة للعربي
                 df_display = assigned_df.copy()
                 arabic_cols = {
-                    'name': 'الاسم',
-                    'subject': 'المبحث',
-                    'hall_name': 'القاعة',
-                    'hall_city': 'المدينة',
-                    'exam_date': 'التاريخ',
-                    'id': 'رقم الهوية',
-                    'exam_day': 'اليوم'
+                    'name': 'الاسم', 'subject': 'المبحث', 'hall_name': 'القاعة',
+                    'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'id': 'رقم الهوية', 'exam_day': 'اليوم'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                
                 display_cols = ['الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
                 safe_cols = [c for c in display_cols if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
@@ -1521,14 +1437,9 @@ if st.session_state.get('system_mode') == "tasheeh":
                 st.info("لا يوجد تكليفات لهذه المادة.")
 
             st.divider()
-
-            # 5. أزرار التحكم (تحميل وحذف وتصدير)
             st.markdown("### ⚙️ إدارة وتصدير")
-            
-            # ✅ تعريف الأعمدة مرة واحدة فقط
             col_btn1, col_btn2 = st.columns(2)
             
-            # === العمود 1: تحميل الوورد ===
             with col_btn1:
                 btn_key_word = f"btn_word_export_{filter_subj}"
                 if st.button("📥 تحميل وورد للمادة الحالية", type="primary", use_container_width=True, disabled=assigned_df.empty, key=btn_key_word):
@@ -1543,18 +1454,13 @@ if st.session_state.get('system_mode') == "tasheeh":
                                 
                                 for i, a in enumerate(current_list):
                                     temp_doc = Document(TEMPLATE_NAME)
-                                    # ✅ إصلاح 1: ZWORK يأخذ school بشكل صحيح
                                     repls = {
-                                        'ZNAME': str(a.get('name', '---')), 
-                                        'ZID': str(a.get('id', '---')),
-                                        'ZTEST': str(a.get('exam_name', '---')), 
-                                        'ZHALL': str(a.get('hall_name', '---')),
+                                        'ZNAME': str(a.get('name', '---')), 'ZID': str(a.get('id', '---')),
+                                        'ZTEST': str(a.get('exam_name', '---')), 'ZHALL': str(a.get('hall_name', '---')),
                                         'ZLOC': str(a.get('hall_city', '---')), 
-                                        'ZWORK': str(a.get('school', a.get('ZWORK', '---'))),  # ✅ fallback آمن
-                                        'ZSCHOOL': str(a.get('school', '---')),  # ✅ حقل إضافي
-                                        'ZCITY': str(a.get('city', '---')),
-                                        'ZSUBJECT': str(a.get('subject', '---')),
-                                        'ZDATE': str(a.get('exam_date', '---')) 
+                                        'ZWORK': str(a.get('school', a.get('ZWORK', '---'))),
+                                        'ZSCHOOL': str(a.get('school', '---')), 'ZCITY': str(a.get('city', '---')),
+                                        'ZSUBJECT': str(a.get('subject', '---')), 'ZDATE': str(a.get('exam_date', '---')) 
                                     }
                                     for p in temp_doc.paragraphs:
                                         for k, v in repls.items():
@@ -1601,11 +1507,8 @@ if st.session_state.get('system_mode') == "tasheeh":
                             except Exception as e:
                                 st.error(f"خطأ: {e}")
 
-            # === العمود 2: الحذف وتصدير الإكسل ===
             with col_btn2:
                 st.markdown("#### 📊 خيارات التصدير")
-                
-                # زر الحذف
                 del_btn_label = f"🗑️ حذف تكليفات {filter_subj}" if filter_subj != "الكل" else "🗑️ حذف جميع التكليفات"
                 del_btn_key = f"btn_delete_{filter_subj}"
                 
@@ -1615,20 +1518,15 @@ if st.session_state.get('system_mode') == "tasheeh":
                     else:
                         c.execute("DELETE FROM tasheeh_assignments WHERE subject=?", (filter_subj,))
                     conn.commit()
-                    
                     if filter_subj == "الكل":
                         st.session_state['tasheeh_assignments'] = []
                     else:
                         st.session_state['tasheeh_assignments'] = [a for a in st.session_state['tasheeh_assignments'] if a['subject'] != filter_subj]
-                    
                     st.success(f"✅ تم حذف تكليفات {filter_subj}")
                     st.rerun()
                 
                 st.divider()
-                
-                # ✅ زر الإكسل المنسق
                 excel_btn_key = f"btn_excel_export_{filter_subj}"
-                
                 if st.button("📥 تصدير إكسل منسق", type="primary", use_container_width=True, disabled=assigned_df.empty, key=excel_btn_key):
                     if assigned_df.empty:
                         st.warning("⚠️ لا توجد بيانات لتصديرها!")
@@ -1647,15 +1545,12 @@ if st.session_state.get('system_mode') == "tasheeh":
                             df_export.to_excel(writer, index=False, sheet_name='تكليفات التصحيح')
                             workbook = writer.book
                             worksheet = writer.sheets['تكليفات التصحيح']
-
                             header_fmt = workbook.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'text_wrap': True})
                             cell_fmt = workbook.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
-
                             worksheet.right_to_left()
                             worksheet.set_landscape()
                             worksheet.fit_to_pages(1, 0)
                             worksheet.set_default_row(height=28)
-
                             for col_num, value in enumerate(df_export.columns):
                                 worksheet.write(0, col_num, value, header_fmt)
                             for row_num in range(len(df_export)):
@@ -1673,16 +1568,13 @@ if st.session_state.get('system_mode') == "tasheeh":
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key=f"dl_excel_{filter_subj}"
                         )
-    # ==================== تبويب 4: سجل العمليات ====================
+
     with corr_tab4:
         st.markdown("### 📜 سجل العمليات الخاص بالتصحيح")
-        
-        # 🔴🔴 زر حذف السجلات الجديد 🔴🔴
         if is_admin():
             st.warning("⚠️ هذا الزر سيقوم بحذف سجلات التصحيح نهائياً.")
             if st.button("🗑️ حذف سجلات التصحيح نهائياً", type="primary", key="delete_tasheeh_logs_btn"):
                 try:
-                    # حذف السجلات التي تحتوي على كلمة 'تصحيح' فقط
                     c.execute("DELETE FROM logs WHERE action LIKE '%تصحيح%'")
                     conn.commit()
                     st.success("✅ تم مسح سجلات التصحيح بالكامل")
@@ -1690,10 +1582,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ خطأ أثناء الحذف: {e}")
-        
         st.divider()
-        
-        # عرض السجلات
         df = pd.read_sql("SELECT user as 'الموظف', action as 'الإجراء', details as 'التفاصيل', timestamp as 'الوقت' FROM logs WHERE action LIKE '%تصحيح%' ORDER BY id DESC", conn)
         if not df.empty:
             st.dataframe(df, use_container_width=True)
@@ -1704,46 +1593,21 @@ if st.session_state.get('system_mode') == "tasheeh":
 
 
 # ============================================================================
-# ============================================================================
 # 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً
 # ============================================================================
-
 if st.session_state.get('system_mode') == "other_assignments":
     
-    # ✅ إضافة تنسيقات CSS مخصصة لإصلاح عرض الجداول بالعربي
     st.markdown("""
         <style>
-        /* إصلاح اتجاه ومحاذاة النص داخل جداول Streamlit */
-        [data-testid="stDataFrame"] table,
-        [data-testid="stDataFrame"] th,
-        [data-testid="stDataFrame"] td {
-            direction: rtl !important;
-            text-align: right !important;
-            vertical-align: middle !important;
+        [data-testid="stDataFrame"] table, [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td {
+            direction: rtl !important; text-align: right !important; vertical-align: middle !important;
         }
-        
-        /* منع القص للنصوص الطويلة */
-        [data-testid="stDataFrame"] td {
-            white-space: normal !important;
-            word-wrap: break-word !important;
-            max-width: 300px !important;
-        }
-        
-        /* تحسين عرض العناوين */
-        [data-testid="stDataFrame"] th {
-            text-align: center !important;
-            font-weight: bold !important;
-        }
-        
-        /* ضمان ظهور كامل النص */
-        .stDataFrame table {
-            table-layout: fixed !important;
-            width: 100% !important;
-        }
+        [data-testid="stDataFrame"] td { white-space: normal !important; word-wrap: break-word !important; max-width: 300px !important; }
+        [data-testid="stDataFrame"] th { text-align: center !important; font-weight: bold !important; }
+        .stDataFrame table { table-layout: fixed !important; width: 100% !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # إنشاء قاعدة البيانات والجداول
     conn_other = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
     c_other = conn_other.cursor()
     
@@ -1758,13 +1622,13 @@ if st.session_state.get('system_mode') == "other_assignments":
         except:
             pass
     conn_other.commit()
-        # ✅ إضافة عمود ZSCHOOL للوظيفة الحالية
+    
     for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
         try:
             c_other.execute(f"ALTER TABLE {table_name} ADD COLUMN ZSCHOOL TEXT")
             conn_other.commit()
         except:
-            pass  # العمود موجود مسبقاً
+            pass
     
     def add_other_assignment(table_name, zid, zname, zjob, ZSCHOOL, zwork, zloc, zcity, zdate):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1777,32 +1641,25 @@ if st.session_state.get('system_mode') == "other_assignments":
     def get_other_assignments(table_name):
         return pd.read_sql(f"SELECT * FROM {table_name} ORDER BY id DESC", conn_other)
     
-        # ✅ دالة حذف التكليف (مع إصلاح الحذف من قاعدة البيانات)
     def delete_other_assignment(table_name, record_id):
-        """حذف تكليف معين"""
         c_other.execute(f"DELETE FROM {table_name} WHERE id=?", (record_id,))
-        conn_other.commit()  # ✅ تأكيد الحفظ فوراً
+        conn_other.commit()
         
     def generate_other_letter(row):
         if not os.path.exists(TEMPLATE_NAME):
             return None
-        
         doc = Document(TEMPLATE_NAME)
-        
-        # ✅ إصلاح 2: إخفاء ZWORK للحرس فقط + إصلاح ZSCHOOL
         is_guard = str(row.get('zjob', '')).strip() == 'حارس'
-        
         repls = {
             'ZID': str(row.get('zid', '---')),
             'ZNAME': str(row.get('zname', '---')),
-            'ZJOB': str(row.get('zjob', '---')),         # المهمة (حارس، مرافق...)
-            'ZSCHOOL': str(row.get('ZSCHOOL', '---')),  # ✅ الوظيفة الحالية (معلم، إداري...)
-            'ZWORK': '' if is_guard else str(row.get('zwork', '---')),       # ✅ إخفاء للحرس
+            'ZJOB': str(row.get('zjob', '---')),
+            'ZSCHOOL': str(row.get('ZSCHOOL', '---')),
+            'ZWORK': '' if is_guard else str(row.get('zwork', '---')),
             'ZLOC': str(row.get('zloc', '---')),
             'ZCITY': str(row.get('zcity', '---')),
             'ZDATE': str(row.get('zdate', datetime.now().strftime("%Y/%m/%d")))
         }
-        
         for p in doc.paragraphs:
             for k, v in repls.items():
                 if k in p.text:
@@ -1810,7 +1667,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                         if k in run.text:
                             run.text = run.text.replace(k, str(v))
                             run.bold = True
-        
         for table in doc.tables:
             for row_tbl in table.rows:
                 for cell in row_tbl.cells:
@@ -1821,16 +1677,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                                     if k in run.text:
                                         run.text = run.text.replace(k, str(v))
                                         run.bold = True
-        
-        # 🧹 حذف فقرة ZWORK نهائياً إذا كانت فارغة (خاص بالحرس)
         if is_guard:
-            for p in doc.paragraphs[:]:  # [:] لتجنب خطأ التعديل أثناء التكرار
+            for p in doc.paragraphs[:]:
                 if 'ZWORK' in p.text or (p.text.strip() == ''):
                     p._element.getparent().remove(p._element)
-        
         return doc
 
-        # الواجهة الرئيسية
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
@@ -1838,82 +1690,30 @@ if st.session_state.get('system_mode') == "other_assignments":
             <h2 style="color: #00ffcc; margin: 0; text-align: center;">📋 نظام التكليفات الأخرى</h2>
             <p style="color: #bbb; margin: 10px 0 0 0; text-align: center;">الحرس | مرافقة الطرود | جهاز الامتحان | لجنة الامتحان</p>
         </div>
-        
-        <!-- ✅ تنسيق الهيدر العلوي ليكون في المنتصف (فقط في تكليفات أخرى) -->
         <style>
-        /* اجبار الاتجاه العام */
-        .stApp {{
-            direction: rtl !important;
-            text-align: right !important;
-        }}
-        
-        /* ✅ الهيدر العلوي في المنتصف فقط لهذا النظام */
-        .custom-header-other {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background-color: #1a1c23;
-            color: white;
-            text-align: center !important;  /* ✅ النص في المنتصف */
-            padding: 15px 0;
-            z-index: 999999;
-            border-bottom: 2px solid #00ffcc;
-            line-height: 1.5;
-            direction: rtl;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
-        }}
-        .custom-header-other div {{
-            text-align: center !important;  /* ✅ النصوص الداخلية في المنتصف */
-            display: block;
-            width: 100%;
-        }}
-        
-        /* النصوص والعناوين */
-        p, h3, h4, h5, h6, label, span, div {{
-            direction: rtl !important;
-            text-align: right !important;
-        }}
-        
-        /* حقول الكتابة والأزرار */
-        input, textarea, button {{
-            direction: rtl !important;
-            text-align: right !important;
-        }}
-        
-        /* التبويبات */
-        [data-testid="stTabs"] {{
-            direction: rtl !important;
-            justify-content: flex-end !important;
-        }}
-        [data-testid="stTab"] {{
-            direction: rtl !important;
-        }}
-        
-        /* الجداول */
-        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {{
-            direction: rtl !important;
-            text-align: right !important;
-        }}
+        .stApp {{ direction: rtl !important; text-align: right !important; }}
+        .custom-header-other {{ position: fixed; top: 0; left: 0; width: 100%; background-color: #1a1c23; color: white; text-align: center !important; padding: 15px 0; z-index: 999999; border-bottom: 2px solid #00ffcc; line-height: 1.5; direction: rtl; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); }}
+        .custom-header-other div {{ text-align: center !important; display: block; width: 100%; }}
+        p, h3, h4, h5, h6, label, span, div {{ direction: rtl !important; text-align: right !important; }}
+        input, textarea, button {{ direction: rtl !important; text-align: right !important; }}
+        [data-testid="stTabs"] {{ direction: rtl !important; justify-content: flex-end !important; }}
+        [data-testid="stTab"] {{ direction: rtl !important; }}
+        [data-testid="stDataFrame"], table, thead, tbody, tr, td, th {{ direction: rtl !important; text-align: right !important; }}
         </style>
-        
-        <!-- ✅ الهيدر الجديد في المنتصف -->
         <div class="custom-header-other">
             <div style="font-weight: bold; font-size: 1.2rem;">إعداد وتصميم : عوض نعمان ريده</div>
             <div style="font-size: 1rem; color: #00ffcc;">قسم الامتحانات - مديرية التربية والتعليم جنوب نابلس</div>
         </div>
     """, unsafe_allow_html=True)
     
-    # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
     st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
     st.divider()
     
-    # التبويبات الأربعة
     tab_guard, tab_parcels, tab_device, tab_committee = st.tabs([
         "🛡️ الحرس", "📦 مرافقة الطرود", "📱 جهاز الامتحان", "👥 لجنة الامتحان"
     ])
     
-        # ==================== تبويب الحرس ====================
+    # ==================== تبويب الحرس ====================
     with tab_guard:
         st.markdown("### 🛡️ إدارة تكليفات الحرس")
         
@@ -1927,8 +1727,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
                 g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="g_ZSCHOOL_input")  # ✅ key فريد + value فارغ
-                g_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="g_zwork_input")
+                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="g_ZSCHOOL_input")
+                # ✅ تم حذف حقل ZWORK لأنه غير مطلوب للحرس
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
                 g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="g_zdate_input")
@@ -1936,8 +1736,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_guard:
                     if g_zid and g_zname:
-                        # ✅ تمرير ZSCHOOL كمتغير منفصل (9 معاملات)
-                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_ZSCHOOL, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
+                        add_other_assignment('guards', g_zid, g_zname, g_zjob, g_ZSCHOOL, '', g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.guard_form_clear = True
                         st.rerun()
@@ -1951,22 +1750,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة الحرس**")
             df_guard = get_other_assignments('guards')
             if not df_guard.empty:
-                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_guard.copy()
                 arabic_cols = {
-                    'zid': 'رقم الهوية',
-                    'zname': 'الاسم',
-                    'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',
-                    'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع',
-                    'zcity': 'السكن',
-                    'zdate': 'التاريخ',
-                    'created_at': 'وقت الإنشاء'
+                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                
-                # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
@@ -1974,16 +1764,22 @@ if st.session_state.get('system_mode') == "other_assignments":
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_guard"):
-                        docs = []
-                        for _, row in df_guard.iterrows():
-                            doc = generate_other_letter(row)
-                            if doc:
-                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
-                        if docs:
-                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
-                            for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_guard_{fname}")
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                            for _, row in df_guard.iterrows():
+                                doc = generate_other_letter(row)
+                                if doc:
+                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
+                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
+                                    zip_file.writestr(filename, bio.getvalue())
+                        zip_buffer.seek(0)
+                        st.download_button(
+                            label="📥 تحميل ملف مضغوط",
+                            data=zip_buffer.getvalue(),
+                            file_name=f"تكليفات_الحرس_{datetime.now().strftime('%Y%m%d')}.zip",
+                            mime="application/zip",
+                            key="dl_guard_zip"
+                        )
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
@@ -2001,7 +1797,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel")
                 
                 st.divider()
-                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
                 df_guard_display = df_guard[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_guard_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
@@ -2015,9 +1810,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
-         
     
-        # ==================== تبويب مرافقة الطرود ====================
+    # ==================== تبويب مرافقة الطرود ====================
     with tab_parcels:
         st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
         
@@ -2031,7 +1825,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input")
                 p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input")
                 p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="p_ZSCHOOL_input")  # ✅ p_ بدلاً من g_
+                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="p_ZSCHOOL_input")
                 p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="p_zwork_input")
                 p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
                 p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
@@ -2040,7 +1834,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_parcels:
                     if p_zid and p_zname:
-                        # ✅ تمرير ZSCHOOL كمتغير منفصل
                         add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_ZSCHOOL, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.parcels_form_clear = True
@@ -2055,21 +1848,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة مرافقة الطرود**")
             df_parcels = get_other_assignments('parcels')
             if not df_parcels.empty:
-                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_parcels.copy()
                 arabic_cols = {
-                    'zid': 'رقم الهوية',
-                    'zname': 'الاسم',
-                    'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',
-                    'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع',
-                    'zcity': 'السكن',
-                    'zdate': 'التاريخ',
-                    'created_at': 'وقت الإنشاء'
+                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
@@ -2077,16 +1862,22 @@ if st.session_state.get('system_mode') == "other_assignments":
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_parcels"):
-                        docs = []
-                        for _, row in df_parcels.iterrows():
-                            doc = generate_other_letter(row)
-                            if doc:
-                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
-                        if docs:
-                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
-                            for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_parcels_{fname}")
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                            for _, row in df_parcels.iterrows():
+                                doc = generate_other_letter(row)
+                                if doc:
+                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
+                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
+                                    zip_file.writestr(filename, bio.getvalue())
+                        zip_buffer.seek(0)
+                        st.download_button(
+                            label="📥 تحميل ملف مضغوط",
+                            data=zip_buffer.getvalue(),
+                            file_name=f"تكليفات_الطرود_{datetime.now().strftime('%Y%m%d')}.zip",
+                            mime="application/zip",
+                            key="dl_parcels_zip"
+                        )
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
@@ -2104,7 +1895,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel")
                 
                 st.divider()
-                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
                 df_parcels_display = df_parcels[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_parcels_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
@@ -2118,7 +1908,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
-        # ==================== تبويب جهاز الامتحان ====================
+    # ==================== تبويب جهاز الامتحان ====================
     with tab_device:
         st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
         
@@ -2132,7 +1922,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
                 d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="d_ZSCHOOL_input")  # ✅ d_ بدلاً من g_
+                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="d_ZSCHOOL_input")
                 d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
@@ -2141,7 +1931,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_device:
                     if d_zid and d_zname:
-                        # ✅ تمرير ZSCHOOL كمتغير منفصل
                         add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_ZSCHOOL, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.device_form_clear = True
@@ -2156,22 +1945,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة جهاز الامتحان**")
             df_device = get_other_assignments('exam_device')
             if not df_device.empty:
-                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_device.copy()
                 arabic_cols = {
-                    'zid': 'رقم الهوية',
-                    'zname': 'الاسم',
-                    'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',
-                    'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع',
-                    'zcity': 'السكن',
-                    'zdate': 'التاريخ',
-                    'created_at': 'وقت الإنشاء'
+                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                
-                # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
@@ -2179,19 +1959,25 @@ if st.session_state.get('system_mode') == "other_assignments":
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_device"):
-                        docs = []
-                        for _, row in df_device.iterrows():
-                            doc = generate_other_letter(row)
-                            if doc:
-                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
-                        if docs:
-                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
-                            for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_device_{fname}")
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                            for _, row in df_device.iterrows():
+                                doc = generate_other_letter(row)
+                                if doc:
+                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
+                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
+                                    zip_file.writestr(filename, bio.getvalue())
+                        zip_buffer.seek(0)
+                        st.download_button(
+                            label="📥 تحميل ملف مضغوط",
+                            data=zip_buffer.getvalue(),
+                            file_name=f"تكليفات_جهاز_الامتحان_{datetime.now().strftime('%Y%m%d')}.zip",
+                            mime="application/zip",
+                            key="dl_device_zip"
+                        )
                 
                 with col_btn2:
-                   if st.button("📊 تصدير Excel", key="btn_excel_device"):
+                    if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_device.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
@@ -2206,7 +1992,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel")
                 
                 st.divider()
-                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
                 df_device_display = df_device[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_device_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
@@ -2220,7 +2005,7 @@ if st.session_state.get('system_mode') == "other_assignments":
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
     
-        # ==================== تبويب لجنة الامتحان ====================
+    # ==================== تبويب لجنة الامتحان ====================
     with tab_committee:
         st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
         
@@ -2234,7 +2019,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input")
                 c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input")
                 c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="c_ZSCHOOL_input")  # ✅ c_ بدلاً من g_
+                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="c_ZSCHOOL_input")
                 c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="c_zwork_input")
                 c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
                 c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
@@ -2243,7 +2028,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_committee:
                     if c_zid and c_zname:
-                        # ✅ تمرير ZSCHOOL كمتغير منفصل
                         add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_ZSCHOOL, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.committee_form_clear = True
@@ -2258,22 +2042,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة لجنة الامتحان**")
             df_committee = get_other_assignments('exam_committee')
             if not df_committee.empty:
-                # ✅ تحويل الأعمدة للعربي (قاموس موحد وكامل)
                 df_display = df_committee.copy()
                 arabic_cols = {
-                    'zid': 'رقم الهوية',
-                    'zname': 'الاسم',
-                    'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية',
-                    'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع',
-                    'zcity': 'السكن',
-                    'zdate': 'التاريخ',
-                    'created_at': 'وقت الإنشاء'
+                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                
-                # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
@@ -2281,16 +2056,22 @@ if st.session_state.get('system_mode') == "other_assignments":
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_committee"):
-                        docs = []
-                        for _, row in df_committee.iterrows():
-                            doc = generate_other_letter(row)
-                            if doc:
-                                bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                docs.append((bio, f"تكليف_{row['zname']}_{row['zid']}.docx"))
-                        if docs:
-                            st.success(f"✅ تم إنشاء {len(docs)} ملف")
-                            for bio, fname in docs[:5]:
-                                st.download_button(f"📥 {fname}", bio.getvalue(), fname, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_committee_{fname}")
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                            for _, row in df_committee.iterrows():
+                                doc = generate_other_letter(row)
+                                if doc:
+                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
+                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
+                                    zip_file.writestr(filename, bio.getvalue())
+                        zip_buffer.seek(0)
+                        st.download_button(
+                            label="📥 تحميل ملف مضغوط",
+                            data=zip_buffer.getvalue(),
+                            file_name=f"تكليفات_لجنة_الامتحان_{datetime.now().strftime('%Y%m%d')}.zip",
+                            mime="application/zip",
+                            key="dl_committee_zip"
+                        )
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
@@ -2308,7 +2089,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel")
                 
                 st.divider()
-                # ✅ تحسين الحذف: قائمة منسدلة لاختيار السجل
                 df_committee_display = df_committee[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_committee_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
                 delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
