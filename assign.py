@@ -989,57 +989,79 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.session_state.run_query = False
 
         # 📊 عرض النتائج والتصدير
-        if st.session_state.query_df is not None and not st.session_state.query_df.empty:
-            df_res = st.session_state.query_df
-            total = len(df_res)
-            hall_valid_mask = (df_res['hall'].astype(str).str.len() > 0) & (df_res['hall'] != "nan") & (df_res['hall'].notna())
-            assigned = len(df_res[hall_valid_mask])
-            unassigned = total - assigned
-            pct = (assigned / max(total, 1)) * 100
+if st.session_state.query_df is not None and not st.session_state.query_df.empty:
+    df_res = st.session_state.query_df
+    total = len(df_res)
+    hall_valid_mask = (df_res['hall'].astype(str).str.len() > 0) & (df_res['hall'] != "nan") & (df_res['hall'].notna())
+    assigned = len(df_res[hall_valid_mask])
+    unassigned = total - assigned
+    pct = (assigned / max(total, 1)) * 100
 
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("📊 إجمالي النتائج", total)
-            c2.metric("✅ المكلفون", assigned)
-            c3.metric("⏳ غير مكلفين", unassigned)
-            c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("📊 إجمالي النتائج", total)
+    c2.metric("✅ المكلفون", assigned)
+    c3.metric("⏳ غير مكلفين", unassigned)
+    c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
 
-            st.markdown('<h4 style="text-align: right; direction: rtl;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
-            st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
+    st.markdown('<h4 style="text-align: right; direction: rtl;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
+    st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
 
-            st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
-            display_cols = ['name', 'id', 'current_job', 'preference', 'ability', 'hall', 'city', 'phone']
-            safe_cols = [c for c in display_cols if c in df_res.columns]
-            st.dataframe(df_res[safe_cols], use_container_width=True)
+    st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
+    
+    # ✅✅✅ الجديد: إنشاء نسخة للعرض وتغيير أسماء الأعمدة للعربي
+    df_display = df_res.copy()
+    arabic_map = {
+        'name': 'الاسم',
+        'id': 'رقم الهوية',
+        'current_job': 'الوظيفة',
+        'preference': 'الرغبة',
+        'ability': 'الصلاحية',
+        'hall': 'القاعة',
+        'city': 'السكن',
+        'phone': 'الجوال',
+        'school': 'المدرسة',
+        'role': 'المهمة',
+        'hall_city': 'مدينة القاعة',
+        'notes': 'ملاحظات'
+    }
+    # تطبيق التغيير فقط على الأعمدة الموجودة فعلياً
+    df_display = df_display.rename(columns={k: v for k, v in arabic_map.items() if k in df_display.columns})
 
-            st.divider()
-            if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_export = df_res[safe_cols].copy()
-                    df_export.columns = ['الاسم', 'الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
-                    df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
-                    
-                    wb = writer.book
-                    ws = writer.sheets['نتائج_الاستعلام']
-                    header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center'})
-                    cell_fmt = wb.add_format({'border': 1, 'align': 'right'})
-                    ws.right_to_left()
-                    ws.set_landscape()
-                    ws.fit_to_pages(1, 0)
-                    for col_num, col_name in enumerate(df_export.columns):
-                        ws.write(0, col_num, col_name, header_fmt)
-                        max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
-                        ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
-                
-                st.download_button(
-                    label="📥 تحميل ملف Excel",
-                    data=output.getvalue(),
-                    file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="dl_excel_inquiry_v2"
-                )
-        elif st.session_state.query_df is not None:
-            st.info("لا توجد نتائج مطابقة للشروط المختارة.")
+    # ترتيب الأعمدة اللي بدك تظهر في الجدول
+    display_cols = ['الاسم', 'رقم الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
+    safe_cols = [c for c in display_cols if c in df_display.columns]
+    
+    st.dataframe(df_display[safe_cols], use_container_width=True)
+
+    st.divider()
+    if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            # ✅ نستخدم df_display عشان يطلع بالإكسل بنفس الأسماء العربية
+            df_export = df_display[safe_cols].copy()
+            df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
+            
+            wb = writer.book
+            ws = writer.sheets['نتائج_الاستعلام']
+            header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center'})
+            cell_fmt = wb.add_format({'border': 1, 'align': 'right'})
+            ws.right_to_left()
+            ws.set_landscape()
+            ws.fit_to_pages(1, 0)
+            for col_num, col_name in enumerate(df_export.columns):
+                ws.write(0, col_num, col_name, header_fmt)
+                max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
+                ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
+        
+        st.download_button(
+            label="📥 تحميل ملف Excel",
+            data=output.getvalue(),
+            file_name=f"تقرير_استعلام_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_excel_inquiry_v2"
+        )
+elif st.session_state.query_df is not None:
+    st.info("لا توجد نتائج مطابقة للشروط المختارة.")
 
 # ============================================================================
 # ✨✨✨ نظام تصحيح الثانوية العامة - وحدة مستقلة تماماً ✨✨✨
