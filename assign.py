@@ -656,7 +656,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
         
         # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
-       
+        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
         
         # ✅ التحقق من المزامنة التلقائية (رقم 6)
         last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
@@ -1031,7 +1031,7 @@ if st.session_state.query_df is not None and not st.session_state.query_df.empty
     display_cols = ['الاسم', 'رقم الهوية', 'الوظيفة', 'الرغبة', 'الصلاحية', 'القاعة', 'السكن', 'الجوال']
     safe_cols = [c for c in display_cols if c in df_display.columns]
     
-    st.dataframe(df_display[safe_cols], use_container_width=True)
+    st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
 
     st.divider()
     if st.button("📥 تصدير التقرير إلى Excel", type="secondary"):
@@ -1279,7 +1279,7 @@ if st.session_state.get('system_mode') == "tasheeh":
         st.markdown("### 📥 إدارة البيانات وقالب التكليف")
         
         # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
-       
+        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
         
         st.divider()
         st.markdown("**2️⃣ المزامنة مع Google Sheets**")
@@ -1290,7 +1290,14 @@ if st.session_state.get('system_mode') == "tasheeh":
             
         if not st.session_state['tasheeh_teachers'].empty:
             st.markdown(f"📊 **عدد المعلمين المخزنين حالياً:** `{len(st.session_state['tasheeh_teachers'])}`")
-            st.dataframe(st.session_state['tasheeh_teachers'].head(), use_container_width=True)
+            # ✅ عرض الجدول بأسماء أعمدة عربية
+            df_teachers_display = st.session_state['tasheeh_teachers'].copy()
+            arabic_teachers = {
+                'id': 'رقم الهوية', 'name': 'الاسم', 'subject': 'المبحث',
+                'city': 'السكن', 'school': 'المدرسة', 'phone': 'الجوال', 'relative': 'قريب'
+            }
+            df_teachers_display = df_teachers_display.rename(columns={k: v for k, v in arabic_teachers.items() if k in df_teachers_display.columns})
+            st.dataframe(df_teachers_display[['الاسم', 'رقم الهوية', 'المبحث', 'المدرسة', 'السكن', 'الجوال']], use_container_width=True, hide_index=True)
             
         st.divider()
         st.markdown("### 🔍 فحص وحذف التكرار (فحص مباشر من قاعدة البيانات)")
@@ -1319,7 +1326,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                     'subject': 'المبحث'
                 })
                 
-                st.dataframe(df_dup_display, use_container_width=True)
+                st.dataframe(df_dup_display, use_container_width=True, hide_index=True)
                 
                 # عرض الإحصائيات
                 total = len(df_raw)
@@ -1482,7 +1489,6 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.divider()
 
             # 4. عرض الجدول
-            # 4. عرض الجدول
             st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
             if not assigned_df.empty:
                 # ✅ تحويل أسماء الأعمدة للعربي
@@ -1500,7 +1506,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                 
                 display_cols = ['الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
                 safe_cols = [c for c in display_cols if c in df_display.columns]
-                st.dataframe(df_display[safe_cols], use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
             else:
                 st.info("لا يوجد تكليفات لهذه المادة.")
 
@@ -1694,6 +1700,39 @@ if st.session_state.get('system_mode') == "tasheeh":
 
 if st.session_state.get('system_mode') == "other_assignments":
     
+    # ✅ إضافة تنسيقات CSS مخصصة لإصلاح عرض الجداول بالعربي
+    st.markdown("""
+        <style>
+        /* إصلاح اتجاه ومحاذاة النص داخل جداول Streamlit */
+        [data-testid="stDataFrame"] table,
+        [data-testid="stDataFrame"] th,
+        [data-testid="stDataFrame"] td {
+            direction: rtl !important;
+            text-align: right !important;
+            vertical-align: middle !important;
+        }
+        
+        /* منع القص للنصوص الطويلة */
+        [data-testid="stDataFrame"] td {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            max-width: 300px !important;
+        }
+        
+        /* تحسين عرض العناوين */
+        [data-testid="stDataFrame"] th {
+            text-align: center !important;
+            font-weight: bold !important;
+        }
+        
+        /* ضمان ظهور كامل النص */
+        .stDataFrame table {
+            table-layout: fixed !important;
+            width: 100% !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
     # إنشاء قاعدة البيانات والجداول
     conn_other = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
     c_other = conn_other.cursor()
@@ -1709,7 +1748,7 @@ if st.session_state.get('system_mode') == "other_assignments":
         except:
             pass
     conn_other.commit()
-        # ✅ إضافة عمود zjob2 للوظيفة الحالية
+        # ✅ إضافة عمود ZSCHOOL للوظيفة الحالية
     for table_name in ['guards', 'parcels', 'exam_device', 'exam_committee']:
         try:
             c_other.execute(f"ALTER TABLE {table_name} ADD COLUMN ZSCHOOL TEXT")
@@ -1740,7 +1779,7 @@ if st.session_state.get('system_mode') == "other_assignments":
         
         doc = Document(TEMPLATE_NAME)
         
-        # ✅ إصلاح 2: إخفاء ZWORK للحرس فقط + إصلاح ZJOBb
+        # ✅ إصلاح 2: إخفاء ZWORK للحرس فقط + إصلاح ZSCHOOL
         is_guard = str(row.get('zjob', '')).strip() == 'حارس'
         
         repls = {
@@ -1856,7 +1895,7 @@ if st.session_state.get('system_mode') == "other_assignments":
     """, unsafe_allow_html=True)
     
     # ✅ تم حذف رفع القالب لأنه أصبح على جيت هب
-    
+    st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
     st.divider()
     
     # التبويبات الأربعة
@@ -1887,7 +1926,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_guard:
                     if g_zid and g_zname:
-                        # ✅ تمرير zjob2 كمتغير منفصل (9 معاملات)
+                        # ✅ تمرير ZSCHOOL كمتغير منفصل (9 معاملات)
                         add_other_assignment('guards', g_zid, g_zname, g_zjob, g_ZSCHOOL, g_zwork, g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.guard_form_clear = True
@@ -1902,13 +1941,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة الحرس**")
             df_guard = get_other_assignments('guards')
             if not df_guard.empty:
-                # ✅ تحويل الأعمدة للعربي
+                # ✅ تحويل الأعمدة للعربي (استخدم ZSCHOOL بدلاً من zjobb)
                 df_display = df_guard.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'zjobb': 'الوظيفة الحالية',
+                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL مش zjobb
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
@@ -1920,7 +1959,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
-                st.dataframe(df_display[safe_cols], use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
                 
                 # ... بقية الكود ...
                 
@@ -1993,7 +2032,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_parcels:
                     if p_zid and p_zname:
-                        # ✅ تمرير zjob2 كمتغير منفصل
+                        # ✅ تمرير ZSCHOOL كمتغير منفصل
                         add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_ZSCHOOL, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.parcels_form_clear = True
@@ -2013,7 +2052,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'zjobb': 'الوظيفة الحالية',
+                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
@@ -2023,7 +2062,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
-                st.dataframe(df_display[safe_cols], use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
@@ -2092,7 +2131,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_device:
                     if d_zid and d_zname:
-                        # ✅ تمرير zjob2 كمتغير منفصل
+                        # ✅ تمرير ZSCHOOL كمتغير منفصل
                         add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_ZSCHOOL, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.device_form_clear = True
@@ -2107,13 +2146,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة جهاز الامتحان**")
             df_device = get_other_assignments('exam_device')
             if not df_device.empty:
-                         # ✅ تحويل الأعمدة للعربي
+                # ✅ تحويل الأعمدة للعربي (استخدم ZSCHOOL بدلاً من zjobb)
                 df_display = df_device.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'zjobb': 'الوظيفة الحالية',
+                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
@@ -2125,7 +2164,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
-                st.dataframe(df_display[safe_cols], use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
@@ -2194,7 +2233,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 if submit_committee:
                     if c_zid and c_zname:
-                        # ✅ تمرير zjob2 كمتغير منفصل
+                        # ✅ تمرير ZSCHOOL كمتغير منفصل
                         add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_ZSCHOOL, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
                         st.session_state.committee_form_clear = True
@@ -2209,13 +2248,13 @@ if st.session_state.get('system_mode') == "other_assignments":
             st.markdown("**📋 قائمة لجنة الامتحان**")
             df_committee = get_other_assignments('exam_committee')
             if not df_committee.empty:
-                         # ✅ تحويل الأعمدة للعربي
+                # ✅ تحويل الأعمدة للعربي (استخدم ZSCHOOL بدلاً من zjobb)
                 df_display = df_committee.copy()
                 arabic_cols = {
                     'zid': 'رقم الهوية',
                     'zname': 'الاسم',
                     'zjob': 'المهمة',
-                    'zjobb': 'الوظيفة الحالية',
+                    'ZSCHOOL': 'الوظيفة الحالية',  # ✅ صح: ZSCHOOL
                     'zwork': 'مكان التكليف',
                     'zloc': 'الموقع',
                     'zcity': 'السكن',
@@ -2227,7 +2266,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                 # إخفاء الأعمدة غير المرغوبة من العرض
                 cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
-                st.dataframe(df_display[safe_cols], use_container_width=True)
+                st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
     
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
