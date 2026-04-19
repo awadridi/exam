@@ -424,45 +424,45 @@ with tab_search:
                         st.success("✅ تم الحفظ")
                         time.sleep(0.5)
                         st.rerun()
-    st.divider()
-    c1, c2 = st.columns(2)
-    with c1:
-        current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
-        sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()),
-                             index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0),
-                             key=f"q_h_{st.session_state.system_mode}_{row['id']}_{idx}")
-        sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
-                             index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                             key=f"q_r_{st.session_state.system_mode}_{row['id']}_{idx}")
-    with c2:
-        if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
-            if row['preference'] == 'لا يرغب':
-                st.error("⚠️ هذا المعلم لا يرغب في التكليف، يرجى تغيير حالته أولاً")
-            elif row['ability'] == 'لا يصلح':
-                st.error("⚠️ هذا المعلم لا يصلح للمراقبة، يرجى تغيير حالته أولاً")
-            else:
-                h_city_val = hall_map.get(sel_h, "")
-                old_hall = row['hall']
-                c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
-                          (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
-                conn.commit()
-                add_audit_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}", old_hall, sel_h)
-                st.success("✅ تم الحفظ")
-                time.sleep(0.5)
-                st.rerun()
-    is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
-    if is_assigned:
-        if st.button("❌ إلغاء التكليف", key=f"del_search_{st.session_state.system_mode}_{row['id']}"):
-            old_hall = row['hall']
-            c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?",
-                      (st.session_state.username, row['id']))
-            conn.commit()
-            add_audit_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}", old_hall, "")
-            st.rerun()
-    if st.button("📥 إنشاء الكتاب", key=f"gen_s_{st.session_state.system_mode}_{row['id']}"):
-        f_word = generate_single_doc(row)
-        if f_word:
-            st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
+            st.divider()
+            c1, c2 = st.columns(2)
+            with c1:
+                current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
+                sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()),
+                                     index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0),
+                                     key=f"q_h_{st.session_state.system_mode}_{row['id']}_{idx}")
+                sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
+                                     index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
+                                     key=f"q_r_{st.session_state.system_mode}_{row['id']}_{idx}")
+            with c2:
+                if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
+                    if row['preference'] == 'لا يرغب':
+                        st.error("⚠️ هذا المعلم لا يرغب في التكليف، يرجى تغيير حالته أولاً")
+                    elif row['ability'] == 'لا يصلح':
+                        st.error("⚠️ هذا المعلم لا يصلح للمراقبة، يرجى تغيير حالته أولاً")
+                    else:
+                        h_city_val = hall_map.get(sel_h, "")
+                        old_hall = row['hall']
+                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
+                                  (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
+                        conn.commit()
+                        add_audit_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}", old_hall, sel_h)
+                        st.success("✅ تم الحفظ")
+                        time.sleep(0.5)
+                        st.rerun()
+            is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
+            if is_assigned:
+                if st.button("❌ إلغاء التكليف", key=f"del_search_{st.session_state.system_mode}_{row['id']}"):
+                    old_hall = row['hall']
+                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?",
+                              (st.session_state.username, row['id']))
+                    conn.commit()
+                    add_audit_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}", old_hall, "")
+                    st.rerun()
+            if st.button("📥 إنشاء الكتاب", key=f"gen_s_{st.session_state.system_mode}_{row['id']}"):
+                f_word = generate_single_doc(row)
+                if f_word:
+                    st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
 # ==================== تبويب التوزيع التلقائي ====================
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
