@@ -1128,6 +1128,11 @@ if st.session_state.get('system_mode') == "tasheeh":
         try:
             st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
         except: st.session_state['tasheeh_halls'] = pd.DataFrame()
+            # تهيئة متغيرات الاستعلامات الذكية
+    if 'run_tq_query' not in st.session_state:
+        st.session_state.run_tq_query = False
+    if 'tq_result_df' not in st.session_state:
+        st.session_state.tq_result_df = None
 
     def sync_tasheeh_data():
         try:
