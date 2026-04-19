@@ -1593,8 +1593,6 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.dataframe(df, use_container_width=True)
         else:
             st.info("لا يوجد سجلات تصحيح حالياً.")
-    
-    st.stop()
 
         # ==================== تبويب الاستعلامات الذكية للتصحيح ====================
     with corr_tab5:
