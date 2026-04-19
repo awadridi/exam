@@ -1135,67 +1135,67 @@ if st.session_state.get('system_mode') == "tasheeh":
         st.session_state.tq_result_df = None
 
     def sync_tasheeh_data():
-    try:
-        with st.spinner("🔄 جاري المزامنة والتنظيف العميق..."):
-            # 1️⃣ قراءة البيانات الجديدة من الإكسل
-            df_t = pd.read_csv(TEACHERS_URL, dtype=str)
-            df_t.columns = df_t.columns.str.strip().str.lower()
-            rename_map = {
-                'رقم الهوية': 'id', 'الاسم': 'name', 'المبحث': 'subject',
-                'مكان سكن المعلم': 'city', 'اسم المدرسة': 'school',
-                'رقم جواله': 'phone', 'هل له قريب مباشر او لا': 'relative'
-            }
-            df_t = df_t.rename(columns={k:v for k,v in rename_map.items() if k in df_t.columns})
-            
-            df_t['id'] = df_t['id'].astype(str).str.strip()
-            df_t['id'] = df_t['id'].str.replace(' ', '')
-            
-            before_csv = len(df_t)
-            df_t = df_t.drop_duplicates(subset=['id'], keep='first')
-            after_csv = len(df_t)
-            
-            # 2️⃣ ✅ حذف كل البيانات القديمة من قاعدة البيانات
-            c.execute("DELETE FROM tasheeh_teachers")
-            conn.commit()
-            
-            # 3️⃣ إضافة البيانات الجديدة فقط
-            for _, r in df_t.iterrows():
-                tid = str(r.get('id','')).strip().replace(' ', '')
-                if not tid: continue
-                c.execute("""INSERT INTO tasheeh_teachers 
-                             (id, name, subject, city, school, phone, relative) 
-                             VALUES (?,?,?,?,?,?,?)""",
-                          (tid, str(r.get('name','')), str(r.get('subject','')),
-                           str(r.get('city','')), str(r.get('school','')), 
-                           str(r.get('phone','')), str(r.get('relative',''))))
-            conn.commit()
-            
-            # 4️⃣ مزامنة القاعات
-            df_h = pd.read_csv(HALLS_URL, dtype=str)
-            df_h.columns = df_h.columns.str.strip().str.upper()
-            c.execute("DELETE FROM tasheeh_halls")
-            conn.commit()
-            for _, r in df_h.iterrows():
-                hname = str(r.get('ZHALL','')).strip()
-                if not hname: continue
-                c.execute("INSERT INTO tasheeh_halls (hall_name, city) VALUES (?,?)",
-                          (hname, str(r.get('ZLOC',''))))
-            conn.commit()
-            
-            # 5️⃣ تحديث الـ session state
-            st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
-            st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
-            
-            # 6️⃣ عرض النتيجة
-            actual_count = len(st.session_state['tasheeh_teachers'])
-            if before_csv > after_csv:
-                st.warning(f"⚠️ تم تجاهل `{before_csv - after_csv}` تكرار من الإكسل")
-            st.success(f"✅ تم التحديث بنجاح! العدد النهائي: `{actual_count}` موظف")
-            if actual_count != after_csv:
-                st.error(f"⚠️ تحذير: الإكسل فيه `{after_csv}` لكن قاعدة البيانات فيها `{actual_count}`")
-            st.rerun()
-    except Exception as e:
-        st.error(f"❌ خطأ أثناء المزامنة: {e}")
+        try:
+            with st.spinner("🔄 جاري المزامنة والتنظيف العميق..."):
+                # 1️⃣ قراءة البيانات الجديدة من الإكسل
+                df_t = pd.read_csv(TEACHERS_URL, dtype=str)
+                df_t.columns = df_t.columns.str.strip().str.lower()
+                rename_map = {
+                    'رقم الهوية': 'id', 'الاسم': 'name', 'المبحث': 'subject',
+                    'مكان سكن المعلم': 'city', 'اسم المدرسة': 'school',
+                    'رقم جواله': 'phone', 'هل له قريب مباشر او لا': 'relative'
+                }
+                df_t = df_t.rename(columns={k:v for k,v in rename_map.items() if k in df_t.columns})
+                
+                df_t['id'] = df_t['id'].astype(str).str.strip()
+                df_t['id'] = df_t['id'].str.replace(' ', '')
+                
+                before_csv = len(df_t)
+                df_t = df_t.drop_duplicates(subset=['id'], keep='first')
+                after_csv = len(df_t)
+                
+                # 2️⃣ ✅ حذف كل البيانات القديمة من قاعدة البيانات
+                c.execute("DELETE FROM tasheeh_teachers")
+                conn.commit()
+                
+                # 3️⃣ إضافة البيانات الجديدة فقط
+                for _, r in df_t.iterrows():
+                    tid = str(r.get('id','')).strip().replace(' ', '')
+                    if not tid: continue
+                    c.execute("""INSERT INTO tasheeh_teachers 
+                                 (id, name, subject, city, school, phone, relative) 
+                                 VALUES (?,?,?,?,?,?,?)""",
+                              (tid, str(r.get('name','')), str(r.get('subject','')),
+                               str(r.get('city','')), str(r.get('school','')), 
+                               str(r.get('phone','')), str(r.get('relative',''))))
+                conn.commit()
+                
+                # 4️⃣ مزامنة القاعات
+                df_h = pd.read_csv(HALLS_URL, dtype=str)
+                df_h.columns = df_h.columns.str.strip().str.upper()
+                c.execute("DELETE FROM tasheeh_halls")
+                conn.commit()
+                for _, r in df_h.iterrows():
+                    hname = str(r.get('ZHALL','')).strip()
+                    if not hname: continue
+                    c.execute("INSERT INTO tasheeh_halls (hall_name, city) VALUES (?,?)",
+                              (hname, str(r.get('ZLOC',''))))
+                conn.commit()
+                
+                # 5️⃣ تحديث الـ session state
+                st.session_state['tasheeh_teachers'] = pd.read_sql("SELECT * FROM tasheeh_teachers", conn)
+                st.session_state['tasheeh_halls'] = pd.read_sql("SELECT * FROM tasheeh_halls", conn)
+                
+                # 6️⃣ عرض النتيجة
+                actual_count = len(st.session_state['tasheeh_teachers'])
+                if before_csv > after_csv:
+                    st.warning(f"⚠️ تم تجاهل `{before_csv - after_csv}` تكرار من الإكسل")
+                st.success(f"✅ تم التحديث بنجاح! العدد النهائي: `{actual_count}` موظف")
+                if actual_count != after_csv:
+                    st.error(f"⚠️ تحذير: الإكسل فيه `{after_csv}` لكن قاعدة البيانات فيها `{actual_count}`")
+                st.rerun()
+        except Exception as e:
+            st.error(f"❌ خطأ أثناء المزامنة: {e}")
 
     def generate_tasheeh_letter(data, exam_name):
         if not os.path.exists(TEMPLATE_NAME):
