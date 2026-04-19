@@ -1198,43 +1198,50 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.error(f"❌ خطأ أثناء المزامنة: {e}")
 
     def generate_tasheeh_letter(data, exam_name):
-        if not os.path.exists(TEMPLATE_NAME):
-            return None
-        doc = Document(TEMPLATE_NAME)
-        
-        repls = {
-            'ZNAME': str(data.get('name', '---')),
-            'ZID': str(data.get('id', '---')),
-            'ZTEST': str(exam_name),
-            'ZHALL': str(data.get('hall_name', '---')),
-            'ZLOC': str(data.get('hall_city', '---')),
-            'ZWORK': str(data.get('school', data.get('ZWORK', '---'))),
-            'ZSCHOOL': str(data.get('school', '---')),
-            'ZCITY': str(data.get('city', '---')),
-            'ZSUBJECT': str(data.get('subject', '---')),
-            'ZDATE': str(data.get('exam_date', '---'))
-        }
-        
-        def replace_in_element(element, k, v):
-            for run in element.runs:
-                if k in run.text:
-                    run.text = run.text.replace(k, str(v))
-                    run.bold = True
-        
-        for p in doc.paragraphs:
-            for k, v in repls.items():
-                if k in p.text:
-                    replace_in_element(p, k, v)
-        
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for p in cell.paragraphs:
-                        for k, v in repls.items():
-                            if k in p.text:
-                                replace_in_element(p, k, v)
-        
-        return doc
+    if not os.path.exists(TEMPLATE_NAME):
+        return None
+    doc = Document(TEMPLATE_NAME)
+    
+    # ✅ معالجة القيم None أو الفارغة
+    def safe_get(data, key, default='---'):
+        val = data.get(key, default)
+        if val is None or str(val).strip().lower() in ['nan', 'none', '']:
+            return default
+        return str(val)
+    
+    repls = {
+        'ZNAME': safe_get(data, 'name'),
+        'ZID': safe_get(data, 'id'),
+        'ZTEST': str(exam_name),
+        'ZHALL': safe_get(data, 'hall_name'),
+        'ZLOC': safe_get(data, 'hall_city'),
+        'ZWORK': safe_get(data, 'school'),
+        'ZSCHOOL': safe_get(data, 'school'),
+        'ZCITY': safe_get(data, 'city'),
+        'ZSUBJECT': safe_get(data, 'subject'),
+        'ZDATE': safe_get(data, 'exam_date')
+    }
+    
+    def replace_in_element(element, k, v):
+        for run in element.runs:
+            if k in run.text:
+                run.text = run.text.replace(k, str(v))
+                run.bold = True
+    
+    for p in doc.paragraphs:
+        for k, v in repls.items():
+            if k in p.text:
+                replace_in_element(p, k, v)
+    
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    for k, v in repls.items():
+                        if k in p.text:
+                            replace_in_element(p, k, v)
+    
+    return doc
     
     st.markdown("""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%);
