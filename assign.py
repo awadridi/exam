@@ -1485,7 +1485,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                                         'ZSUBJECT': str(a.get('subject', '---') or '---'),
                                         'ZDATE': str(a.get('exam_date', '---') or '---')
                                     }
-                                                                    for p in temp_doc.paragraphs:
+                                    for p in temp_doc.paragraphs:
                                         for k, v in repls.items():
                                             if k in p.text:
                                                 for run in p.runs:
