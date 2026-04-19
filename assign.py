@@ -1474,14 +1474,18 @@ if st.session_state.get('system_mode') == "tasheeh":
                                 for i, a in enumerate(current_list):
                                     temp_doc = Document(TEMPLATE_NAME)
                                     repls = {
-                                        'ZNAME': str(a.get('name', '---')), 'ZID': str(a.get('id', '---')),
-                                        'ZTEST': str(a.get('exam_name', '---')), 'ZHALL': str(a.get('hall_name', '---')),
-                                        'ZLOC': str(a.get('hall_city', '---')), 
-                                        'ZWORK': str(a.get('school', a.get('ZWORK', '---'))),
-                                        'ZSCHOOL': str(a.get('school', '---')), 'ZCITY': str(a.get('city', '---')),
-                                        'ZSUBJECT': str(a.get('subject', '---')), 'ZDATE': str(a.get('exam_date', '---')) 
+                                        'ZNAME': str(a.get('name', '---') or '---'),
+                                        'ZID': str(a.get('id', '---') or '---'),
+                                        'ZTEST': str(a.get('exam_name', '---') or '---'),
+                                        'ZHALL': str(a.get('hall_name', '---') or '---'),
+                                        'ZLOC': str(a.get('hall_city', '---') or '---'),
+                                        'ZWORK': str(a.get('school', '---') or '---'),
+                                        'ZSCHOOL': str(a.get('school', '---') or '---'),
+                                        'ZCITY': str(a.get('city', '---') or '---'),
+                                        'ZSUBJECT': str(a.get('subject', '---') or '---'),
+                                        'ZDATE': str(a.get('exam_date', '---') or '---')
                                     }
-                                    for p in temp_doc.paragraphs:
+                                                                    for p in temp_doc.paragraphs:
                                         for k, v in repls.items():
                                             if k in p.text:
                                                 for run in p.runs:
