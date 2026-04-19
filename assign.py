@@ -106,36 +106,25 @@ else:
 st.set_page_config(page_title=PAGE_TITLE, layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""
 <style>
-/* ✅ تصحيح شامل للمحاذاة والاتجاه */
-html, body, .stApp, main, section, div[data-testid="stAppViewContainer"] { direction: rtl !important; text-align: right !important; }
-.custom-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #1a1c23; color: white; text-align: center; padding: 15px 0; z-index: 999999; border-bottom: 2px solid #00ffcc; line-height: 1.5; direction: rtl; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); }
-.stApp { margin-top: 80px; }
-header { visibility: hidden; }
-.main, .stApp { direction: rtl; text-align: right; background-color: #0e1117; }
-.user-box { background-color: #1a1c23; padding: 5px 15px; border-radius: 8px; border-right: 5px solid #00ffcc; display: inline-block; float: right; }
-.counter-card { background-color: #1a1c23; padding: 10px; border-radius: 10px; text-align: center; border: 1px solid #333; margin-bottom: 5px; }
-.counter-label { color: #bbb; font-size: 0.85rem; }
-.counter-value { color: #00ffcc; font-size: 1.5rem; font-weight: bold; }
-div[data-baseweb="select"], div[data-baseweb="input"], .stMultiSelect { direction: rtl !important; text-align: right !important; }
-div[data-testid="stExpander"] { border: 1px solid #444 !important; background-color: #1a1c23 !important; }
-button[key^="btn_"] { background-color: #28a745 !important; color: white !important; }
-button[key^="del_"] { background-color: #dc3545 !important; color: white !important; }
-.stDownloadButton button { background-color: #007bff !important; color: white !important; }
-.editor-info { color: #ffc107 !important; font-size: 0.9rem; font-weight: bold; }
-[data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #00ffcc !important; }
-.stat-card { flex: 1; padding: 15px; border-radius: 10px; text-align: center; min-width: 150px; border: 1px solid #333; }
-.stat-wants { border-top: 5px solid #28a745; background-color: #1a2e1f; }
-.stat-no-wants { border-top: 5px solid #dc3545; background-color: #2e1a1a; }
-.move-to-right { text-align: right !important; direction: rtl !important; display: block; width: 100%; color: white; }
-[data-testid="stSidebar"] { display: none; }
-/* ✅ تنسيق صفحة الطباعة */
-.print-preview { background: white; color: black; padding: 20px; border-radius: 5px; direction: rtl; text-align: right; }
-.print-preview table { width: 100%; border-collapse: collapse; }
-.print-preview td { padding: 8px; border: 1px solid #000; }
-/* ✅ تعويض أي تداخل في ستريمليت */
-.stTabs [data-baseweb="tab-list"] { direction: rtl !important; }
-.stTabs [data-baseweb="tab"] { direction: rtl !important; }
-.stTable table, .stTable th, .stTable td { direction: rtl !important; text-align: right !important; }
+.custom-header {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+background-color: #1a1c23;
+color: white;
+text-align: center;
+padding: 15px 0;
+z-index: 999999;
+border-bottom: 2px solid #00ffcc;
+line-height: 1.5;
+direction: rtl;
+box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+}
+.stApp {
+margin-top: 80px;
+}
+header {visibility: hidden;}
 </style>
 <div class="custom-header">
 <div style="font-weight: bold; font-size: 1.2rem; text-align: center;">إعداد وتصميم : عوض نعمان ريده</div>
@@ -424,45 +413,45 @@ with tab_search:
                         st.success("✅ تم الحفظ")
                         time.sleep(0.5)
                         st.rerun()
-            st.divider()
-            c1, c2 = st.columns(2)
-            with c1:
-                current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
-                sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()),
-                                     index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0),
-                                     key=f"q_h_{st.session_state.system_mode}_{row['id']}_{idx}")
-                sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
-                                     index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
-                                     key=f"q_r_{st.session_state.system_mode}_{row['id']}_{idx}")
-            with c2:
-                if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
-                    if row['preference'] == 'لا يرغب':
-                        st.error("⚠️ هذا المعلم لا يرغب في التكليف، يرجى تغيير حالته أولاً")
-                    elif row['ability'] == 'لا يصلح':
-                        st.error("⚠️ هذا المعلم لا يصلح للمراقبة، يرجى تغيير حالته أولاً")
-                    else:
-                        h_city_val = hall_map.get(sel_h, "")
+                st.divider()
+                c1, c2 = st.columns(2)
+                with c1:
+                    current_hall = row['hall'] if row['hall'] and str(row['hall']).lower() != 'nan' else ""
+                    sel_h = st.selectbox("القاعة", [""] + list(hall_map.keys()),
+                                         index=(list(hall_map.keys()).index(current_hall)+1 if current_hall in hall_map else 0),
+                                         key=f"q_h_{st.session_state.system_mode}_{row['id']}_{idx}")
+                    sel_r = st.selectbox("المهمة", ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"],
+                                         index=(["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"].index(row['role']) if row['role'] in ["", "رئيس قاعة", "مساعد رئيس قاعة", "مراقب", "آذن"] else 0),
+                                         key=f"q_r_{st.session_state.system_mode}_{row['id']}_{idx}")
+                with c2:
+                    if st.button("💾 حفظ التكليف", key=f"btn_save_{st.session_state.system_mode}_{row['id']}_{idx}"):
+                        if row['preference'] == 'لا يرغب':
+                            st.error("⚠️ هذا المعلم لا يرغب في التكليف، يرجى تغيير حالته أولاً")
+                        elif row['ability'] == 'لا يصلح':
+                            st.error("⚠️ هذا المعلم لا يصلح للمراقبة، يرجى تغيير حالته أولاً")
+                        else:
+                            h_city_val = hall_map.get(sel_h, "")
+                            old_hall = row['hall']
+                            c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
+                                      (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
+                            conn.commit()
+                            add_audit_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}", old_hall, sel_h)
+                            st.success("✅ تم الحفظ")
+                            time.sleep(0.5)
+                            st.rerun()
+                is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
+                if is_assigned:
+                    if st.button("❌ إلغاء التكليف", key=f"del_search_{st.session_state.system_mode}_{row['id']}"):
                         old_hall = row['hall']
-                        c.execute("UPDATE teachers SET hall=?, role=?, hall_city=?, updated_by=? WHERE id=?",
-                                  (sel_h, sel_r, h_city_val, st.session_state.username, row['id']))
+                        c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?",
+                                  (st.session_state.username, row['id']))
                         conn.commit()
-                        add_audit_log("حفظ تكليف", f"تم تكليف {row['name']} في {sel_h}", old_hall, sel_h)
-                        st.success("✅ تم الحفظ")
-                        time.sleep(0.5)
+                        add_audit_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}", old_hall, "")
                         st.rerun()
-            is_assigned = row['hall'] and str(row['hall']).strip() != "" and str(row['hall']).lower() != 'nan'
-            if is_assigned:
-                if st.button("❌ إلغاء التكليف", key=f"del_search_{st.session_state.system_mode}_{row['id']}"):
-                    old_hall = row['hall']
-                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?",
-                              (st.session_state.username, row['id']))
-                    conn.commit()
-                    add_audit_log("إلغاء تكليف", f"تم إلغاء تكليف {row['name']}", old_hall, "")
-                    st.rerun()
-            if st.button("📥 إنشاء الكتاب", key=f"gen_s_{st.session_state.system_mode}_{row['id']}"):
-                f_word = generate_single_doc(row)
-                if f_word:
-                    st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
+                if st.button("📥 إنشاء الكتاب", key=f"gen_s_{st.session_state.system_mode}_{row['id']}"):
+                    f_word = generate_single_doc(row)
+                    if f_word:
+                        st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
 # ==================== تبويب التوزيع التلقائي ====================
 with tab_auto:
     st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
@@ -1058,29 +1047,27 @@ if st.session_state.get('system_mode') == "tasheeh":
         except Exception as e:
             st.error(f"❌ خطأ أثناء المزامنة: {e}")
     def generate_tasheeh_letter(data, exam_name):
-        # ✅ تم تصحيح مسار القالب لمنع الخطأ
-        template_path = data.get('template_path', TEMPLATE_NAME)
-        if not os.path.exists(template_path):
+        if not os.path.exists(TEMPLATE_NAME):
             return None
-        doc = Document(template_path)
+        doc = Document(TEMPLATE_NAME)
         # ✅ معالجة القيم None أو الفارغة
         def safe_get(data, key, default='---'):
             val = data.get(key, default)
             if val is None or str(val).strip().lower() in ['nan', 'none', '']:
                 return default
             return str(val)
+        # ✅ تم إضافة الحقول الثلاثة المطلوبة بدقة في كتاب التصحيح
         repls = {
-            # ✅ تم ضبط الحقول بدقة لرقم الهوية، مكان السكن، مكان العمل الأصلي
-            'ZNAME': safe_get(data, 'teacher_name', data.get('name', '---')),
-            'ZID': safe_get(data, 'teacher_id', data.get('id', '---')),
-            'ZCITY': safe_get(data, 'city', '---'),
-            'ZSCHOOL': safe_get(data, 'school', '---'),
+            'ZNAME': safe_get(data, 'name'),
+            'ZID': safe_get(data, 'id'),          # رقم الهوية
+            'ZCITY': safe_get(data, 'city'),      # مكان السكن
+            'ZWORK': safe_get(data, 'school'),    # مكان العمل الأصلي
             'ZTEST': str(exam_name),
-            'ZHALL': safe_get(data, 'hall_name', '---'),
-            'ZLOC': safe_get(data, 'hall_city', '---'),
-            'ZWORK': safe_get(data, 'school', '---'),
-            'ZSUBJECT': safe_get(data, 'subject', '---'),
-            'ZDATE': safe_get(data, 'exam_date', '---')
+            'ZHALL': safe_get(data, 'hall_name'),
+            'ZLOC': safe_get(data, 'hall_city'),
+            'ZSCHOOL': safe_get(data, 'school'),
+            'ZSUBJECT': safe_get(data, 'subject'),
+            'ZDATE': safe_get(data, 'exam_date')
         }
         def replace_in_element(element, k, v):
             for run in element.runs:
