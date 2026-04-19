@@ -1710,11 +1710,19 @@ if st.session_state.get('system_mode') == "tasheeh":
                 
                 # ✅ دمج معلومات القاعة والتكليف من جدول التكليفات
                 if not assigns_df.empty:
-                    df = df.merge(
-                        assigns_df[['teacher_id', 'hall_name', 'hall_city', 'exam_date', 'exam_day']].drop_duplicates(subset=['teacher_id']),
-                        left_on='id', right_on='teacher_id', how='left'
-                    ).drop(columns=['teacher_id'])
+                    try:
+                        df = df.merge(
+                            assigns_df[['teacher_id', 'hall_name', 'hall_city', 'exam_date', 'exam_day']].drop_duplicates(subset=['teacher_id']),
+                            left_on='id', right_on='teacher_id', how='left'
+                        ).drop(columns=['teacher_id'])
+                    except:
+                        pass  # تجاوز أي خطأ في الدمج
                 
+                # ✅ إضافة الأعمدة إذا لم تكن موجودة لتجنب KeyError لاحقاً
+                for col in ['hall_name', 'hall_city', 'exam_date', 'exam_day']:
+                    if col not in df.columns:
+                        df[col] = None
+                        
                 st.session_state.tq_result_df = df.copy()
             
             st.session_state.run_tq_query = False
@@ -1725,8 +1733,12 @@ if st.session_state.get('system_mode') == "tasheeh":
             total = len(df_res)
             
             # حساب المكلفين وغير المكلفين
-            assigned_mask = df_res['hall_name'].notna() & (df_res['hall_name'].astype(str).str.strip() != "")
-            assigned_count = int(assigned_mask.sum())
+            # حساب المكلفين وغير المكلفين - ✅ تعديل للتعامل مع العمود المفقود أو القيم الفارغة
+            if 'hall_name' in df_res.columns:
+                assigned_mask = df_res['hall_name'].notna() & (df_res['hall_name'].astype(str).str.strip() != "")
+                assigned_count = int(assigned_mask.sum())
+            else:
+                assigned_count = 0  # إذا لم يوجد عمود القاعة، نفترض أن الجميع غير مكلفين
             unassigned_count = total - assigned_count
             pct = (assigned_count / max(total, 1)) * 100
 
