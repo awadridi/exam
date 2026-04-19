@@ -1750,18 +1750,7 @@ if st.session_state.get('system_mode') == "tasheeh":
 
             st.divider()
             
-            # 📈 توزيع حسب المبحث
-            if 'subject' in df_res.columns and df_res['subject'].nunique() > 1:
-                st.markdown('<h4 style="text-align: right; direction: rtl;">📊 توزيع النتائج حسب المبحث</h4>', unsafe_allow_html=True)
-                st.bar_chart(df_res['subject'].value_counts(), horizontal=True)
-                st.divider()
-
-            # 📈 توزيع حسب المدينة
-            if 'city' in df_res.columns and df_res['city'].nunique() > 1:
-                st.markdown('<h4 style="text-align: right; direction: rtl;">🏙️ توزيع النتائج حسب مدينة السكن</h4>', unsafe_allow_html=True)
-                st.bar_chart(df_res['city'].value_counts().head(10), horizontal=True)
-                st.divider()
-
+           
             # 📋 جدول النتائج
             st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
             
