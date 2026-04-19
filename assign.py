@@ -1399,7 +1399,11 @@ if st.session_state.get('system_mode') == "tasheeh":
                         st.error("❌ لم يتم التوزيع.")
     
     with corr_tab3:
-        assigns = st.session_state.get('tasheeh_assignments', [])
+        try:
+        assigns_df = pd.read_sql("SELECT * FROM tasheeh_assignments ORDER BY id", conn)
+        assigns = assigns_df.to_dict('records') if not assigns_df.empty else []
+        except:
+        assigns = []
         
         if not assigns:
             st.info("📌 لم يتم توزيع أي تكليفات بعد. اذهب لتبويب التوزيع التلقائي.")
