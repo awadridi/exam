@@ -1249,8 +1249,8 @@ if st.session_state.get('system_mode') == "tasheeh":
         </style>
     """, unsafe_allow_html=True)
            
-    corr_tab1, corr_tab2, corr_tab3, corr_tab4 = st.tabs([
-        "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات"
+    corr_tab1, corr_tab2, corr_tab3, corr_tab4, corr_tab5 = st.tabs([
+    "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات", "🔎 الاستعلامات الذكية"
     ])
     
     with corr_tab1:
@@ -1591,7 +1591,229 @@ if st.session_state.get('system_mode') == "tasheeh":
     
     st.stop()
 
+        # ==================== تبويب الاستعلامات الذكية للتصحيح ====================
+    with corr_tab5:
+        st.markdown("""
+        <style>
+        .stApp [data-testid="stVerticalBlock"] > div:first-child { direction: rtl !important; text-align: right !important; }
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown p, .stMarkdown label { direction: rtl !important; text-align: right !important; }
+        input[type="text"], input[type="search"], select, textarea, .stTextInput > div > div > input, .stSelectbox > div > div > select { direction: rtl !important; text-align: right !important; }
+        .stButton > button { direction: rtl !important; }
+        [data-testid="stMetric"] { direction: rtl !important; text-align: center !important; }
+        [data-testid="stMetricLabel"] { direction: rtl !important; }
+        [data-testid="stMetricValue"] { direction: ltr !important; text-align: center !important; }
+        table, th, td, [data-testid="stDataFrame"] { direction: rtl !important; text-align: right !important; }
+        .stColumns > div { direction: rtl !important; }
+        </style>
+        """, unsafe_allow_html=True)
 
+        st.markdown('<h2 style="text-align: right; direction: rtl;">🔎 نظام الاستعلامات الذكية - تصحيح الثانوية العامة</h2>', unsafe_allow_html=True)
+        
+        # تهيئة متغيرات الجلسة
+        for k in ['tq_subject', 'tq_city', 'tq_hall', 'tq_assigned', 'tq_search', 'tq_relative']:
+            if k not in st.session_state: 
+                st.session_state[k] = "الكل" if k != 'tq_search' else ""
+
+        # 📊 تقارير سريعة
+        st.markdown('<h3 style="text-align: right; direction: rtl;">⚡ تقارير سريعة</h3>', unsafe_allow_html=True)
+        
+        teachers_df = st.session_state.get('tasheeh_teachers', pd.DataFrame())
+        assigns_df = pd.DataFrame(st.session_state.get('tasheeh_assignments', []))
+        
+        q1, q2, q3, q4, q5, q6 = st.columns(6)
+        
+        def run_tq_report(subject="الكل", city="الكل", hall="الكل", assigned="الكل", relative="الكل"):
+            st.session_state.update({'tq_subject': subject, 'tq_city': city, 'tq_hall': hall, 'tq_assigned': assigned, 'tq_relative': relative})
+            st.session_state.run_tq_query = True
+            st.rerun()
+
+        with q1:
+            if st.button("📚 جميع المباحث", use_container_width=True): 
+                run_tq_report()
+        with q2:
+            if st.button("✅ المكلفون حالياً", use_container_width=True): 
+                run_tq_report(assigned="مكلف")
+        with q3:
+            if st.button("⏳ غير مكلفين", use_container_width=True): 
+                run_tq_report(assigned="غير مكلف")
+        with q4:
+            if st.button("🔗 معلمون لهم أقارب", use_container_width=True): 
+                run_tq_report(relative="نعم")
+        with q5:
+            if st.button("🏙️ حسب المدينة", use_container_width=True): 
+                st.session_state.tq_city = st.selectbox("اختر المدينة:", ["الكل"] + sorted(teachers_df['city'].dropna().unique().tolist()) if not teachers_df.empty else ["الكل"], key="quick_city_sel")
+        with q6:
+            if st.button("🔄 تحديث النتائج", use_container_width=True): 
+                st.session_state.run_tq_query = True
+
+        st.divider()
+
+        # ⚙️ فلترة متقدمة
+        st.markdown('<h3 style="text-align: right; direction: rtl;">⚙️ فلترة متقدمة</h3>', unsafe_allow_html=True)
+        
+        subjects_opts = ["الكل"] + sorted(teachers_df['subject'].dropna().unique().tolist()) if not teachers_df.empty else ["الكل"]
+        cities_opts = ["الكل"] + sorted(teachers_df['city'].dropna().unique().tolist()) if not teachers_df.empty else ["الكل"]
+        halls_opts = ["الكل"] + sorted(st.session_state.get('tasheeh_halls', pd.DataFrame())['hall_name'].dropna().unique().tolist()) if not st.session_state.get('tasheeh_halls', pd.DataFrame()).empty else ["الكل"]
+        
+        f1, f2, f3, f4, f5 = st.columns(5)
+        with f1:
+            st.session_state.tq_subject = st.selectbox("📚 المبحث:", subjects_opts, index=0 if st.session_state.tq_subject=="الكل" else (subjects_opts.index(st.session_state.tq_subject) if st.session_state.tq_subject in subjects_opts else 0), key="tq_sel_subject")
+        with f2:
+            st.session_state.tq_city = st.selectbox("🏡 مدينة السكن:", cities_opts, index=0 if st.session_state.tq_city=="الكل" else (cities_opts.index(st.session_state.tq_city) if st.session_state.tq_city in cities_opts else 0), key="tq_sel_city")
+        with f3:
+            st.session_state.tq_hall = st.selectbox("🏫 القاعة:", halls_opts, index=0 if st.session_state.tq_hall=="الكل" else (halls_opts.index(st.session_state.tq_hall) if st.session_state.tq_hall in halls_opts else 0), key="tq_sel_hall")
+        with f4:
+            st.session_state.tq_assigned = st.selectbox("📌 حالة التكليف:", ["الكل", "مكلف", "غير مكلف"], index=0 if st.session_state.tq_assigned=="الكل" else ["الكل","مكلف","غير مكلف"].index(st.session_state.tq_assigned), key="tq_sel_assigned")
+        with f5:
+            st.session_state.tq_relative = st.selectbox("🔗 قريب مباشر:", ["الكل", "نعم", "لا"], index=0 if st.session_state.tq_relative=="الكل" else ["الكل","نعم","لا"].index(st.session_state.tq_relative), key="tq_sel_relative")
+
+        st.session_state.tq_search = st.text_input("🔍 بحث حر (اسم، هوية، مدرسة، جوال):", value=st.session_state.tq_search, key="tq_txt_search")
+
+        if st.button("🚀 تنفيذ الاستعلام", type="primary", use_container_width=True, key="tq_btn_run"):
+            st.session_state.run_tq_query = True
+
+        # 🔄 معالجة الاستعلام
+        if st.session_state.get('run_tq_query', False):
+            df = teachers_df.copy() if not teachers_df.empty else pd.DataFrame()
+            
+            if not df.empty:
+                # فلترة حسب المبحث
+                if st.session_state.tq_subject != "الكل":
+                    df = df[df['subject'] == st.session_state.tq_subject]
+                
+                # فلترة حسب المدينة
+                if st.session_state.tq_city != "الكل":
+                    df = df[df['city'] == st.session_state.tq_city]
+                
+                # فلترة حسب وجود قريب
+                if st.session_state.tq_relative == "نعم":
+                    df = df[df['relative'].astype(str).str.lower().isin(['نعم', 'true', 'yes', '1'])]
+                elif st.session_state.tq_relative == "لا":
+                    df = df[~df['relative'].astype(str).str.lower().isin(['نعم', 'true', 'yes', '1'])]
+                
+                # فلترة حسب حالة التكليف (من جدول التكليفات)
+                if st.session_state.tq_assigned != "الكل" and not assigns_df.empty:
+                    assigned_ids = assigns_df['teacher_id'].astype(str).unique()
+                    if st.session_state.tq_assigned == "مكلف":
+                        df = df[df['id'].astype(str).isin(assigned_ids)]
+                    else:  # غير مكلف
+                        df = df[~df['id'].astype(str).isin(assigned_ids)]
+                
+                # بحث حر
+                if st.session_state.tq_search:
+                    search_term = st.session_state.tq_search
+                    mask = df.astype(str).apply(lambda col: col.str.contains(search_term, case=False, na=False)).any(axis=1)
+                    df = df[mask]
+                
+                # ✅ دمج معلومات القاعة والتكليف من جدول التكليفات
+                if not assigns_df.empty:
+                    df = df.merge(
+                        assigns_df[['teacher_id', 'hall_name', 'hall_city', 'exam_date', 'exam_day']].drop_duplicates(subset=['teacher_id']),
+                        left_on='id', right_on='teacher_id', how='left'
+                    ).drop(columns=['teacher_id'])
+                
+                st.session_state.tq_result_df = df.copy()
+            
+            st.session_state.run_tq_query = False
+
+        # 📊 عرض النتائج
+        if st.session_state.get('tq_result_df') is not None and not st.session_state.tq_result_df.empty:
+            df_res = st.session_state.tq_result_df
+            total = len(df_res)
+            
+            # حساب المكلفين وغير المكلفين
+            assigned_mask = df_res['hall_name'].notna() & (df_res['hall_name'].astype(str).str.strip() != "")
+            assigned_count = int(assigned_mask.sum())
+            unassigned_count = total - assigned_count
+            pct = (assigned_count / max(total, 1)) * 100
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("📊 إجمالي النتائج", total)
+            c2.metric("✅ المكلفون", assigned_count)
+            c3.metric("⏳ غير مكلفين", unassigned_count)
+            c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
+
+            st.divider()
+            
+            # 📈 توزيع حسب المبحث
+            if 'subject' in df_res.columns and df_res['subject'].nunique() > 1:
+                st.markdown('<h4 style="text-align: right; direction: rtl;">📊 توزيع النتائج حسب المبحث</h4>', unsafe_allow_html=True)
+                st.bar_chart(df_res['subject'].value_counts(), horizontal=True)
+                st.divider()
+
+            # 📈 توزيع حسب المدينة
+            if 'city' in df_res.columns and df_res['city'].nunique() > 1:
+                st.markdown('<h4 style="text-align: right; direction: rtl;">🏙️ توزيع النتائج حسب مدينة السكن</h4>', unsafe_allow_html=True)
+                st.bar_chart(df_res['city'].value_counts().head(10), horizontal=True)
+                st.divider()
+
+            # 📋 جدول النتائج
+            st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
+            
+            df_display = df_res.copy()
+            arabic_map = {
+                'id': 'رقم الهوية',
+                'name': 'اسم المصحح',
+                'subject': 'المبحث',
+                'city': 'مدينة السكن',
+                'school': 'المدرسة',
+                'phone': 'رقم الجوال',
+                'relative': 'قريب مباشر',
+                'hall_name': 'القاعة المكلف بها',
+                'hall_city': 'مدينة القاعة',
+                'exam_date': 'تاريخ التصحيح',
+                'exam_day': 'يوم التصحيح'
+            }
+            df_display = df_display.rename(columns={k: v for k, v in arabic_map.items() if k in df_display.columns})
+
+            display_cols = ['اسم المصحح', 'رقم الهوية', 'المبحث', 'المدرسة', 'مدينة السكن', 'رقم الجوال', 'القاعة المكلف بها', 'تاريخ التصحيح', 'قريب مباشر']
+            safe_cols = [c for c in display_cols if c in df_display.columns]
+            
+            st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
+
+            st.divider()
+            
+            # 📥 تصدير إلى Excel
+            if st.button("📥 تصدير التقرير إلى Excel", type="secondary", key="tq_btn_export_excel"):
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df_export = df_display[safe_cols].copy()
+                    df_export.to_excel(writer, index=False, sheet_name='نتائج_الاستعلام')
+                    
+                    wb = writer.book
+                    ws = writer.sheets['نتائج_الاستعلام']
+                    header_fmt = wb.add_format({'bold': True, 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'align': 'center', 'font_size': 12})
+                    cell_fmt = wb.add_format({'border': 1, 'align': 'right', 'font_size': 11})
+                    ws.right_to_left()
+                    ws.set_landscape()
+                    ws.fit_to_pages(1, 0)
+                    ws.set_default_row(height=25)
+                    
+                    for col_num, col_name in enumerate(df_export.columns):
+                        ws.write(0, col_num, col_name, header_fmt)
+                        max_len = max(df_export[col_name].astype(str).str.len().max(), len(col_name)) + 5
+                        ws.set_column(col_num, col_num, min(max_len, 40), cell_fmt)
+                
+                st.download_button(
+                    label="📥 تحميل ملف Excel",
+                    data=output.getvalue(),
+                    file_name=f"تقرير_استعلام_تصحيح_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="tq_dl_excel"
+                )
+                
+        elif st.session_state.get('tq_result_df') is not None:
+            st.info("ℹ️ لا توجد نتائج مطابقة للشروط المختارة. جرب تعديل الفلاتر.")
+        
+        # 💡 مساعدة
+        with st.expander("💡 نصائح للاستعلام الفعال"):
+            st.markdown("""
+            - ✅ استخدم **التقارير السريعة** للوصول الفوري للبيانات الشائعة
+            - 🔍 في **البحث الحر** يمكنك البحث في أي حقل (الاسم، الهوية، المدرسة، الجوال)
+            - 📊 لفلترة **المكلفين فقط**: اختر "مكلف" في حالة التكليف
+            - 🔗 لفلترة **المعلمين الذين لهم أقارب**: اختر "نعم" في خيار قريب مباشر
+            - 📥 يمكن تصدير أي نتيجة إلى **Excel** منسق وجاهز للطباعة
+            """)
 # ============================================================================
 # 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً
 # ============================================================================
