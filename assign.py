@@ -1400,10 +1400,10 @@ if st.session_state.get('system_mode') == "tasheeh":
     
     with corr_tab3:
         try:
-        assigns_df = pd.read_sql("SELECT * FROM tasheeh_assignments ORDER BY id", conn)
-        assigns = assigns_df.to_dict('records') if not assigns_df.empty else []
+            assigns_df = pd.read_sql("SELECT * FROM tasheeh_assignments ORDER BY id", conn)
+            assigns = assigns_df.to_dict('records') if not assigns_df.empty else []
         except:
-        assigns = []
+            assigns = []
         
         if not assigns:
             st.info("📌 لم يتم توزيع أي تكليفات بعد. اذهب لتبويب التوزيع التلقائي.")
