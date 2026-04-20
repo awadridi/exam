@@ -1114,9 +1114,17 @@ if st.session_state.get('system_mode') == "tasheeh":
         teacher_id TEXT, teacher_name TEXT, subject TEXT,
         hall_name TEXT, hall_city TEXT, exam_name TEXT,
         exam_date TEXT, exam_day TEXT, 
-        school TEXT, city TEXT,
+        school TEXT, city TEXT,                 # ✅ أضفناهم هنا
         created_at TEXT, created_by TEXT
     )''')
+
+    # وأضف هذا مباشرة بعده لإصلاح الجداول القديمة الموجودة
+    for col in ['school', 'city']:
+        try:
+            c.execute(f"ALTER TABLE tasheeh_assignments ADD COLUMN {col} TEXT DEFAULT ''")
+            conn.commit()
+        except:
+            pass
     
     conn.commit()
     
@@ -1395,12 +1403,14 @@ if st.session_state.get('system_mode') == "tasheeh":
                         for a in assignments:
                             try:
                                 # الإصلاح - أضف school و city
+                                # ✅ الصحيح
                                 c.execute("""INSERT INTO tasheeh_assignments 
                                              (teacher_id,teacher_name,subject,hall_name,hall_city,exam_name,
                                               exam_date,exam_day,school,city,created_at,created_by) 
                                              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                                          (a['id'],a['name'],a['subject'],a['hall_name'],a['hall_city'],a['exam_name'],
-                                          a['exam_date'],a['exam_day'],a['school'],a['city'],
+                                          a['exam_date'],a['exam_day'],
+                                          a.get('school',''),a.get('city',''),  # ✅ هذا السطر الجديد
                                           a['timestamp'],st.session_state.username))
                                          
                             except: pass
@@ -1476,18 +1486,18 @@ if st.session_state.get('system_mode') == "tasheeh":
                                 
                                 for i, a in enumerate(current_list):
                                     temp_doc = Document(TEMPLATE_NAME)
+                                    # ✅ الصحيح
                                     repls = {
-                                        'ZNAME': str(a.get('name', '---') or '---'),
-                                        # الإصلاح:
-                                        'ZID': str(a.get('teacher_id', a.get('id', '---')) or '---'),  # ✅
-                                        'ZTEST': str(a.get('exam_name', '---') or '---'),
-                                        'ZHALL': str(a.get('hall_name', '---') or '---'),
-                                        'ZLOC': str(a.get('hall_city', '---') or '---'),
-                                        'ZWORK': str(a.get('school', '---') or '---'),
-                                        'ZSCHOOL': str(a.get('school', '---') or '---'),
-                                        'ZCITY': str(a.get('city', '---') or '---'),
-                                        'ZSUBJECT': str(a.get('subject', '---') or '---'),
-                                        'ZDATE': str(a.get('exam_date', '---') or '---')
+                                        'ZNAME':   str(a.get('teacher_name', '---') or '---'),  # ✅ teacher_name
+                                        'ZID':     str(a.get('teacher_id',   '---') or '---'),  # ✅ teacher_id
+                                        'ZTEST':   str(a.get('exam_name',    '---') or '---'),
+                                        'ZHALL':   str(a.get('hall_name',    '---') or '---'),
+                                        'ZLOC':    str(a.get('hall_city',    '---') or '---'),
+                                        'ZWORK':   str(a.get('school',       '---') or '---'),  # ✅ من العمود الجديد
+                                        'ZSCHOOL': str(a.get('school',       '---') or '---'),
+                                        'ZCITY':   str(a.get('city',         '---') or '---'),  # ✅ من العمود الجديد
+                                        'ZSUBJECT':str(a.get('subject',      '---') or '---'),
+                                        'ZDATE':   str(a.get('exam_date',    '---') or '---')
                                     }
                                     for p in temp_doc.paragraphs:
                                         for k, v in repls.items():
