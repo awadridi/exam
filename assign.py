@@ -1101,28 +1101,32 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
 # ============================================================================
 if st.session_state.get('system_mode') == "tasheeh":
     
-    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_teachers (
+    # ✅ افتح connection منفصل لقاعدة بيانات التصحيح
+    conn_tasheeh = sqlite3.connect("data_tasheeh.db", check_same_thread=False, timeout=30)
+    c_tasheeh = conn_tasheeh.cursor()
+    
+    c_tasheeh.execute('''CREATE TABLE IF NOT EXISTS tasheeh_teachers (
         id TEXT PRIMARY KEY, name TEXT, subject TEXT, city TEXT, 
         school TEXT, phone TEXT, relative TEXT
     )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_halls (
+    c_tasheeh.execute('''CREATE TABLE IF NOT EXISTS tasheeh_halls (
         hall_name TEXT PRIMARY KEY, city TEXT
     )''')
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS tasheeh_assignments (
+    c_tasheeh.execute('''CREATE TABLE IF NOT EXISTS tasheeh_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         teacher_id TEXT, teacher_name TEXT, subject TEXT,
         hall_name TEXT, hall_city TEXT, exam_name TEXT,
         exam_date TEXT, exam_day TEXT, 
-        school TEXT, city TEXT,                 # ✅ أضفناهم هنا
+        school TEXT, city TEXT,
         created_at TEXT, created_by TEXT
     )''')
-
-    # وأضف هذا مباشرة بعده لإصلاح الجداول القديمة الموجودة
+    conn_tasheeh.commit()
+    
+    # إصلاح الجداول القديمة
     for col in ['school', 'city']:
         try:
-            c.execute(f"ALTER TABLE tasheeh_assignments ADD COLUMN {col} TEXT DEFAULT ''")
-            conn.commit()
+            c_tasheeh.execute(f"ALTER TABLE tasheeh_assignments ADD COLUMN {col} TEXT DEFAULT ''")
+            conn_tasheeh.commit()
         except:
             pass
     
