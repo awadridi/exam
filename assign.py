@@ -1198,9 +1198,9 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.error(f"❌ خطأ أثناء المزامنة: {e}")
 
     def generate_tasheeh_letter(data, exam_name):
-        if not os.path.exists(template_tasheeh.docx):
+        if not os.path.exists(TEMPLATE_NAME):
             return None
-        doc = Document(template_tasheeh.docx)
+        doc = Document(TEMPLATE_NAME)
         
         # ✅ معالجة القيم None أو الفارغة
         def safe_get(data, key, default='---'):
