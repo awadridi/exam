@@ -1394,12 +1394,15 @@ if st.session_state.get('system_mode') == "tasheeh":
                         st.success(f"✅ تم توزيع {len(assignments)} معلم بنجاح!")
                         for a in assignments:
                             try:
+                                # الإصلاح - أضف school و city
                                 c.execute("""INSERT INTO tasheeh_assignments 
                                              (teacher_id,teacher_name,subject,hall_name,hall_city,exam_name,
-                                              exam_date,exam_day,created_at,created_by) 
-                                             VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                                              exam_date,exam_day,school,city,created_at,created_by) 
+                                             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                                          (a['id'],a['name'],a['subject'],a['hall_name'],a['hall_city'],a['exam_name'],
-                                          a['exam_date'],a['exam_day'],a['timestamp'],st.session_state.username))
+                                          a['exam_date'],a['exam_day'],a['school'],a['city'],
+                                          a['timestamp'],st.session_state.username))
+                                         
                             except: pass
                         conn.commit()
                     else:
@@ -1475,7 +1478,8 @@ if st.session_state.get('system_mode') == "tasheeh":
                                     temp_doc = Document(TEMPLATE_NAME)
                                     repls = {
                                         'ZNAME': str(a.get('name', '---') or '---'),
-                                        'ZID': str(a.get('id', '---') or '---'),
+                                        # الإصلاح:
+                                        'ZID': str(a.get('teacher_id', a.get('id', '---')) or '---'),  # ✅
                                         'ZTEST': str(a.get('exam_name', '---') or '---'),
                                         'ZHALL': str(a.get('hall_name', '---') or '---'),
                                         'ZLOC': str(a.get('hall_city', '---') or '---'),
