@@ -661,11 +661,13 @@ with tab_auto:
             st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
         if target_h2:
-            # ✅ التحقق من حدود الأدوار في القاعة
+            # 🔍 تشخيص مؤقت
+            st.write("عدد المدراء المتاحين:", len(df_managers))
+            st.write("عدد السكرتارية المتاحين:", len(df_secretaries))  
+            st.write("عدد الآذنين المتاحين:", len(df_janitors))
+            st.write("نماذج من الوظائف:", df_all['current_job'].value_counts().head(10))
+            
             current_roles = df_all[df_all['hall'] == target_h2]['role'].value_counts().to_dict()
-            presidents_count = current_roles.get('رئيس قاعة', 0)
-            assistants_count = current_roles.get('مساعد رئيس قاعة', 0)
-            janitors_count = current_roles.get('آذن', 0)
             
             col_s1, col_s2, col_s3 = st.columns(3)
             
