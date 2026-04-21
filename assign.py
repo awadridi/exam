@@ -802,17 +802,24 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 elif not saved and not error_occurred:
                     st.warning("⚠️ لم تختر أي شخص!")
                                         # ✅ إضافة: عرض المعينين حالياً مع خيار الإزالة والتبديل
+                        # ✅ إضافة: عرض المعينين حالياً (رئيس، مساعد، آذن فقط) مع خيار الإزالة
                     st.markdown("---")
-                    st.markdown("### 👥 المعينون حالياً في هذه القاعة (يمكنك إزالتهم وتعيين بديل)")
-                    current_assigned_df = pd.read_sql("SELECT * FROM teachers", conn)
-                    current_assigned_df['hall_clean'] = current_assigned_df['hall'].apply(lambda x: '' if pd.isna(x) or str(x).strip().lower() in ['nan','none','null'] else str(x).strip())
-                    target_clean_check = '' if pd.isna(target_h2) or str(target_h2).strip().lower() in ['nan','none','null'] else str(target_h2).strip()
-                    
-                    assigned_in_hall = current_assigned_df[
-                        (current_assigned_df['hall_clean'] == target_clean_check) & 
-                        (current_assigned_df['role'].notna()) & 
-                        (current_assigned_df['role'].astype(str).str.strip() != '')
-                    ]
+                    st.markdown("### 👥 المعينون حالياً في هذه القاعة (رئيس، مساعد، آذن فقط)")
+                
+                    # تنظيف اسم القاعة للمقارنة الدقيقة
+                    target_h2_clean = '' if pd.isna(target_h2) or str(target_h2).strip().lower() in ['nan','none','null',''] else str(target_h2).strip()
+                
+                    # ✅ جلب البيانات مباشرة من قاعدة البيانات مع تصفية الأدوار الثلاثة فقط
+                    query = """
+                    SELECT * FROM teachers
+                    WHERE role IN ('رئيس قاعة', 'مساعد رئيس قاعة', 'آذن')
+                    """
+                    current_assigned_df = pd.read_sql(query, conn)
+                
+                    # فلترة لضمان مطابقة القاعة المختارة فقط
+                    current_assigned_df['hall_clean'] = current_assigned_df['hall'].astype(str).str.strip()
+                    assigned_in_hall = current_assigned_df[current_assigned_df['hall_clean'] == target_h2_clean]
+                
                     if not assigned_in_hall.empty:
                         for idx, row in assigned_in_hall.iterrows():
                             col_rem1, col_rem2, col_rem3 = st.columns([3, 2, 1])
@@ -822,12 +829,12 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                                 if st.button("❌ إزالة", key=f"remove_role_{row['id']}", type="secondary", use_container_width=True):
                                     c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?",
                                               (st.session_state.username, row['id']))
-                                    add_audit_log("إزالة تعيين", f"إزالة {row['name']} من {row['role']}", target_h2, "")
                                     conn.commit()
+                                    add_audit_log("إزالة تعيين", f"إزالة {row['name']} من {row['role']}", target_h2, "")
                                     st.cache_data.clear()
                                     st.rerun()
                     else:
-                        st.info("📌 لم يتم تعيين أحد بعد في هذه القاعة.")
+                        st.info("📌 لم يتم تعيين أحد (رئيس/مساعد/آذن) بعد في هذه القاعة.")
                 
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
