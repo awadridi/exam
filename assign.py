@@ -516,8 +516,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                                     st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
                             
 
-    # ==================== تبويب التوزيع التلقائي ====================
-    
+# ==================== تبويب التوزيع التلقائي ====================
+
     def _do_auto_assign(df_pool, actual_num, target_h, target_hall_city):
         if actual_num == 0:
             st.warning("⚠️ لا يوجد معلمين متاحين")
@@ -548,7 +548,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         time.sleep(1)
         st.cache_data.clear()
         st.rerun()
-    
+
     with tab_auto:
         st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
         
@@ -589,7 +589,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             <div class="stat-card stat-no-wants"><span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ولا يرغب)</span><br><strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong></div>
         </div>
         """, unsafe_allow_html=True)
-    
+
         available_cities = sorted(df_qualified['city'].unique().tolist()) if not df_qualified.empty else []
         col_a1, col_a2 = st.columns(2)
         with col_a1:
@@ -599,18 +599,16 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             df_pool = df_qualified[df_qualified['city'].isin(selected_cities)] if selected_cities else df_qualified
             st.info(f"عدد المعلمين المتاحين للسحب الآن: {len(df_pool)}")
             num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
-    
-    
-    
+
             if 'capacity_warning_data' not in st.session_state:
                 st.session_state.capacity_warning_data = None
-    
+
             if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
                 target_hall_city = hall_map_auto.get(target_h, "")
                 hall_capacity_row = df_halls[df_halls['hall_name'] == target_h]['capacity'].values
                 capacity = int(hall_capacity_row[0]) if len(hall_capacity_row) > 0 and pd.notna(hall_capacity_row[0]) else 999
                 current_assigned = len(df_all[(df_all['hall'] == target_h) & (df_all['hall'].notna()) & (df_all['hall'] != '')])
-    
+
                 if st.session_state.system_mode == "tawjihi":
                     df_pool_filtered = df_pool[df_pool['city'] != target_hall_city].copy()
                     df_pool_filtered = df_pool_filtered[df_pool_filtered['school'] != target_h].copy()
@@ -618,9 +616,9 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     if excluded_count > 0:
                         st.info(f"ℹ️ تم استبعاد `{excluded_count}` معلم (من نفس المدينة أو المدرسة)")
                     df_pool = df_pool_filtered
-    
+
                 actual_num = min(int(num_to_assign), len(df_pool))
-    
+
                 if current_assigned + actual_num > capacity:
                     remaining = capacity - current_assigned
                     if remaining <= 0:
@@ -638,7 +636,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 else:
                     st.session_state.capacity_warning_data = None
                     _do_auto_assign(df_pool, actual_num, target_h, target_hall_city)
-    
+
             # ✅ عرض تحذير السعة خارج الزر
             if st.session_state.capacity_warning_data:
                 data = st.session_state.capacity_warning_data
@@ -646,8 +644,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                 if st.checkbox(f"✅ أوافق على تكليف {data['remaining']} فقط", key="agree_partial_assign"):
                     _do_auto_assign(data['df_pool'], data['remaining'], data['target_h'], data['target_hall_city'])
                     st.session_state.capacity_warning_data = None
-                    
-    
+
         st.divider()
         st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
 
@@ -665,8 +662,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         if target_h2:
             df_all = get_cached_teachers()
             current_roles = df_all[df_all['hall'] == target_h2]['role'].value_counts().to_dict()
-            
-            # ✅ هذه السطور الثلاثة مفقودة!
             presidents_count = current_roles.get('رئيس قاعة', 0)
             assistants_count = current_roles.get('مساعد رئيس قاعة', 0)
             janitors_count = current_roles.get('آذن', 0)
@@ -676,7 +671,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             with col_s1:
                 if presidents_count >= 1:
                     st.warning("⚠️ هذه القاعة لها رئيس قاعة بالفعل")
-                sel_manager = st.selectbox(...)
+                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(),
+                                          key="sel_manager", disabled=(presidents_count >= 1))
             with col_s2:
                 remaining_assistants = max(0, 2 - assistants_count)
                 if remaining_assistants == 0:
@@ -684,22 +680,21 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     sel_secretaries = []
                 else:
                     sel_secretaries = st.multiselect(
-                        "📋 مساعدي الرئيس (بحد أقصى 2):", 
-                        df_secretaries['name'].tolist(), 
-                        max_selections=remaining_assistants, 
+                        "📋 مساعدي الرئيس (بحد أقصى 2):",
+                        df_secretaries['name'].tolist(),
+                        max_selections=remaining_assistants,
                         key="sel_secretaries_multi"
                     )
             with col_s3:
                 if janitors_count >= 1:
                     st.warning("⚠️ هذه القاعة لها آذن بالفعل")
-                sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), 
+                sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(),
                                           key="sel_janitor", disabled=(janitors_count >= 1))
             
             if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
                 saved = []
                 error_occurred = False
                 
-                # حفظ رئيس القاعة
                 if sel_manager:
                     if presidents_count >= 1:
                         st.error("❌ لا يمكن تعيين أكثر من رئيس قاعة واحد لكل قاعة!")
@@ -712,7 +707,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                         add_audit_log("تعيين رئيس قاعة", f"تعيين {sel_manager}", old_hall, target_h2)
                         saved.append(f"رئيس قاعة: {sel_manager}")
                 
-                # ✅ حفظ المساعدين (بحد أقصى 2)
                 if not error_occurred:
                     for sec_name in sel_secretaries:
                         if sec_name and assistants_count + len(saved) < 2:
@@ -723,7 +717,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                             add_audit_log("تعيين مساعد رئيس", f"تعيين {sec_name}", old_hall, target_h2)
                             saved.append(f"مساعد رئيس: {sec_name}")
                 
-                # حفظ الآذن
                 if not error_occurred and sel_janitor:
                     if janitors_count >= 1:
                         st.error("❌ لا يمكن تعيين أكثر من آذن واحد لكل قاعة!")
@@ -745,60 +738,60 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.rerun()
                 elif not saved and not error_occurred:
                     st.warning("⚠️ لم تختر أي شخص!")
-    
-        # ==================== تبويب رفع البيانات ====================
-        with tab_upload:
-            st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
-            
-            st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
-            
-            last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
-            st.caption(f"🕐 آخر مزامنة: {last_sync}")
-            
-            st.divider()
-            if st.button("🗑️ مسح البيانات المكررة"):
-                try:
-                    c.execute("DELETE FROM teachers WHERE rowid NOT IN (SELECT MIN(rowid) FROM teachers GROUP BY id)")
-                    conn.commit()
-                    st.cache_data.clear()
-                    st.success("✅ تم مسح التكرار بنجاح")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"خطأ: {e}")
-    
-            if st.button("🔄 تحديث من Google Sheets"):
-                try:
-                    conn.execute("PRAGMA journal_mode=WAL")
-                    conn.commit()
-                    dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
-                    dft.columns = dft.columns.str.strip().str.lower()
-                    if 'id_number' in dft.columns:
-                        dft.rename(columns={'id_number': 'id'}, inplace=True)
-                    dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
-                    ids_in_sheet = dft['id'].astype(str).tolist()
-                    placeholders = ','.join(['?' for _ in ids_in_sheet])
-                    c.execute(f"DELETE FROM teachers WHERE id NOT IN ({placeholders})", ids_in_sheet)
-                    conn.commit()
-                    
-                    if st.session_state['system_mode'] == 'tawjihi':
-                        c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
-                        c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, gender) SELECT id, name, phone, school, city, current_job, preference, ability, gender FROM teachers_temp")
-                    else:
-                        c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, relative = t.relative, relative_exam = t.relative_exam, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
-                        c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender) SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender FROM teachers_temp")
-                    conn.commit()
-                    dfh = pd.read_csv(HALLS_URL)
-                    dfh.to_sql('halls', conn, if_exists='replace', index=False)
-                    conn.commit()
-                    
-                    st.session_state[LAST_SYNC_KEY] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    
-                    add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
-                    st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
-                    st.cache_data.clear()
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"خطأ أثناء التحديث: {e}")
+
+    # ==================== تبويب رفع البيانات ====================
+    with tab_upload:
+        st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
+        
+        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
+        
+        last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
+        st.caption(f"🕐 آخر مزامنة: {last_sync}")
+        
+        st.divider()
+        if st.button("🗑️ مسح البيانات المكررة"):
+            try:
+                c.execute("DELETE FROM teachers WHERE rowid NOT IN (SELECT MIN(rowid) FROM teachers GROUP BY id)")
+                conn.commit()
+                st.cache_data.clear()
+                st.success("✅ تم مسح التكرار بنجاح")
+                st.rerun()
+            except Exception as e:
+                st.error(f"خطأ: {e}")
+
+        if st.button("🔄 تحديث من Google Sheets"):
+            try:
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.commit()
+                dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
+                dft.columns = dft.columns.str.strip().str.lower()
+                if 'id_number' in dft.columns:
+                    dft.rename(columns={'id_number': 'id'}, inplace=True)
+                dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
+                ids_in_sheet = dft['id'].astype(str).tolist()
+                placeholders = ','.join(['?' for _ in ids_in_sheet])
+                c.execute(f"DELETE FROM teachers WHERE id NOT IN ({placeholders})", ids_in_sheet)
+                conn.commit()
+                
+                if st.session_state['system_mode'] == 'tawjihi':
+                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
+                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, gender) SELECT id, name, phone, school, city, current_job, preference, ability, gender FROM teachers_temp")
+                else:
+                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, relative = t.relative, relative_exam = t.relative_exam, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
+                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender) SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender FROM teachers_temp")
+                conn.commit()
+                dfh = pd.read_csv(HALLS_URL)
+                dfh.to_sql('halls', conn, if_exists='replace', index=False)
+                conn.commit()
+                
+                st.session_state[LAST_SYNC_KEY] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                
+                add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
+                st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
+                st.cache_data.clear()
+                st.rerun()
+            except Exception as e:
+                st.error(f"خطأ أثناء التحديث: {e}")
 
     # ==================== تبويب الإدارة ====================
     with tab_manage:
