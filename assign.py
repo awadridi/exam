@@ -522,32 +522,46 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         if actual_num == 0:
             st.warning("⚠️ لا يوجد معلمين متاحين")
             return
-        
-        df_males = df_pool[df_pool['gender'].astype(str).str.strip() == 'ذكر']
-        df_females = df_pool[df_pool['gender'].astype(str).str.strip() == 'أنثى']
-        
-        target_males = min(actual_num // 2 + actual_num % 2, len(df_males))
-        target_females = min(actual_num - target_males, len(df_females))
-        
-        if target_females < actual_num - target_males:
-            extra = (actual_num - target_males) - target_females
-            target_males = min(target_males + extra, len(df_males))
-        
-        males_sample = df_males.sample(n=target_males, random_state=42) if target_males > 0 else pd.DataFrame()
-        females_sample = df_females.sample(n=target_females, random_state=42) if target_females > 0 else pd.DataFrame()
-        selected_sample = pd.concat([males_sample, females_sample]).sample(frac=1, random_state=42)
-        
-        for _, r in selected_sample.iterrows():
-            old_hall = r['hall']
-            c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?",
-                      (target_h, target_hall_city, r['id']))
-            add_audit_log("توزيع تلقائي", f"توزيع {r['name']} على قاعة {target_h}", old_hall, target_h)
-        conn.commit()
-        add_log("توزيع تلقائي", f"توزيع {len(selected_sample)} معلم على قاعة {target_h}")
-        st.success(f"✅ تم توزيع {len(selected_sample)} بنجاح! (ذكور: {target_males}, إناث: {target_females})")
-        time.sleep(1)
-        st.cache_data.clear()
-        st.rerun()
+    
+        try:
+            # ✅ حساب الذكور والإناث بدقة
+            df_males = df_pool[df_pool['gender'].astype(str).str.strip() == 'ذكر']
+            df_females = df_pool[df_pool['gender'].astype(str).str.strip() == 'أنثى']
+    
+            target_males = min(actual_num // 2 + actual_num % 2, len(df_males))
+            target_females = min(actual_num - target_males, len(df_females))
+    
+            if target_females < actual_num - target_males:
+                extra = (actual_num - target_males) - target_females
+                target_males = min(target_males + extra, len(df_males))
+    
+            males_sample = df_males.sample(n=target_males, random_state=42) if target_males > 0 else pd.DataFrame()
+            females_sample = df_females.sample(n=target_females, random_state=42) if target_females > 0 else pd.DataFrame()
+            selected_sample = pd.concat([males_sample, females_sample]).sample(frac=1, random_state=42)
+    
+            # ✅ تحديث البيانات دفعة واحدة (يمنع قفل قاعدة البيانات)
+            for _, r in selected_sample.iterrows():
+                teacher_id = str(r.get('id', '')).strip()
+                if not teacher_id or teacher_id.lower() in ['nan', 'none', '']:
+                    continue
+                c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?",
+                          (target_h, target_hall_city, teacher_id))
+    
+            conn.commit()  # ✅ حفظ مرة واحدة فقط بعد انتهاء جميع التحديثات
+    
+            # ✅ تسجيل السجلات (بشكل منفصل لتجنب تضارب المعاملات)
+            for _, r in selected_sample.iterrows():
+                add_audit_log("توزيع تلقائي", f"توزيع {r.get('name','')} على قاعة {target_h}", r.get('hall',''), target_h)
+    
+            add_log("توزيع تلقائي", f"توزيع {len(selected_sample)} معلم على قاعة {target_h}")
+            st.success(f"✅ تم توزيع {len(selected_sample)} بنجاح! (ذكور: {target_males}, إناث: {target_females})")
+            time.sleep(1)
+            st.cache_data.clear()
+            st.rerun()
+    
+        except Exception as e:
+            st.error(f"❌ خطأ أثناء التوزيع: {str(e)}")
+            conn.rollback()  # ✅ إلغاء العملية في حال الخطأ لحماية البيانات
 
     with tab_auto:
         st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
@@ -638,7 +652,8 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     _do_auto_assign(df_pool, actual_num, target_h, target_hall_city)
 
             # ✅ عرض تحذير السعة خارج الزر
-            if st.session_state.capacity_warning_data:
+                        # ✅ عرض تحذير السعة خارج الزر (معدّل لمنع حلقة الـ rerun)
+            if st.session_state.get('capacity_warning_data'):
                 data = st.session_state.capacity_warning_data
                 st.warning(f"⚠️ سعة القاعة `{data['target_h']}` تسمح بـ `{data['remaining']}` مراقب إضافي فقط")
                 if st.checkbox(f"✅ أوافق على تكليف {data['remaining']} فقط", key="agree_partial_assign"):
