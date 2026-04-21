@@ -737,11 +737,20 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     disabled=(presidents_count >= 1))
             with col_s2:
                 remaining_assistants = max(0, 2 - assistants_count)
+                
+                # ✅ حل جذري لخطأ StreamlitInvalidMaxError
+                # Streamlit يرفض max_selections=0، لذا نضع 1 كحد أدنى تقني ونعطل الأداة
+                safe_max = remaining_assistants if remaining_assistants > 0 else 1
+                
+                if remaining_assistants == 0:
+                    st.warning("⚠️ وصل الحد الأقصى للمساعدين (2)")
+                    
                 sel_secretaries = st.multiselect(
                     "📋 مساعدي الرئيس (بحد أقصى 2):",
                     df_secretaries['name'].tolist(),
-                    max_selections=remaining_assistants,
-                    key="sel_secretaries_multi"
+                    max_selections=safe_max,
+                    key="sel_secretaries_multi",
+                    disabled=(remaining_assistants == 0)  # ✅ تعطل الأداة تماماً عند اكتمال العدد
                 )
             with col_s3:
                 sel_janitor = st.selectbox("🔑 الآذن:",
