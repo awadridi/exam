@@ -1071,8 +1071,7 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             c3.metric("⏳ غير مكلفين", unassigned)
             c4.metric("📈 نسبة الإنجاز", f"{pct:.1f}%")
 
-            st.markdown('<h4 style="text-align: right; direction: rtl;">📈 توزيع الرغبة بين النتائج</h4>', unsafe_allow_html=True)
-            st.bar_chart(df_res['preference'].value_counts(), horizontal=True)
+            
 
             st.markdown('<h4 style="text-align: right; direction: rtl;">📋 جدول النتائج التفصيلي</h4>', unsafe_allow_html=True)
             
