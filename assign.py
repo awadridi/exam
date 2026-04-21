@@ -1585,9 +1585,11 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
             if not assigned_df.empty:
                 df_display = assigned_df.copy()
-                arabic_cols = {
-                    'teacher_name': 'الاسم', 'teacher_id': 'رقم الهوية', 'subject': 'المبحث',
-                    'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'exam_day': 'اليوم'
+                arabic_map = {
+                    'teacher_id': 'رقم الهوية', 'teacher_name': 'اسم المصحح', 'subject': 'المبحث',
+                    'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_name': 'الامتحان',
+                    'exam_date': 'التاريخ', 'exam_day': 'اليوم', 'city': 'مكان السكن',
+                    'school': 'المدرسة', 'created_at': 'وقت التكليف'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
                 display_cols = ['رقم الهوية', 'الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
