@@ -1927,7 +1927,7 @@ if st.session_state.get('system_mode') == "tasheeh":
             - 📥 يمكن تصدير أي نتيجة إلى **Excel** منسق وجاهز للطباعة
             """)
 # ============================================================================
-# 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً
+# 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً (نسخة مصححة)
 # ============================================================================
 if st.session_state.get('system_mode') == "other_assignments":
     
@@ -2085,10 +2085,11 @@ if st.session_state.get('system_mode') == "other_assignments":
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_guard_form"):
+                # ✅ تم إصلاح تكرار قيمة value
                 g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input", value="" if st.session_state.guard_form_clear else "")
                 g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input", value="" if st.session_state.guard_form_clear else "")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="g_ZSCHOOL_input", value="" if st.session_state.guard_form_clear else "")
+                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="g_ZSCHOOL_input", value="" if st.session_state.guard_form_clear else "")
                 g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input", value="" if st.session_state.guard_form_clear else "")
                 g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input", value="" if st.session_state.guard_form_clear else "")
                 g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="g_zdate_input")
@@ -2190,8 +2191,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="p_ZSCHOOL_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="p_zwork_input", value="" if st.session_state.parcels_form_clear else "")
+                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="p_ZSCHOOL_input", value="" if st.session_state.parcels_form_clear else "")
+                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key="p_zwork_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="p_zdate_input")
@@ -2226,7 +2227,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
                     if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_parcels"):
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_parcels, 'parcels')
@@ -2240,7 +2240,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 )
                 
                 with col_btn2:
-                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
@@ -2292,8 +2291,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input", value="" if st.session_state.device_form_clear else "")
                 d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input", value="" if st.session_state.device_form_clear else "")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="d_ZSCHOOL_input", value="" if st.session_state.device_form_clear else "")
-                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input", value="" if st.session_state.device_form_clear else "")
+                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="d_ZSCHOOL_input", value="" if st.session_state.device_form_clear else "")
+                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key="d_zwork_input", value="" if st.session_state.device_form_clear else "")
                 d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input", value="" if st.session_state.device_form_clear else "")
                 d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input", value="" if st.session_state.device_form_clear else "")
                 d_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="d_zdate_input")
@@ -2328,7 +2327,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
                     if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_device"):
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_device, 'exam_device')
@@ -2342,7 +2340,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 )
                 
                 with col_btn2:
-                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
@@ -2394,8 +2391,8 @@ if st.session_state.get('system_mode') == "other_assignments":
                 c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input", value="" if st.session_state.committee_form_clear else "")
                 c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input", value="" if st.session_state.committee_form_clear else "")
                 c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="c_ZSCHOOL_input", value="" if st.session_state.committee_form_clear else "")
-                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="c_zwork_input", value="" if st.session_state.committee_form_clear else "")
+                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="c_ZSCHOOL_input", value="" if st.session_state.committee_form_clear else "")
+                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key="c_zwork_input", value="" if st.session_state.committee_form_clear else "")
                 c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input", value="" if st.session_state.committee_form_clear else "")
                 c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input", value="" if st.session_state.committee_form_clear else "")
                 c_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="c_zdate_input")
@@ -2430,7 +2427,6 @@ if st.session_state.get('system_mode') == "other_assignments":
     
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
                     if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_committee"):
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_committee, 'exam_committee')
@@ -2444,7 +2440,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 )
                 
                 with col_btn2:
-                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
