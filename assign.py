@@ -1703,8 +1703,10 @@ if st.session_state.get('system_mode') == "tasheeh":
                     if assigned_df.empty:
                         st.warning("⚠️ لا توجد بيانات لتصديرها!")
                     else:
+                        df_for_excel = assigned_df.copy()
+                        df_for_excel.insert(0, 'م', range(1, len(df_for_excel) + 1))
                         arabic_map = {
-                            'teacher_id': 'رقم الهوية', 'teacher_name': 'اسم المصحح', 'subject': 'المبحث',
+                            'الرقم': 'الرقم التسلسلي','teacher_id': 'رقم الهوية', 'teacher_name': 'اسم المصحح', 'subject': 'المبحث',
                             'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_name': 'الامتحان',
                             'exam_date': 'التاريخ', 'exam_day': 'اليوم', 'city': 'مكان السكن',
                             'school': 'المدرسة', 'created_at': 'وقت التكليف'
