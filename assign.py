@@ -1352,10 +1352,7 @@ if st.session_state.get('system_mode') == "tasheeh":
     corr_tab1, corr_tab2, corr_tab3, corr_tab4, corr_tab5 = st.tabs([
     "📥 رفع البيانات", "🔄 التوزيع التلقائي", "📄 كتب التكليف", "📜 سجل العمليات", "🔎 الاستعلامات الذكية"
     ])
-    
-    with corr_tab1:
-        st.markdown("### 📥 إدارة البيانات وقالب التكليف")
-        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
+
         
         st.divider()
         st.markdown("**2️⃣ المزامنة مع Google Sheets**")
