@@ -516,136 +516,138 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                                     st.download_button("📥 تحميل الآن", data=f_word, file_name=f"تكليف_{row['name']}.docx", key=f"dl_s_{st.session_state.system_mode}_{row['id']}")
                             
 
-# ==================== تبويب التوزيع التلقائي ====================
-
-def _do_auto_assign(df_pool, actual_num, target_h, target_hall_city):
-    if actual_num == 0:
-        st.warning("⚠️ لا يوجد معلمين متاحين")
-        return
+    # ==================== تبويب التوزيع التلقائي ====================
     
-    df_males = df_pool[df_pool['gender'].astype(str).str.strip() == 'ذكر']
-    df_females = df_pool[df_pool['gender'].astype(str).str.strip() == 'أنثى']
+    def _do_auto_assign(df_pool, actual_num, target_h, target_hall_city):
+        if actual_num == 0:
+            st.warning("⚠️ لا يوجد معلمين متاحين")
+            return
+        
+        df_males = df_pool[df_pool['gender'].astype(str).str.strip() == 'ذكر']
+        df_females = df_pool[df_pool['gender'].astype(str).str.strip() == 'أنثى']
+        
+        target_males = min(actual_num // 2 + actual_num % 2, len(df_males))
+        target_females = min(actual_num - target_males, len(df_females))
+        
+        if target_females < actual_num - target_males:
+            extra = (actual_num - target_males) - target_females
+            target_males = min(target_males + extra, len(df_males))
+        
+        males_sample = df_males.sample(n=target_males, random_state=42) if target_males > 0 else pd.DataFrame()
+        females_sample = df_females.sample(n=target_females, random_state=42) if target_females > 0 else pd.DataFrame()
+        selected_sample = pd.concat([males_sample, females_sample]).sample(frac=1, random_state=42)
+        
+        for _, r in selected_sample.iterrows():
+            old_hall = r['hall']
+            c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?",
+                      (target_h, target_hall_city, r['id']))
+            add_audit_log("توزيع تلقائي", f"توزيع {r['name']} على قاعة {target_h}", old_hall, target_h)
+        conn.commit()
+        add_log("توزيع تلقائي", f"توزيع {len(selected_sample)} معلم على قاعة {target_h}")
+        st.success(f"✅ تم توزيع {len(selected_sample)} بنجاح! (ذكور: {target_males}, إناث: {target_females})")
+        time.sleep(1)
+        st.cache_data.clear()
+        st.rerun()
     
-    target_males = min(actual_num // 2 + actual_num % 2, len(df_males))
-    target_females = min(actual_num - target_males, len(df_females))
+    with tab_auto:
+        st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
+        
+        if 'assign_date_bulk' not in st.session_state:
+            st.session_state.assign_date_bulk = datetime.now().strftime("%Y/%m/%d")
+        col_date_bulk1, col_date_bulk2 = st.columns([4, 1])
+        with col_date_bulk1:
+            st.session_state.assign_date_bulk = st.date_input(
+                "📅 تاريخ التكليف الجماعي:", 
+                value=datetime.strptime(st.session_state.assign_date_bulk, "%Y/%m/%d"),
+                key="assign_date_bulk_auto"
+            ).strftime("%Y/%m/%d")
+        with col_date_bulk2:
+            st.info(f"📌 `{st.session_state.assign_date_bulk}`")
+        st.divider()
+        
+        df_all = get_cached_teachers()
+        df_halls = get_cached_halls()
+        hall_map_auto = {r['hall_name']: r['city'] for _, r in df_halls.iterrows()}
+        
+        df_qualified = df_all[
+            (df_all['ability'] == 'يصلح') & 
+            (df_all['preference'] == 'يرغب') & 
+            (df_all['current_job'] == 'معلم') & 
+            ((df_all['hall'] == '') | (df_all['hall'].isna()))
+        ]
+        can_and_wants = len(df_qualified)
+        can_not_wants = len(df_all[
+            (df_all['ability'] == 'يصلح') & 
+            (df_all['preference'] == 'لا يرغب') & 
+            (df_all['current_job'] == 'معلم') & 
+            ((df_all['hall'] == '') | (df_all['hall'].isna()))
+        ])
+        
+        st.markdown(f"""
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
+            <div class="stat-card stat-wants"><span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ويرغب)</span><br><strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong></div>
+            <div class="stat-card stat-no-wants"><span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ولا يرغب)</span><br><strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong></div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    if target_females < actual_num - target_males:
-        extra = (actual_num - target_males) - target_females
-        target_males = min(target_males + extra, len(df_males))
+        available_cities = sorted(df_qualified['city'].unique().tolist()) if not df_qualified.empty else []
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map_auto.keys()), key="auto_target_h")
+            selected_cities = st.multiselect("السحب من مناطق سكن محددة (اختياري):", available_cities)
+        with col_a2:
+            df_pool = df_qualified[df_qualified['city'].isin(selected_cities)] if selected_cities else df_qualified
+            st.info(f"عدد المعلمين المتاحين للسحب الآن: {len(df_pool)}")
+            num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
     
-    males_sample = df_males.sample(n=target_males, random_state=42) if target_males > 0 else pd.DataFrame()
-    females_sample = df_females.sample(n=target_females, random_state=42) if target_females > 0 else pd.DataFrame()
-    selected_sample = pd.concat([males_sample, females_sample]).sample(frac=1, random_state=42)
     
-    for _, r in selected_sample.iterrows():
-        old_hall = r['hall']
-        c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by='توزيع تلقائي' WHERE id=?",
-                  (target_h, target_hall_city, r['id']))
-        add_audit_log("توزيع تلقائي", f"توزيع {r['name']} على قاعة {target_h}", old_hall, target_h)
-    conn.commit()
-    add_log("توزيع تلقائي", f"توزيع {len(selected_sample)} معلم على قاعة {target_h}")
-    st.success(f"✅ تم توزيع {len(selected_sample)} بنجاح! (ذكور: {target_males}, إناث: {target_females})")
-    time.sleep(1)
-    st.cache_data.clear()
-    st.rerun()
-
-with tab_auto:
-    st.markdown('<h2 class="move-to-right">🤖 نظام التوزيع التلقائي الذكي</h2>', unsafe_allow_html=True)
     
-    if 'assign_date_bulk' not in st.session_state:
-        st.session_state.assign_date_bulk = datetime.now().strftime("%Y/%m/%d")
-    col_date_bulk1, col_date_bulk2 = st.columns([4, 1])
-    with col_date_bulk1:
-        st.session_state.assign_date_bulk = st.date_input(
-            "📅 تاريخ التكليف الجماعي:", 
-            value=datetime.strptime(st.session_state.assign_date_bulk, "%Y/%m/%d"),
-            key="assign_date_bulk_auto"
-        ).strftime("%Y/%m/%d")
-    with col_date_bulk2:
-        st.info(f"📌 `{st.session_state.assign_date_bulk}`")
-    st.divider()
+            if 'capacity_warning_data' not in st.session_state:
+                st.session_state.capacity_warning_data = None
     
-    df_all = get_cached_teachers()
-    df_halls = get_cached_halls()
-    hall_map_auto = {r['hall_name']: r['city'] for _, r in df_halls.iterrows()}
+            if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
+                target_hall_city = hall_map_auto.get(target_h, "")
+                hall_capacity_row = df_halls[df_halls['hall_name'] == target_h]['capacity'].values
+                capacity = int(hall_capacity_row[0]) if len(hall_capacity_row) > 0 and pd.notna(hall_capacity_row[0]) else 999
+                current_assigned = len(df_all[(df_all['hall'] == target_h) & (df_all['hall'].notna()) & (df_all['hall'] != '')])
     
-    df_qualified = df_all[
-        (df_all['ability'] == 'يصلح') & 
-        (df_all['preference'] == 'يرغب') & 
-        (df_all['current_job'] == 'معلم') & 
-        ((df_all['hall'] == '') | (df_all['hall'].isna()))
-    ]
-    can_and_wants = len(df_qualified)
-    can_not_wants = len(df_all[
-        (df_all['ability'] == 'يصلح') & 
-        (df_all['preference'] == 'لا يرغب') & 
-        (df_all['current_job'] == 'معلم') & 
-        ((df_all['hall'] == '') | (df_all['hall'].isna()))
-    ])
+                if st.session_state.system_mode == "tawjihi":
+                    df_pool_filtered = df_pool[df_pool['city'] != target_hall_city].copy()
+                    df_pool_filtered = df_pool_filtered[df_pool_filtered['school'] != target_h].copy()
+                    excluded_count = len(df_pool) - len(df_pool_filtered)
+                    if excluded_count > 0:
+                        st.info(f"ℹ️ تم استبعاد `{excluded_count}` معلم (من نفس المدينة أو المدرسة)")
+                    df_pool = df_pool_filtered
     
-    st.markdown(f"""
-    <div style="display: flex; gap: 15px; margin-bottom: 20px; direction: rtl;">
-        <div class="stat-card stat-wants"><span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ويرغب)</span><br><strong style="font-size: 2rem; color: #28a745;">{can_and_wants}</strong></div>
-        <div class="stat-card stat-no-wants"><span style="color: #bbb; font-size: 0.9rem;">متاح (يصلح ولا يرغب)</span><br><strong style="font-size: 2rem; color: #dc3545;">{can_not_wants}</strong></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    available_cities = sorted(df_qualified['city'].unique().tolist()) if not df_qualified.empty else []
-    col_a1, col_a2 = st.columns(2)
-    with col_a1:
-        target_h = st.selectbox("اختر القاعة المستهدفة:", [""] + list(hall_map_auto.keys()), key="auto_target_h")
-        selected_cities = st.multiselect("السحب من مناطق سكن محددة (اختياري):", available_cities)
-    with col_a2:
-        df_pool = df_qualified[df_qualified['city'].isin(selected_cities)] if selected_cities else df_qualified
-        st.info(f"عدد المعلمين المتاحين للسحب الآن: {len(df_pool)}")
-        num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
-
-        if 'capacity_warning_data' not in st.session_state:
-            st.session_state.capacity_warning_data = None
-
-        if st.button("🚀 ابدأ التوزيع التلقائي الآن", use_container_width=True, disabled=(num_to_assign == 0 or not target_h)):
-            target_hall_city = hall_map_auto.get(target_h, "")
-            hall_capacity_row = df_halls[df_halls['hall_name'] == target_h]['capacity'].values
-            capacity = int(hall_capacity_row[0]) if len(hall_capacity_row) > 0 and pd.notna(hall_capacity_row[0]) else 999
-            current_assigned = len(df_all[(df_all['hall'] == target_h) & (df_all['hall'].notna()) & (df_all['hall'] != '')])
-
-            if st.session_state.system_mode == "tawjihi":
-                df_pool_filtered = df_pool[df_pool['city'] != target_hall_city].copy()
-                df_pool_filtered = df_pool_filtered[df_pool_filtered['school'] != target_h].copy()
-                excluded_count = len(df_pool) - len(df_pool_filtered)
-                if excluded_count > 0:
-                    st.info(f"ℹ️ تم استبعاد `{excluded_count}` معلم (من نفس المدينة أو المدرسة)")
-                df_pool = df_pool_filtered
-
-            actual_num = min(int(num_to_assign), len(df_pool))
-
-            if current_assigned + actual_num > capacity:
-                remaining = capacity - current_assigned
-                if remaining <= 0:
-                    st.error(f"⚠️ سعة القاعة `{target_h}` ممتلئة!")
-                    st.session_state.capacity_warning_data = None
+                actual_num = min(int(num_to_assign), len(df_pool))
+    
+                if current_assigned + actual_num > capacity:
+                    remaining = capacity - current_assigned
+                    if remaining <= 0:
+                        st.error(f"⚠️ سعة القاعة `{target_h}` ممتلئة!")
+                        st.session_state.capacity_warning_data = None
+                    else:
+                        st.session_state.capacity_warning_data = {
+                            'target_h': target_h,
+                            'target_hall_city': target_hall_city,
+                            'remaining': remaining,
+                            'df_pool': df_pool.copy(),
+                            'actual_num': actual_num
+                        }
+                        st.rerun()
                 else:
-                    st.session_state.capacity_warning_data = {
-                        'target_h': target_h,
-                        'target_hall_city': target_hall_city,
-                        'remaining': remaining,
-                        'df_pool': df_pool.copy(),
-                        'actual_num': actual_num
-                    }
-                    st.rerun()
-            else:
-                st.session_state.capacity_warning_data = None
-                _do_auto_assign(df_pool, actual_num, target_h, target_hall_city)
-
-        # ✅ عرض تحذير السعة خارج الزر
-        if st.session_state.capacity_warning_data:
-            data = st.session_state.capacity_warning_data
-            st.warning(f"⚠️ سعة القاعة `{data['target_h']}` تسمح بـ `{data['remaining']}` مراقب إضافي فقط")
-            if st.checkbox(f"✅ أوافق على تكليف {data['remaining']} فقط", key="agree_partial_assign"):
-                _do_auto_assign(data['df_pool'], data['remaining'], data['target_h'], data['target_hall_city'])
-                st.session_state.capacity_warning_data = None
-                
-
+                    st.session_state.capacity_warning_data = None
+                    _do_auto_assign(df_pool, actual_num, target_h, target_hall_city)
+    
+            # ✅ عرض تحذير السعة خارج الزر
+            if st.session_state.capacity_warning_data:
+                data = st.session_state.capacity_warning_data
+                st.warning(f"⚠️ سعة القاعة `{data['target_h']}` تسمح بـ `{data['remaining']}` مراقب إضافي فقط")
+                if st.checkbox(f"✅ أوافق على تكليف {data['remaining']} فقط", key="agree_partial_assign"):
+                    _do_auto_assign(data['df_pool'], data['remaining'], data['target_h'], data['target_hall_city'])
+                    st.session_state.capacity_warning_data = None
+                    
+    
         st.divider()
         st.markdown('<h3 class="move-to-right">👔 تعيين رئيس القاعة والمساعد والآذن</h3>', unsafe_allow_html=True)
 
@@ -743,60 +745,60 @@ with tab_auto:
                     st.rerun()
                 elif not saved and not error_occurred:
                     st.warning("⚠️ لم تختر أي شخص!")
-
-    # ==================== تبويب رفع البيانات ====================
-    with tab_upload:
-        st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
-        
-        st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
-        
-        last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
-        st.caption(f"🕐 آخر مزامنة: {last_sync}")
-        
-        st.divider()
-        if st.button("🗑️ مسح البيانات المكررة"):
-            try:
-                c.execute("DELETE FROM teachers WHERE rowid NOT IN (SELECT MIN(rowid) FROM teachers GROUP BY id)")
-                conn.commit()
-                st.cache_data.clear()
-                st.success("✅ تم مسح التكرار بنجاح")
-                st.rerun()
-            except Exception as e:
-                st.error(f"خطأ: {e}")
-
-        if st.button("🔄 تحديث من Google Sheets"):
-            try:
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.commit()
-                dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
-                dft.columns = dft.columns.str.strip().str.lower()
-                if 'id_number' in dft.columns:
-                    dft.rename(columns={'id_number': 'id'}, inplace=True)
-                dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
-                ids_in_sheet = dft['id'].astype(str).tolist()
-                placeholders = ','.join(['?' for _ in ids_in_sheet])
-                c.execute(f"DELETE FROM teachers WHERE id NOT IN ({placeholders})", ids_in_sheet)
-                conn.commit()
-                
-                if st.session_state['system_mode'] == 'tawjihi':
-                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
-                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, gender) SELECT id, name, phone, school, city, current_job, preference, ability, gender FROM teachers_temp")
-                else:
-                    c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, relative = t.relative, relative_exam = t.relative_exam, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
-                    c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender) SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender FROM teachers_temp")
-                conn.commit()
-                dfh = pd.read_csv(HALLS_URL)
-                dfh.to_sql('halls', conn, if_exists='replace', index=False)
-                conn.commit()
-                
-                st.session_state[LAST_SYNC_KEY] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                
-                add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
-                st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
-                st.cache_data.clear()
-                st.rerun()
-            except Exception as e:
-                st.error(f"خطأ أثناء التحديث: {e}")
+    
+        # ==================== تبويب رفع البيانات ====================
+        with tab_upload:
+            st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
+            
+            st.info("📌 القالب موجود مسبقاً على المستودع. لتحديثه، عدّل الملف على جيت هب وادفع التغييرات.")
+            
+            last_sync = st.session_state.get(LAST_SYNC_KEY, "لم تتم المزامنة بعد")
+            st.caption(f"🕐 آخر مزامنة: {last_sync}")
+            
+            st.divider()
+            if st.button("🗑️ مسح البيانات المكررة"):
+                try:
+                    c.execute("DELETE FROM teachers WHERE rowid NOT IN (SELECT MIN(rowid) FROM teachers GROUP BY id)")
+                    conn.commit()
+                    st.cache_data.clear()
+                    st.success("✅ تم مسح التكرار بنجاح")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"خطأ: {e}")
+    
+            if st.button("🔄 تحديث من Google Sheets"):
+                try:
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.commit()
+                    dft = pd.read_csv(TEACHERS_URL, dtype={'id': str, 'phone': str})
+                    dft.columns = dft.columns.str.strip().str.lower()
+                    if 'id_number' in dft.columns:
+                        dft.rename(columns={'id_number': 'id'}, inplace=True)
+                    dft.to_sql('teachers_temp', conn, if_exists='replace', index=False)
+                    ids_in_sheet = dft['id'].astype(str).tolist()
+                    placeholders = ','.join(['?' for _ in ids_in_sheet])
+                    c.execute(f"DELETE FROM teachers WHERE id NOT IN ({placeholders})", ids_in_sheet)
+                    conn.commit()
+                    
+                    if st.session_state['system_mode'] == 'tawjihi':
+                        c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
+                        c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, gender) SELECT id, name, phone, school, city, current_job, preference, ability, gender FROM teachers_temp")
+                    else:
+                        c.execute("UPDATE teachers SET name = t.name, phone = t.phone, school = t.school, city = t.city, current_job = t.current_job, preference = t.preference, ability = t.ability, relative = t.relative, relative_exam = t.relative_exam, gender = t.gender FROM teachers_temp t WHERE teachers.id = t.id")
+                        c.execute("INSERT OR IGNORE INTO teachers (id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender) SELECT id, name, phone, school, city, current_job, preference, ability, relative, relative_exam, gender FROM teachers_temp")
+                    conn.commit()
+                    dfh = pd.read_csv(HALLS_URL)
+                    dfh.to_sql('halls', conn, if_exists='replace', index=False)
+                    conn.commit()
+                    
+                    st.session_state[LAST_SYNC_KEY] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    
+                    add_log("تحديث بيانات", "تحديث ذكي من جوجل شيت (حفظ التكليفات)")
+                    st.success("✅ تم التحديث بنجاح مع الحفاظ على التكليفات الحالية")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"خطأ أثناء التحديث: {e}")
 
     # ==================== تبويب الإدارة ====================
     with tab_manage:
