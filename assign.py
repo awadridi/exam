@@ -662,10 +662,9 @@ with tab_auto:
 
         if target_h2:
             # 🔍 تشخيص مؤقت
-            st.write("عدد المدراء المتاحين:", len(df_managers))
-            st.write("عدد السكرتارية المتاحين:", len(df_secretaries))  
-            st.write("عدد الآذنين المتاحين:", len(df_janitors))
-            st.write("نماذج من الوظائف:", df_all['current_job'].value_counts().head(10))
+            df_all = get_cached_teachers()  # أعد تحميل البيانات
+            st.write("إجمالي المعلمين في df_all:", len(df_all))
+            st.write("الوظائف:", df_all['current_job'].unique().tolist())
             
             current_roles = df_all[df_all['hall'] == target_h2]['role'].value_counts().to_dict()
             
