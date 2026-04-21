@@ -1354,6 +1354,8 @@ if st.session_state.get('system_mode') == "tasheeh":
     ])
 
         
+    with corr_tab1:
+        
         st.divider()
         st.markdown("**2️⃣ المزامنة مع Google Sheets**")
         st.info("💡 البيانات محفوظة تلقائياً في النظام. اضغط هنا فقط إذا أضفت/عدلت بيانات في ملف الإكسل الخارجي.")
