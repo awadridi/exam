@@ -612,6 +612,27 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         with col_a2:
             df_pool = df_qualified[df_qualified['city'].isin(selected_cities)] if selected_cities else df_qualified
             st.info(f"عدد المعلمين المتاحين للسحب الآن: {len(df_pool)}")
+                        # ✅ إضافة: عرض المتاحين للاختيار والتكليف اليدوي
+            if not df_pool.empty and target_h:
+                st.markdown("**📋 قائمة المعلمين المتاحين للاختيار اليدوي:**")
+                teacher_options = df_pool.apply(lambda x: f"{x['name']} | {x['id']} | {x['school']}", axis=1).tolist()
+                selected_teachers = st.multiselect("اختر المعلمين للتكليف يدوياً:", teacher_options, key="manual_teachers_sel")
+                
+                if st.button("✅ تكليف المختارين يدوياً", key="manual_assign_btn", type="secondary"):
+                    if selected_teachers:
+                        selected_ids = [opt.split(" | ")[1] for opt in selected_teachers]
+                        df_selected = df_pool[df_pool['id'].astype(str).isin(selected_ids)]
+                        for _, r in df_selected.iterrows():
+                            c.execute("UPDATE teachers SET hall=?, role='مراقب', hall_city=?, updated_by=? WHERE id=?",
+                                      (target_h, hall_map_auto.get(target_h, ""), st.session_state.username, str(r['id'])))
+                            add_audit_log("تكليف يدوي", f"تكليف يدوي لـ {r['name']}", "", target_h)
+                        conn.commit()
+                        add_log("تكليف يدوي", f"تكليف يدوي لـ {len(df_selected)} معلم على قاعة {target_h}")
+                        st.success(f"✅ تم تكليف {len(df_selected)} معلم يدوياً!")
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ يرجى اختيار معلم واحد على الأقل")
             num_to_assign = st.number_input("العدد المطلوب توزيعه:", min_value=0, max_value=len(df_pool) if not df_pool.empty else 0, value=0)
 
             if 'capacity_warning_data' not in st.session_state:
@@ -780,6 +801,33 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
                     st.rerun()
                 elif not saved and not error_occurred:
                     st.warning("⚠️ لم تختر أي شخص!")
+                                        # ✅ إضافة: عرض المعينين حالياً مع خيار الإزالة والتبديل
+                    st.markdown("---")
+                    st.markdown("### 👥 المعينون حالياً في هذه القاعة (يمكنك إزالتهم وتعيين بديل)")
+                    current_assigned_df = pd.read_sql("SELECT * FROM teachers", conn)
+                    current_assigned_df['hall_clean'] = current_assigned_df['hall'].apply(lambda x: '' if pd.isna(x) or str(x).strip().lower() in ['nan','none','null'] else str(x).strip())
+                    target_clean_check = '' if pd.isna(target_h2) or str(target_h2).strip().lower() in ['nan','none','null'] else str(target_h2).strip()
+                    
+                    assigned_in_hall = current_assigned_df[
+                        (current_assigned_df['hall_clean'] == target_clean_check) & 
+                        (current_assigned_df['role'].notna()) & 
+                        (current_assigned_df['role'].astype(str).str.strip() != '')
+                    ]
+                    if not assigned_in_hall.empty:
+                        for idx, row in assigned_in_hall.iterrows():
+                            col_rem1, col_rem2, col_rem3 = st.columns([3, 2, 1])
+                            with col_rem1: st.markdown(f"🔹 **{row['name']}**")
+                            with col_rem2: st.markdown(f"<span style='color: #00ffcc;'>{row['role']}</span>", unsafe_allow_html=True)
+                            with col_rem3:
+                                if st.button("❌ إزالة", key=f"remove_role_{row['id']}", type="secondary", use_container_width=True):
+                                    c.execute("UPDATE teachers SET hall='', role='', hall_city='', updated_by=? WHERE id=?",
+                                              (st.session_state.username, row['id']))
+                                    add_audit_log("إزالة تعيين", f"إزالة {row['name']} من {row['role']}", target_h2, "")
+                                    conn.commit()
+                                    st.cache_data.clear()
+                                    st.rerun()
+                    else:
+                        st.info("📌 لم يتم تعيين أحد بعد في هذه القاعة.")
                 
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
@@ -906,6 +954,10 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             h_choice = st.selectbox("اختر قاعة لعرض الكادر والإحصائيات:", [""] + assigned_halls)
             if h_choice:
                 df_hall_details = df_all_teachers[df_all_teachers['hall'] == h_choice].copy()
+                                # ✅ إضافة: ترتيب القاعة حسب الأولوية (رئيس -> مساعد -> مراقب -> آذن)
+                role_priority = {'رئيس قاعة': 1, 'مساعد رئيس قاعة': 2, 'مراقب': 3, 'آذن': 4}
+                df_hall_details['role_sort'] = df_hall_details['role'].map(role_priority).fillna(99).astype(int)
+                df_hall_details = df_hall_details.sort_values(by='role_sort').drop(columns='role_sort').reset_index(drop=True)
                 st.markdown(f'<h4 class="move-to-right">🔢 معداد قاعة: {h_choice}</h4>', unsafe_allow_html=True)
                 m1, m2, m3, m4 = st.columns(4)
                 with m1: st.markdown(f'<div class="counter-card"><div class="counter-label">رئيس قاعة</div><div class="counter-value">{len(df_hall_details[df_hall_details["role"] == "رئيس قاعة"])}</div></div>', unsafe_allow_html=True)
@@ -1534,11 +1586,12 @@ if st.session_state.get('system_mode') == "tasheeh":
             if not assigned_df.empty:
                 df_display = assigned_df.copy()
                 arabic_cols = {
-                    'name': 'الاسم', 'subject': 'المبحث', 'hall_name': 'القاعة',
-                    'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'id': 'رقم الهوية', 'exam_day': 'اليوم'
+                    'teacher_name': 'الاسم', 'teacher_id': 'رقم الهوية', 'subject': 'المبحث',
+                    'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'exam_day': 'اليوم'
                 }
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                display_cols = ['الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
+                display_cols = ['رقم الهوية', 'الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
+                
                 safe_cols = [c for c in display_cols if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
             else:
