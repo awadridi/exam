@@ -1703,37 +1703,62 @@ if st.session_state.get('system_mode') == "tasheeh":
                     if assigned_df.empty:
                         st.warning("⚠️ لا توجد بيانات لتصديرها!")
                     else:
+                        # ✅ إضافة الرقم التسلسلي أولاً
                         df_for_excel = assigned_df.copy()
                         df_for_excel.insert(0, 'الرقم', range(1, len(df_for_excel) + 1))
+                        
+                        # ✅ خريطة الأعمدة الصحيحة (مع تصحيح الأسماء)
                         arabic_map = {
-                            'الرقم': 'الرقم التسلسلي','teacher_id': 'رقم الهوية', 'teacher_name': 'اسم المصحح', 'subject': 'المبحث',
-                            'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_name': 'الامتحان',
-                            'exam_date': 'التاريخ', 'exam_day': 'اليوم', 'city': 'مكان السكن',
-                            'school': 'المدرسة', 'created_at': 'وقت التكليف'
+                            'الرقم': 'الرقم التسلسلي',
+                            'teacher_id': 'رقم الهوية', 
+                            'teacher_name': 'اسم المصحح', 
+                            'subject': 'المبحث',
+                            'hall_name': 'القاعة', 
+                            'hall_city': 'المدينة', 
+                            'exam_name': 'الامتحان',
+                            'exam_date': 'التاريخ', 
+                            'exam_day': 'اليوم', 
+                            'city': 'مكان السكن',
+                            'school': 'المدرسة', 
+                            'created_at': 'وقت التكليف'  # ✅ تم التصحيح من timestamp إلى created_at
                         }
-                        valid_cols = [c for c in assigned_df.columns if c in arabic_map]
-                        df_export = assigned_df[valid_cols].rename(columns=arabic_map)
-
+                        
+                        # ✅ اختيار الأعمدة الموجودة فقط
+                        valid_cols = [c for c in df_for_excel.columns if c in arabic_map]
+                        df_export = df_for_excel[valid_cols].rename(columns=arabic_map)
+                        
                         out = io.BytesIO()
                         with pd.ExcelWriter(out, engine='xlsxwriter') as writer:
                             df_export.to_excel(writer, index=False, sheet_name='تكليفات التصحيح')
                             workbook = writer.book
                             worksheet = writer.sheets['تكليفات التصحيح']
-                            header_fmt = workbook.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'text_wrap': True})
-                            cell_fmt = workbook.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
+                            
+                            header_fmt = workbook.add_format({
+                                'font_size': 14, 'bold': True, 'align': 'center', 
+                                'valign': 'vcenter', 'bg_color': '#1a1c23', 
+                                'font_color': '#00ffcc', 'border': 1, 'text_wrap': True
+                            })
+                            cell_fmt = workbook.add_format({
+                                'font_size': 14, 'bold': True, 'align': 'right', 
+                                'valign': 'vcenter', 'border': 1, 'text_wrap': True
+                            })
+                            
                             worksheet.right_to_left()
                             worksheet.set_landscape()
                             worksheet.fit_to_pages(1, 0)
                             worksheet.set_default_row(height=28)
+                            
                             for col_num, value in enumerate(df_export.columns):
                                 worksheet.write(0, col_num, value, header_fmt)
+                            
                             for row_num in range(len(df_export)):
                                 for col_num in range(len(df_export.columns)):
                                     worksheet.write(row_num + 1, col_num, df_export.iloc[row_num, col_num], cell_fmt)
+                            
                             for idx, col in enumerate(df_export.columns):
                                 max_len = max(df_export[col].astype(str).map(len).max(), len(str(col))) + 4
                                 worksheet.set_column(idx, idx, min(max_len, 35), cell_fmt)
-
+                        
                         out.seek(0)
                         st.download_button(
                             label="📥 تحميل ملف إكسل منسق",
