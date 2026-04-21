@@ -2123,29 +2123,28 @@ if st.session_state.get('system_mode') == "other_assignments":
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
+                        arabic_map = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
+                            'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_exp = df_guard.rename(columns=arabic_map)
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols = [c for c in cols_order if c in df_exp.columns]
+                        df_exp = df_exp[safe_cols]
+
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_guard.to_excel(writer, index=False, sheet_name='الحرس')
-                            wb = writer.book
-                            ws = writer.sheets['الحرس']
-                            
-                            # ✅ تنسيق الهيدر (الصف الأول ملون)
+                            df_exp.to_excel(writer, index=False, sheet_name='الحرس')
+                            wb = writer.book; ws = writer.sheets['الحرس']
                             h_fmt = wb.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'font_size': 12})
-                            # ✅ تنسيق البيانات (خط عريض Bold لكل الخلايا)
                             c_fmt = wb.add_format({'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 11})
-                            
-                            # ✅ إعدادات الصفحة والطباعة
-                            ws.right_to_left()          # من اليمين لليسار
-                            ws.set_landscape()          # اتجاه أفقي
-                            ws.fit_to_pages(1, 0)       # احتواء كافة الأعمدة في عرض صفحة واحدة
-                            ws.set_default_row(height=28)
-                            
-                            for cn, val in enumerate(df_guard.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_guard)):
-                                for cn in range(len(df_guard.columns)): ws.write(rn+1, cn, df_guard.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_guard.columns):
-                                max_len = max(df_guard[col].astype(str).map(len).max(), len(str(col))) + 5
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=28)
+                            for cn, val in enumerate(safe_cols): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_exp)):
+                                for cn in range(len(safe_cols)): ws.write(rn+1, cn, df_exp.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols):
+                                max_len = max(df_exp[col].astype(str).map(len).max(), len(str(col))) + 5
                                 ws.set_column(idx, idx, min(max_len, 35), c_fmt)
-                                
                         st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel")
                 
                 st.divider()
@@ -2210,21 +2209,27 @@ if st.session_state.get('system_mode') == "other_assignments":
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
+                        arabic_map = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
+                            'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_exp = df_parcels.rename(columns=arabic_map)
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols = [c for c in cols_order if c in df_exp.columns]
+                        df_exp = df_exp[safe_cols]
+
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_parcels.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
-                            wb = writer.book
-                            ws = writer.sheets['مرافقة_الطرود']
+                            df_exp.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
+                            wb = writer.book; ws = writer.sheets['مرافقة_الطرود']
                             h_fmt = wb.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'font_size': 12})
                             c_fmt = wb.add_format({'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 11})
-                            ws.right_to_left()
-                            ws.set_landscape()
-                            ws.fit_to_pages(1, 0)
-                            ws.set_default_row(height=28)
-                            for cn, val in enumerate(df_parcels.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_parcels)):
-                                for cn in range(len(df_parcels.columns)): ws.write(rn+1, cn, df_parcels.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_parcels.columns):
-                                max_len = max(df_parcels[col].astype(str).map(len).max(), len(str(col))) + 5
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=28)
+                            for cn, val in enumerate(safe_cols): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_exp)):
+                                for cn in range(len(safe_cols)): ws.write(rn+1, cn, df_exp.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols):
+                                max_len = max(df_exp[col].astype(str).map(len).max(), len(str(col))) + 5
                                 ws.set_column(idx, idx, min(max_len, 35), c_fmt)
                         st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel")
                 
@@ -2290,21 +2295,27 @@ if st.session_state.get('system_mode') == "other_assignments":
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
+                        arabic_map = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
+                            'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_exp = df_device.rename(columns=arabic_map)
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols = [c for c in cols_order if c in df_exp.columns]
+                        df_exp = df_exp[safe_cols]
+
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_device.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
-                            wb = writer.book
-                            ws = writer.sheets['جهاز_الامتحان']
+                            df_exp.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
+                            wb = writer.book; ws = writer.sheets['جهاز_الامتحان']
                             h_fmt = wb.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'font_size': 12})
                             c_fmt = wb.add_format({'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 11})
-                            ws.right_to_left()
-                            ws.set_landscape()
-                            ws.fit_to_pages(1, 0)
-                            ws.set_default_row(height=28)
-                            for cn, val in enumerate(df_device.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_device)):
-                                for cn in range(len(df_device.columns)): ws.write(rn+1, cn, df_device.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_device.columns):
-                                max_len = max(df_device[col].astype(str).map(len).max(), len(str(col))) + 5
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=28)
+                            for cn, val in enumerate(safe_cols): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_exp)):
+                                for cn in range(len(safe_cols)): ws.write(rn+1, cn, df_exp.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols):
+                                max_len = max(df_exp[col].astype(str).map(len).max(), len(str(col))) + 5
                                 ws.set_column(idx, idx, min(max_len, 35), c_fmt)
                         st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel")
                 
@@ -2370,21 +2381,27 @@ if st.session_state.get('system_mode') == "other_assignments":
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
+                        arabic_map = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
+                            'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_exp = df_committee.rename(columns=arabic_map)
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols = [c for c in cols_order if c in df_exp.columns]
+                        df_exp = df_exp[safe_cols]
+
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_committee.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
-                            wb = writer.book
-                            ws = writer.sheets['لجنة_الامتحان']
+                            df_exp.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
+                            wb = writer.book; ws = writer.sheets['لجنة_الامتحان']
                             h_fmt = wb.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1, 'font_size': 12})
                             c_fmt = wb.add_format({'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1, 'font_size': 11})
-                            ws.right_to_left()
-                            ws.set_landscape()
-                            ws.fit_to_pages(1, 0)
-                            ws.set_default_row(height=28)
-                            for cn, val in enumerate(df_committee.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_committee)):
-                                for cn in range(len(df_committee.columns)): ws.write(rn+1, cn, df_committee.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_committee.columns):
-                                max_len = max(df_committee[col].astype(str).map(len).max(), len(str(col))) + 5
+                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=28)
+                            for cn, val in enumerate(safe_cols): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_exp)):
+                                for cn in range(len(safe_cols)): ws.write(rn+1, cn, df_exp.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols):
+                                max_len = max(df_exp[col].astype(str).map(len).max(), len(str(col))) + 5
                                 ws.set_column(idx, idx, min(max_len, 35), c_fmt)
                         st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel")
                 
