@@ -1709,7 +1709,7 @@ if st.session_state.get('system_mode') == "tasheeh":
                         
                         # ✅ خريطة الأعمدة الصحيحة (مع تصحيح الأسماء)
                         arabic_map = {
-                            'الرقم': 'الرقم التسلسلي',
+                            'الرقم': 'الرقم',
                             'teacher_id': 'رقم الهوية', 
                             'teacher_name': 'اسم المصحح', 
                             'subject': 'المبحث',
