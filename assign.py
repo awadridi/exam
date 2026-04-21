@@ -1584,14 +1584,14 @@ if st.session_state.get('system_mode') == "tasheeh":
             st.divider()
             st.markdown(f"### 📋 القائمة الحالية: {filter_subj}")
             if not assigned_df.empty:
-                    df_display = assigned_df.copy()
-                        # ✅ تعريف القاموس (يجب أن يكون فوق سطر الـ rename مباشرة بنفس المسافة البادئة)
-                    arabic_cols = {
-                            'teacher_name': 'الاسم', 'teacher_id': 'رقم الهوية', 'subject': 'المبحث',
-                            'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'exam_day': 'اليوم'
-                     }
-                    df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                    display_cols = ['رقم الهوية', 'الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
+                df_display = assigned_df.copy()
+                    # ✅ تعريف القاموس (يجب أن يكون فوق سطر الـ rename مباشرة بنفس المسافة البادئة)
+                arabic_cols = {
+                        'teacher_name': 'الاسم', 'teacher_id': 'رقم الهوية', 'subject': 'المبحث',
+                        'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'exam_day': 'اليوم'
+                 }
+                df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
+                display_cols = ['رقم الهوية', 'الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
                 
                 safe_cols = [c for c in display_cols if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
