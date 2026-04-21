@@ -660,71 +660,71 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
             st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
         if target_h2:
-            # ✅ جلب بيانات محدثة مباشرة من قاعدة البيانات (بدلاً من الكاش)
-            df_all = pd.read_sql("SELECT * FROM teachers", conn)
-            
-            # ✅ دالة تنظيف اسم القاعة لمقارنة صحيحة
-            def clean_hall(x):
-                if pd.isna(x) or str(x).strip().lower() in ['', 'nan', 'none', 'null']:
-                    return ''
-                return str(x).strip()
-            
-            df_all['hall_clean'] = df_all['hall'].apply(clean_hall)
-            target_clean = clean_hall(target_h2)
-            
-            # ✅ حساب الأدوار بناءً على القاعة النظيفة
-            current_roles = df_all[df_all['hall_clean'] == target_clean]['role'].value_counts().to_dict()
-            presidents_count = current_roles.get('رئيس قاعة', 0)
-            assistants_count = current_roles.get('مساعد رئيس قاعة', 0)
-            janitors_count = current_roles.get('آذن', 0)
-            
-            col_s1, col_s2, col_s3 = st.columns(3)
-            
-            with col_s1:
-                if presidents_count >= 1:
-                    st.warning("⚠️ هذه القاعة لها رئيس قاعة بالفعل")
-                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", 
-                                          [""] + df_managers['name'].tolist(),
-                                          key="sel_manager", 
-                                          disabled=(presidents_count >= 1))
-            with col_s2:
-                remaining_assistants = max(0, 2 - assistants_count)
-                if remaining_assistants == 0:
-                    st.warning("⚠️ وصل الحد الأقصى للمساعدين (2)")
-                    sel_secretaries = []
-                else:
-                    sel_secretaries = st.multiselect(
-                        "📋 مساعدي الرئيس (بحد أقصى 2):",
-                        df_secretaries['name'].tolist(),
-                        max_selections=remaining_assistants,
-                        key="sel_secretaries_multi"
-                    )
-            with col_s3:
-                if janitors_count >= 1:
-                    st.warning("⚠️ هذه القاعة لها آذن بالفعل")
-                sel_janitor = st.selectbox("🔑 الآذن:", 
-                                          [""] + df_janitors['name'].tolist(),
-                                          key="sel_janitor", 
-                                          disabled=(janitors_count >= 1))
-            
-            if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
-                saved = []
-                error_occurred = False
-                
-                # حفظ رئيس القاعة
-                if sel_manager:
-                    if presidents_count >= 1:
-                        st.error("❌ لا يمكن تعيين أكثر من رئيس قاعة واحد لكل قاعة!")
-                        error_occurred = True
-                    else:
-                        mgr_row = df_managers[df_managers['name'] == sel_manager]
-                        if not mgr_row.empty:
-                            manager_id = mgr_row['id'].values[0]
-                            old_hall = mgr_row['hall'].values[0]
-                            c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                                      (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
-                            add_audit_log("تعيين رئيس قاعة", f"تعيين {sel_manager}", old_hall, target_h2)
-                            saved.append(f"رئيس قاعة: {sel_manager}")
+    # ✅ جلب بيانات محدثة مباشرة من قاعدة البيانات (بدلاً من الكاش)
+    df_all = pd.read_sql("SELECT * FROM teachers", conn)
+    
+    # ✅ دالة تنظيف اسم القاعة لمقارنة صحيحة
+    def clean_hall(x):
+        if pd.isna(x) or str(x).strip().lower() in ['', 'nan', 'none', 'null']:
+            return ''
+        return str(x).strip()
+    
+    df_all['hall_clean'] = df_all['hall'].apply(clean_hall)
+    target_clean = clean_hall(target_h2)
+    
+    # ✅ حساب الأدوار بناءً على القاعة النظيفة
+    current_roles = df_all[df_all['hall_clean'] == target_clean]['role'].value_counts().to_dict()
+    presidents_count = current_roles.get('رئيس قاعة', 0)
+    assistants_count = current_roles.get('مساعد رئيس قاعة', 0)
+    janitors_count = current_roles.get('آذن', 0)
+    
+    col_s1, col_s2, col_s3 = st.columns(3)
+    
+    with col_s1:
+        if presidents_count >= 1:
+            st.warning("⚠️ هذه القاعة لها رئيس قاعة بالفعل")
+        sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", 
+                                  [""] + df_managers['name'].tolist(),
+                                  key="sel_manager", 
+                                  disabled=(presidents_count >= 1))
+    with col_s2:
+        remaining_assistants = max(0, 2 - assistants_count)
+        if remaining_assistants == 0:
+            st.warning("⚠️ وصل الحد الأقصى للمساعدين (2)")
+            sel_secretaries = []
+        else:
+            sel_secretaries = st.multiselect(
+                "📋 مساعدي الرئيس (بحد أقصى 2):",
+                df_secretaries['name'].tolist(),
+                max_selections=remaining_assistants,
+                key="sel_secretaries_multi"
+            )
+    with col_s3:
+        if janitors_count >= 1:
+            st.warning("⚠️ هذه القاعة لها آذن بالفعل")
+        sel_janitor = st.selectbox("🔑 الآذن:", 
+                                  [""] + df_janitors['name'].tolist(),
+                                  key="sel_janitor", 
+                                  disabled=(janitors_count >= 1))
+    
+    if st.button("💾 حفظ التعيينات", use_container_width=True, key="save_roles"):
+        saved = []
+        error_occurred = False
+        
+        # حفظ رئيس القاعة
+        if sel_manager:
+            if presidents_count >= 1:
+                st.error("❌ لا يمكن تعيين أكثر من رئيس قاعة واحد لكل قاعة!")
+                error_occurred = True
+            else:
+                mgr_row = df_managers[df_managers['name'] == sel_manager]
+                if not mgr_row.empty:
+                    manager_id = mgr_row['id'].values[0]
+                    old_hall = mgr_row['hall'].values[0]
+                    c.execute("UPDATE teachers SET hall=?, role='رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
+                              (target_h2, hall_map_auto[target_h2], st.session_state.username, manager_id))
+                    add_audit_log("تعيين رئيس قاعة", f"تعيين {sel_manager}", old_hall, target_h2)
+                    saved.append(f"رئيس قاعة: {sel_manager}")
         
         # ✅ حفظ المساعدين - الكود المحسّن (إصلاح مشكلة التعيين الواحد)
         if not error_occurred:
