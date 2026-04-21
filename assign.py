@@ -661,20 +661,20 @@ with tab_auto:
             st.info(f"مدراء متاحين: {len(df_managers)} | سكرتارية: {len(df_secretaries)} | آذنة: {len(df_janitors)}")
 
         if target_h2:
-            # 🔍 تشخيص مؤقت
-            df_all = get_cached_teachers()  # أعد تحميل البيانات
-            st.write("إجمالي المعلمين في df_all:", len(df_all))
-            st.write("الوظائف:", df_all['current_job'].unique().tolist())
-            
+            df_all = get_cached_teachers()
             current_roles = df_all[df_all['hall'] == target_h2]['role'].value_counts().to_dict()
+            
+            # ✅ هذه السطور الثلاثة مفقودة!
+            presidents_count = current_roles.get('رئيس قاعة', 0)
+            assistants_count = current_roles.get('مساعد رئيس قاعة', 0)
+            janitors_count = current_roles.get('آذن', 0)
             
             col_s1, col_s2, col_s3 = st.columns(3)
             
             with col_s1:
                 if presidents_count >= 1:
                     st.warning("⚠️ هذه القاعة لها رئيس قاعة بالفعل")
-                sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), 
-                                          key="sel_manager", disabled=(presidents_count >= 1))
+                sel_manager = st.selectbox(...)
             with col_s2:
                 remaining_assistants = max(0, 2 - assistants_count)
                 if remaining_assistants == 0:
