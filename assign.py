@@ -1586,10 +1586,10 @@ if st.session_state.get('system_mode') == "tasheeh":
             if not assigned_df.empty:
                     df_display = assigned_df.copy()
                         # ✅ تعريف القاموس (يجب أن يكون فوق سطر الـ rename مباشرة بنفس المسافة البادئة)
-                        arabic_cols = {
+                    arabic_cols = {
                             'teacher_name': 'الاسم', 'teacher_id': 'رقم الهوية', 'subject': 'المبحث',
                             'hall_name': 'القاعة', 'hall_city': 'المدينة', 'exam_date': 'التاريخ', 'exam_day': 'اليوم'
-                        }
+                     }
                     df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
                     display_cols = ['رقم الهوية', 'الاسم', 'المبحث', 'القاعة', 'المدينة', 'التاريخ']
                 
