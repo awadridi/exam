@@ -1927,7 +1927,7 @@ if st.session_state.get('system_mode') == "tasheeh":
             - 📥 يمكن تصدير أي نتيجة إلى **Excel** منسق وجاهز للطباعة
             """)
 # ============================================================================
-# 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً (نسخة مصححة)
+# 📋 نظام التكليفات الأخرى - وحدة مستقلة تماماً (نسخة مصححة نهائياً)
 # ============================================================================
 if st.session_state.get('system_mode') == "other_assignments":
     
@@ -2078,34 +2078,32 @@ if st.session_state.get('system_mode') == "other_assignments":
     with tab_guard:
         st.markdown("### 🛡️ إدارة تكليفات الحرس")
         
-        if 'guard_form_clear' not in st.session_state:
-            st.session_state.guard_form_clear = False
+        # ✅ عداد لتفريغ الحقول بعد الحفظ
+        if 'guard_form_counter' not in st.session_state:
+            st.session_state.guard_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_guard_form"):
-                # ✅ تم إصلاح تكرار قيمة value
-                g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input", value="" if st.session_state.guard_form_clear else "")
-                g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input", value="" if st.session_state.guard_form_clear else "")
-                g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="g_ZSCHOOL_input", value="" if st.session_state.guard_form_clear else "")
-                g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input", value="" if st.session_state.guard_form_clear else "")
-                g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input", value="" if st.session_state.guard_form_clear else "")
-                g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="g_zdate_input")
+                # ✅ استخدام العداد في المفتاح لتفريغ الحقول تلقائياً
+                g_zid = st.text_input("رقم الهوية (ZID)", key=f"g_zid_{st.session_state.guard_form_counter}")
+                g_zname = st.text_input("الاسم (ZNAME)", key=f"g_zname_{st.session_state.guard_form_counter}")
+                g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key=f"g_zjob_{st.session_state.guard_form_counter}")
+                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key=f"g_ZSCHOOL_{st.session_state.guard_form_counter}")
+                g_zloc = st.text_input("مكان التكليف (ZLOC)", key=f"g_zloc_{st.session_state.guard_form_counter}")
+                g_zcity = st.text_input("مكان السكن (ZCITY)", key=f"g_zcity_{st.session_state.guard_form_counter}")
+                g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key=f"g_zdate_{st.session_state.guard_form_counter}")
                 submit_guard = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_guard:
                     if g_zid and g_zname:
                         add_other_assignment('guards', g_zid, g_zname, g_zjob, g_ZSCHOOL, '', g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
-                        st.session_state.guard_form_clear = True
+                        st.session_state.guard_form_counter += 1  # ✅ زيادة العداد لتفريغ الحقول
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
-        if st.session_state.guard_form_clear:
-            st.session_state.guard_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة الحرس**")
@@ -2124,7 +2122,6 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
                     if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_guard"):
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_guard, 'guards')
@@ -2138,24 +2135,29 @@ if st.session_state.get('system_mode') == "other_assignments":
                                 )
                 
                 with col_btn2:
-                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
+                    # ✅ تصدير إكسل بأعمدة عربية مرتبة بشكل صحيح
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
+                        # ✅ قاموس ثابت لترتيب الأعمدة بالعربي
                         arabic_cols_excel = {
-                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
                             'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
+                        # ✅ نبدأ بإنشاء نسخة ثم نعيد تسمية الأعمدة الموجودة فقط
                         df_export = df_guard.copy()
                         df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        # ✅ نحدد الترتيب النهائي المطلوب ونأخذ فقط الأعمدة الموجودة
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols_excel = [c for c in cols_order if c in df_export.columns]
+                        
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='الحرس')
                             wb = writer.book; ws = writer.sheets['الحرس']
                             h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
                             c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
                             ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
+                            # ✅ نكتب العناوين حسب الترتيب الصحيح
                             for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
                             for rn in range(len(df_export)):
                                 for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
@@ -2181,34 +2183,31 @@ if st.session_state.get('system_mode') == "other_assignments":
     with tab_parcels:
         st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
         
-        if 'parcels_form_clear' not in st.session_state:
-            st.session_state.parcels_form_clear = False
+        if 'parcels_form_counter' not in st.session_state:
+            st.session_state.parcels_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_parcels_form"):
-                p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="p_ZSCHOOL_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key="p_zwork_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input", value="" if st.session_state.parcels_form_clear else "")
-                p_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="p_zdate_input")
+                p_zid = st.text_input("رقم الهوية (ZID)", key=f"p_zid_{st.session_state.parcels_form_counter}")
+                p_zname = st.text_input("الاسم (ZNAME)", key=f"p_zname_{st.session_state.parcels_form_counter}")
+                p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key=f"p_zjob_{st.session_state.parcels_form_counter}")
+                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key=f"p_ZSCHOOL_{st.session_state.parcels_form_counter}")
+                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key=f"p_zwork_{st.session_state.parcels_form_counter}")
+                p_zloc = st.text_input("مكان التكليف (ZLOC)", key=f"p_zloc_{st.session_state.parcels_form_counter}")
+                p_zcity = st.text_input("مكان السكن (ZCITY)", key=f"p_zcity_{st.session_state.parcels_form_counter}")
+                p_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key=f"p_zdate_{st.session_state.parcels_form_counter}")
                 submit_parcels = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_parcels:
                     if p_zid and p_zname:
                         add_other_assignment('parcels', p_zid, p_zname, p_zjob, p_ZSCHOOL, p_zwork, p_zloc, p_zcity, p_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
-                        st.session_state.parcels_form_clear = True
+                        st.session_state.parcels_form_counter += 1
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
-        if st.session_state.parcels_form_clear:
-            st.session_state.parcels_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة مرافقة الطرود**")
@@ -2243,13 +2242,13 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
-                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
                             'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_export = df_parcels.copy()
                         df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
@@ -2281,34 +2280,31 @@ if st.session_state.get('system_mode') == "other_assignments":
     with tab_device:
         st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
         
-        if 'device_form_clear' not in st.session_state:
-            st.session_state.device_form_clear = False
+        if 'device_form_counter' not in st.session_state:
+            st.session_state.device_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_device_form"):
-                d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input", value="" if st.session_state.device_form_clear else "")
-                d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input", value="" if st.session_state.device_form_clear else "")
-                d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="d_ZSCHOOL_input", value="" if st.session_state.device_form_clear else "")
-                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key="d_zwork_input", value="" if st.session_state.device_form_clear else "")
-                d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input", value="" if st.session_state.device_form_clear else "")
-                d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input", value="" if st.session_state.device_form_clear else "")
-                d_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="d_zdate_input")
+                d_zid = st.text_input("رقم الهوية (ZID)", key=f"d_zid_{st.session_state.device_form_counter}")
+                d_zname = st.text_input("الاسم (ZNAME)", key=f"d_zname_{st.session_state.device_form_counter}")
+                d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key=f"d_zjob_{st.session_state.device_form_counter}")
+                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key=f"d_ZSCHOOL_{st.session_state.device_form_counter}")
+                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key=f"d_zwork_{st.session_state.device_form_counter}")
+                d_zloc = st.text_input("مكان التكليف (ZLOC)", key=f"d_zloc_{st.session_state.device_form_counter}")
+                d_zcity = st.text_input("مكان السكن (ZCITY)", key=f"d_zcity_{st.session_state.device_form_counter}")
+                d_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key=f"d_zdate_{st.session_state.device_form_counter}")
                 submit_device = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_device:
                     if d_zid and d_zname:
                         add_other_assignment('exam_device', d_zid, d_zname, d_zjob, d_ZSCHOOL, d_zwork, d_zloc, d_zcity, d_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
-                        st.session_state.device_form_clear = True
+                        st.session_state.device_form_counter += 1
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
-        if st.session_state.device_form_clear:
-            st.session_state.device_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة جهاز الامتحان**")
@@ -2381,34 +2377,31 @@ if st.session_state.get('system_mode') == "other_assignments":
     with tab_committee:
         st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
         
-        if 'committee_form_clear' not in st.session_state:
-            st.session_state.committee_form_clear = False
+        if 'committee_form_counter' not in st.session_state:
+            st.session_state.committee_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_committee_form"):
-                c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input", value="" if st.session_state.committee_form_clear else "")
-                c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input", value="" if st.session_state.committee_form_clear else "")
-                c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key="c_ZSCHOOL_input", value="" if st.session_state.committee_form_clear else "")
-                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key="c_zwork_input", value="" if st.session_state.committee_form_clear else "")
-                c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input", value="" if st.session_state.committee_form_clear else "")
-                c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input", value="" if st.session_state.committee_form_clear else "")
-                c_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="c_zdate_input")
+                c_zid = st.text_input("رقم الهوية (ZID)", key=f"c_zid_{st.session_state.committee_form_counter}")
+                c_zname = st.text_input("الاسم (ZNAME)", key=f"c_zname_{st.session_state.committee_form_counter}")
+                c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key=f"c_zjob_{st.session_state.committee_form_counter}")
+                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", key=f"c_ZSCHOOL_{st.session_state.committee_form_counter}")
+                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", key=f"c_zwork_{st.session_state.committee_form_counter}")
+                c_zloc = st.text_input("مكان التكليف (ZLOC)", key=f"c_zloc_{st.session_state.committee_form_counter}")
+                c_zcity = st.text_input("مكان السكن (ZCITY)", key=f"c_zcity_{st.session_state.committee_form_counter}")
+                c_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key=f"c_zdate_{st.session_state.committee_form_counter}")
                 submit_committee = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
                 if submit_committee:
                     if c_zid and c_zname:
                         add_other_assignment('exam_committee', c_zid, c_zname, c_zjob, c_ZSCHOOL, c_zwork, c_zloc, c_zcity, c_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
-                        st.session_state.committee_form_clear = True
+                        st.session_state.committee_form_counter += 1
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
-        if st.session_state.committee_form_clear:
-            st.session_state.committee_form_clear = False
         
         with col2:
             st.markdown("**📋 قائمة لجنة الامتحان**")
@@ -2443,13 +2436,13 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
-                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
                             'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_export = df_committee.copy()
                         df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
