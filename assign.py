@@ -2142,13 +2142,13 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
                             'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_export = df_guard.copy()
                         df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='الحرس')
@@ -2243,13 +2243,13 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
                             'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_export = df_parcels.copy()
                         df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
@@ -2443,13 +2443,13 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
                         arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
                             'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_export = df_committee.copy()
                         df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
