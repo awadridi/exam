@@ -2017,7 +2017,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     p._element.getparent().remove(p._element)
         return doc
 
-    # ✅ دالة جديدة: إنشاء ملف وورد واحد لجميع التكليفات
+    # ✅ دالة إنشاء ملف وورد واحد لجميع التكليفات
     def generate_bulk_other_word(df, table_name):
         if not os.path.exists(TEMPLATE_NAME):
             st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
@@ -2077,16 +2077,12 @@ if st.session_state.get('system_mode') == "other_assignments":
     # ==================== تبويب الحرس ====================
     with tab_guard:
         st.markdown("### 🛡️ إدارة تكليفات الحرس")
-        
-        # ✅ عداد لتفريغ الحقول بعد الحفظ
-        if 'guard_form_counter' not in st.session_state:
-            st.session_state.guard_form_counter = 0
+        if 'guard_form_counter' not in st.session_state: st.session_state.guard_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_guard_form"):
-                # ✅ استخدام العداد في المفتاح لتفريغ الحقول تلقائياً
                 g_zid = st.text_input("رقم الهوية (ZID)", key=f"g_zid_{st.session_state.guard_form_counter}")
                 g_zname = st.text_input("الاسم (ZNAME)", key=f"g_zname_{st.session_state.guard_form_counter}")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key=f"g_zjob_{st.session_state.guard_form_counter}")
@@ -2100,7 +2096,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if g_zid and g_zname:
                         add_other_assignment('guards', g_zid, g_zname, g_zjob, g_ZSCHOOL, '', g_zloc, g_zcity, g_zdate.strftime("%Y/%m/%d"))
                         st.success("✅ تم الإضافة بنجاح!")
-                        st.session_state.guard_form_counter += 1  # ✅ زيادة العداد لتفريغ الحقول
+                        st.session_state.guard_form_counter += 1
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
@@ -2110,13 +2106,9 @@ if st.session_state.get('system_mode') == "other_assignments":
             df_guard = get_other_assignments('guards')
             if not df_guard.empty:
                 df_display = df_guard.copy()
-                arabic_cols = {
-                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                }
+                arabic_cols = {'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
+                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'مكان السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
                 
@@ -2126,65 +2118,34 @@ if st.session_state.get('system_mode') == "other_assignments":
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_guard, 'guards')
                             if word_buffer:
-                                st.download_button(
-                                    label="📥 تحميل ملف الوورد",
-                                    data=word_buffer.getvalue(),
-                                    file_name=f"تكليفات_الحرس_{datetime.now().strftime('%Y%m%d')}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_guard_word"
-                                )
+                                st.download_button(label="📥 تحميل ملف الوورد", data=word_buffer.getvalue(), file_name=f"تكليفات_الحرس_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key="dl_guard_word")
                 
                 with col_btn2:
-                    # ✅ تصدير إكسل بأعمدة عربية مرتبة بشكل صحيح
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
-                        # ✅ قاموس ثابت لترتيب الأعمدة بالعربي
-                        arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                        }
-                        # ✅ نبدأ بإنشاء نسخة ثم نعيد تسمية الأعمدة الموجودة فقط
-                        df_export = df_guard.copy()
-                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        # ✅ نحدد الترتيب النهائي المطلوب ونأخذ فقط الأعمدة الموجودة
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
-                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
-                        
+                        col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
+                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        df_exp = df_guard.reindex(columns=[c for c in col_order if c in df_guard.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='الحرس')
-                            wb = writer.book; ws = writer.sheets['الحرس']
-                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
-                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
-                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            # ✅ نكتب العناوين حسب الترتيب الصحيح
-                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_export)):
-                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                            df_exp.to_excel(writer, index=False, sheet_name='الحرس')
                         st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel_ar")
                 
                 st.divider()
                 df_guard_display = df_guard[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_guard_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
-                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
-                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_guard_display.iterrows()],
-                                            key="guard_delete_select")
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_guard_display.iterrows()], key="guard_delete_select")
                 if st.button("🗑️ حذف السجل المحدد", key="btn_del_guard"):
                     if delete_choice and delete_choice != "":
                         selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
                         delete_other_assignment('guards', selected_id)
-                        st.success("✅ تم الحذف")
-                        st.rerun()
+                        st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
-    
+
     # ==================== تبويب مرافقة الطرود ====================
     with tab_parcels:
         st.markdown("### 📦 إدارة تكليفات مرافقة الطرود")
-        
-        if 'parcels_form_counter' not in st.session_state:
-            st.session_state.parcels_form_counter = 0
+        if 'parcels_form_counter' not in st.session_state: st.session_state.parcels_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -2208,19 +2169,15 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
+                        
         with col2:
             st.markdown("**📋 قائمة مرافقة الطرود**")
             df_parcels = get_other_assignments('parcels')
             if not df_parcels.empty:
                 df_display = df_parcels.copy()
-                arabic_cols = {
-                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                }
+                arabic_cols = {'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
+                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'مكان السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
                 
@@ -2230,44 +2187,22 @@ if st.session_state.get('system_mode') == "other_assignments":
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_parcels, 'parcels')
                             if word_buffer:
-                                st.download_button(
-                                    label="📥 تحميل ملف الوورد",
-                                    data=word_buffer.getvalue(),
-                                    file_name=f"تكليفات_الطرود_{datetime.now().strftime('%Y%m%d')}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_parcels_word"
-                                )
+                                st.download_button(label="📥 تحميل ملف الوورد", data=word_buffer.getvalue(), file_name=f"تكليفات_الطرود_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key="dl_parcels_word")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
-                        arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                        }
-                        df_export = df_parcels.copy()
-                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
-                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
+                        col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
+                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        df_exp = df_parcels.reindex(columns=[c for c in col_order if c in df_parcels.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
-                            wb = writer.book; ws = writer.sheets['مرافقة_الطرود']
-                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
-                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
-                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_export)):
-                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                            df_exp.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
                         st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel_ar")
                 
                 st.divider()
                 df_parcels_display = df_parcels[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_parcels_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
-                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
-                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_parcels_display.iterrows()],
-                                            key="parcels_delete_select")
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_parcels_display.iterrows()], key="parcels_delete_select")
                 if st.button("🗑️ حذف السجل المحدد", key="btn_del_parcels"):
                     if delete_choice and delete_choice != "":
                         selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
@@ -2275,13 +2210,11 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
-    
+
     # ==================== تبويب جهاز الامتحان ====================
     with tab_device:
         st.markdown("### 📱 إدارة تكليفات جهاز الامتحان")
-        
-        if 'device_form_counter' not in st.session_state:
-            st.session_state.device_form_counter = 0
+        if 'device_form_counter' not in st.session_state: st.session_state.device_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -2305,19 +2238,15 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
+                        
         with col2:
             st.markdown("**📋 قائمة جهاز الامتحان**")
             df_device = get_other_assignments('exam_device')
             if not df_device.empty:
                 df_display = df_device.copy()
-                arabic_cols = {
-                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                }
+                arabic_cols = {'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
+                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'مكان السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
                 
@@ -2327,44 +2256,22 @@ if st.session_state.get('system_mode') == "other_assignments":
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_device, 'exam_device')
                             if word_buffer:
-                                st.download_button(
-                                    label="📥 تحميل ملف الوورد",
-                                    data=word_buffer.getvalue(),
-                                    file_name=f"تكليفات_جهاز_الامتحان_{datetime.now().strftime('%Y%m%d')}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_device_word"
-                                )
+                                st.download_button(label="📥 تحميل ملف الوورد", data=word_buffer.getvalue(), file_name=f"تكليفات_جهاز_الامتحان_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key="dl_device_word")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
-                        arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                        }
-                        df_export = df_device.copy()
-                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
-                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
+                        col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
+                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        df_exp = df_device.reindex(columns=[c for c in col_order if c in df_device.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
-                            wb = writer.book; ws = writer.sheets['جهاز_الامتحان']
-                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
-                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
-                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_export)):
-                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                            df_exp.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
                         st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel_ar")
                 
                 st.divider()
                 df_device_display = df_device[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_device_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
-                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
-                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_device_display.iterrows()],
-                                            key="device_delete_select")
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_device_display.iterrows()], key="device_delete_select")
                 if st.button("🗑️ حذف السجل المحدد", key="btn_del_device"):
                     if delete_choice and delete_choice != "":
                         selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
@@ -2372,13 +2279,11 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.success("✅ تم الحذف"); st.rerun()
             else:
                 st.info("📭 لا يوجد تكليفات حتى الآن")
-    
+
     # ==================== تبويب لجنة الامتحان ====================
     with tab_committee:
         st.markdown("### 👥 إدارة تكليفات لجنة الامتحان")
-        
-        if 'committee_form_counter' not in st.session_state:
-            st.session_state.committee_form_counter = 0
+        if 'committee_form_counter' not in st.session_state: st.session_state.committee_form_counter = 0
         
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -2402,66 +2307,40 @@ if st.session_state.get('system_mode') == "other_assignments":
                         st.rerun()
                     else:
                         st.error("⚠️ يرجى إدخال الهوية والاسم")
-        
+                        
         with col2:
             st.markdown("**📋 قائمة لجنة الامتحان**")
             df_committee = get_other_assignments('exam_committee')
             if not df_committee.empty:
                 df_display = df_committee.copy()
-                arabic_cols = {
-                    'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                    'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                    'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                }
+                arabic_cols = {'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                 df_display = df_display.rename(columns={k: v for k, v in arabic_cols.items() if k in df_display.columns})
-                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ']
+                cols_to_show = ['الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'مكان السكن', 'التاريخ']
                 safe_cols = [c for c in cols_to_show if c in df_display.columns]
                 st.dataframe(df_display[safe_cols], use_container_width=True, hide_index=True)
-    
+                
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_committee"):
                         with st.spinner("جاري إنشاء الملف..."):
                             word_buffer = generate_bulk_other_word(df_committee, 'exam_committee')
                             if word_buffer:
-                                st.download_button(
-                                    label="📥 تحميل ملف الوورد",
-                                    data=word_buffer.getvalue(),
-                                    file_name=f"تكليفات_لجنة_الامتحان_{datetime.now().strftime('%Y%m%d')}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key="dl_committee_word"
-                                )
+                                st.download_button(label="📥 تحميل ملف الوورد", data=word_buffer.getvalue(), file_name=f"تكليفات_لجنة_الامتحان_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key="dl_committee_word")
                 
                 with col_btn2:
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
-                        arabic_cols_excel = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
-                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
-                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
-                        }
-                        df_export = df_committee.copy()
-                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
-                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
+                        col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
+                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        df_exp = df_committee.reindex(columns=[c for c in col_order if c in df_committee.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
-                            wb = writer.book; ws = writer.sheets['لجنة_الامتحان']
-                            h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
-                            c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
-                            ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_export)):
-                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                            df_exp.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
                         st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel_ar")
                 
                 st.divider()
                 df_committee_display = df_committee[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
                 df_committee_display.columns = ['ID', 'الاسم', 'المهمة', 'الوظيفة الحالية']
-                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", 
-                                            [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_committee_display.iterrows()],
-                                            key="committee_delete_select")
+                delete_choice = st.selectbox("🗑️ اختر السجل للحذف:", [""] + [f"ID:{r['ID']} | {r['الاسم']} | {r['المهمة']}" for _, r in df_committee_display.iterrows()], key="committee_delete_select")
                 if st.button("🗑️ حذف السجل المحدد", key="btn_del_committee"):
                     if delete_choice and delete_choice != "":
                         selected_id = int(delete_choice.split('|')[0].replace('ID:', '').strip())
@@ -2472,6 +2351,5 @@ if st.session_state.get('system_mode') == "other_assignments":
     
     st.divider()
     st.info("📌 **ملاحظة:** الرموز المطلوبة في القالب: ZID, ZNAME, ZJOB, ZSCHOOL, ZWORK, ZLOC, ZCITY, ZDATE")
-    
     conn_other.close()
     st.stop()
