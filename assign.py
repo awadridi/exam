@@ -766,43 +766,6 @@ if st.session_state['system_mode'] not in ["tasheeh", "other_assignments"]:
         elif not saved and not error_occurred:
             st.warning("⚠️ لم تختر أي شخص!")
                 
-                                # ✅ حفظ المساعدين (بحد أقصى 2) - نسخة محسّنة
-                if not error_occurred:
-                    assigned_assistants = 0  # عداد منفصل للمساعدين في هذه العملية
-                    for sec_name in sel_secretaries:
-                        if sec_name and (assistants_count + assigned_assistants) < 2:
-                            sec_row = df_secretaries[df_secretaries['name'] == sec_name]
-                            if not sec_row.empty:
-                                sec_id = sec_row['id'].values[0]
-                                old_hall = sec_row['hall'].values[0]
-                                c.execute("UPDATE teachers SET hall=?, role='مساعد رئيس قاعة', hall_city=?, updated_by=? WHERE id=?",
-                                          (target_h2, hall_map_auto[target_h2], st.session_state.username, sec_id))
-                                add_audit_log("تعيين مساعد رئيس", f"تعيين {sec_name}", old_hall, target_h2)
-                                saved.append(f"مساعد رئيس: {sec_name}")
-                                assigned_assistants += 1  # ✅ زيادة العداد بعد التعيين الناجح
-                
-                if not error_occurred and sel_janitor:
-                    if janitors_count >= 1:
-                        st.error("❌ لا يمكن تعيين أكثر من آذن واحد لكل قاعة!")
-                        error_occurred = True
-                    else:
-                        janitor_id = df_janitors[df_janitors['name'] == sel_janitor]['id'].values[0]
-                        old_hall = df_janitors[df_janitors['name'] == sel_janitor]['hall'].values[0]
-                        c.execute("UPDATE teachers SET hall=?, role='آذن', hall_city=?, updated_by=? WHERE id=?",
-                                  (target_h2, hall_map_auto[target_h2], st.session_state.username, janitor_id))
-                        add_audit_log("تعيين آذن", f"تعيين {sel_janitor}", old_hall, target_h2)
-                        saved.append(f"آذن: {sel_janitor}")
-                
-                if saved and not error_occurred:
-                    conn.commit()
-                    add_log("تعيين أدوار", f"قاعة {target_h2}: {' | '.join(saved)}")
-                    st.success(f"✅ تم الحفظ: {' | '.join(saved)}")
-                    time.sleep(0.5)
-                    st.cache_data.clear()
-                    st.rerun()
-                elif not saved and not error_occurred:
-                    st.warning("⚠️ لم تختر أي شخص!")
-
     # ==================== تبويب رفع البيانات ====================
     with tab_upload:
         st.markdown(f'<h2 class="move-to-right">تحديث البيانات - {PAGE_TITLE}</h2>', unsafe_allow_html=True)
