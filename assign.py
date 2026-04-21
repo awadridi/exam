@@ -670,16 +670,15 @@ with tab_auto:
             col_s1, col_s2, col_s3 = st.columns(3)
             
             with col_s1:
-                # ✅ تعطيل الاختيار إذا كان هناك رئيس قاعة بالفعل
                 if presidents_count >= 1:
                     st.warning("⚠️ هذه القاعة لها رئيس قاعة بالفعل")
                 sel_manager = st.selectbox("👑 رئيس القاعة (مدير مدرسة):", [""] + df_managers['name'].tolist(), 
                                           key="sel_manager", disabled=(presidents_count >= 1))
-           with col_s2:
+            with col_s2:
                 remaining_assistants = max(0, 2 - assistants_count)
                 if remaining_assistants == 0:
                     st.warning("⚠️ وصل الحد الأقصى للمساعدين (2)")
-                    sel_secretaries = []  # قائمة فارغة بدل multiselect
+                    sel_secretaries = []
                 else:
                     sel_secretaries = st.multiselect(
                         "📋 مساعدي الرئيس (بحد أقصى 2):", 
@@ -688,7 +687,6 @@ with tab_auto:
                         key="sel_secretaries_multi"
                     )
             with col_s3:
-                # ✅ تعطيل الاختيار إذا كان هناك آذن بالفعل
                 if janitors_count >= 1:
                     st.warning("⚠️ هذه القاعة لها آذن بالفعل")
                 sel_janitor = st.selectbox("🔑 الآذن:", [""] + df_janitors['name'].tolist(), 
