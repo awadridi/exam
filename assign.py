@@ -2017,6 +2017,33 @@ if st.session_state.get('system_mode') == "other_assignments":
                     p._element.getparent().remove(p._element)
         return doc
 
+    # ✅ دالة جديدة: إنشاء ملف وورد واحد لجميع التكليفات
+    def generate_bulk_other_word(df, table_name):
+        if not os.path.exists(TEMPLATE_NAME):
+            st.error(f"❌ ملف القالب '{TEMPLATE_NAME}' غير موجود")
+            return None
+        final_doc = Document(TEMPLATE_NAME)
+        final_doc._body.clear_content()
+        rows_list = list(df.iterrows())
+        for i, (idx, row) in enumerate(rows_list):
+            temp_doc = generate_other_letter(row)
+            if temp_doc:
+                elements = [el for el in temp_doc.element.body if not el.tag.endswith('sectPr')]
+                for element in elements:
+                    final_doc.element.body.append(copy.deepcopy(element))
+                if i < len(rows_list) - 1:
+                    p = OxmlElement('w:p')
+                    r = OxmlElement('w:r')
+                    br = OxmlElement('w:br')
+                    br.set(qn('w:type'), 'page')
+                    r.append(br)
+                    p.append(r)
+                    final_doc.element.body.append(p)
+        out = io.BytesIO()
+        final_doc.save(out)
+        out.seek(0)
+        return out
+
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #2d3748 100%); 
                     padding: 20px; border-radius: 15px; border: 2px solid #00ffcc;
@@ -2058,13 +2085,12 @@ if st.session_state.get('system_mode') == "other_assignments":
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_guard_form"):
-                g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input")
-                g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input")
+                g_zid = st.text_input("رقم الهوية (ZID)", key="g_zid_input", value="" if st.session_state.guard_form_clear else "")
+                g_zname = st.text_input("الاسم (ZNAME)", key="g_zname_input", value="" if st.session_state.guard_form_clear else "")
                 g_zjob = st.text_input("المهمة (ZJOB)", value="حارس", key="g_zjob_input")
-                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="g_ZSCHOOL_input")
-                # ✅ تم حذف حقل ZWORK لأنه غير مطلوب للحرس
-                g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input")
-                g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input")
+                g_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="g_ZSCHOOL_input", value="" if st.session_state.guard_form_clear else "")
+                g_zloc = st.text_input("مكان التكليف (ZLOC)", key="g_zloc_input", value="" if st.session_state.guard_form_clear else "")
+                g_zcity = st.text_input("مكان السكن (ZCITY)", key="g_zcity_input", value="" if st.session_state.guard_form_clear else "")
                 g_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="g_zdate_input")
                 submit_guard = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
@@ -2097,38 +2123,43 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_guard"):
-                        zip_buffer = io.BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                            for _, row in df_guard.iterrows():
-                                doc = generate_other_letter(row)
-                                if doc:
-                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
-                                    zip_file.writestr(filename, bio.getvalue())
-                        zip_buffer.seek(0)
-                        st.download_button(
-                            label="📥 تحميل ملف مضغوط",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"تكليفات_الحرس_{datetime.now().strftime('%Y%m%d')}.zip",
-                            mime="application/zip",
-                            key="dl_guard_zip"
-                        )
+                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
+                    if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_guard"):
+                        with st.spinner("جاري إنشاء الملف..."):
+                            word_buffer = generate_bulk_other_word(df_guard, 'guards')
+                            if word_buffer:
+                                st.download_button(
+                                    label="📥 تحميل ملف الوورد",
+                                    data=word_buffer.getvalue(),
+                                    file_name=f"تكليفات_الحرس_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="dl_guard_word"
+                                )
                 
                 with col_btn2:
+                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
+                        arabic_cols_excel = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_export = df_guard.copy()
+                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_guard.to_excel(writer, index=False, sheet_name='الحرس')
+                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='الحرس')
                             wb = writer.book; ws = writer.sheets['الحرس']
                             h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
                             c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
                             ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(df_guard.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_guard)):
-                                for cn in range(len(df_guard.columns)): ws.write(rn+1, cn, df_guard.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_guard.columns): ws.set_column(idx, idx, min(max(df_guard[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
-                        st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel")
+                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_export)):
+                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "الحرس_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_guard_excel_ar")
                 
                 st.divider()
                 df_guard_display = df_guard[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
@@ -2156,13 +2187,13 @@ if st.session_state.get('system_mode') == "other_assignments":
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_parcels_form"):
-                p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input")
-                p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input")
+                p_zid = st.text_input("رقم الهوية (ZID)", key="p_zid_input", value="" if st.session_state.parcels_form_clear else "")
+                p_zname = st.text_input("الاسم (ZNAME)", key="p_zname_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zjob = st.text_input("المهمة (ZJOB)", value="مرافق طرود", key="p_zjob_input")
-                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="p_ZSCHOOL_input")
-                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="p_zwork_input")
-                p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input")
-                p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input")
+                p_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="p_ZSCHOOL_input", value="" if st.session_state.parcels_form_clear else "")
+                p_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="p_zwork_input", value="" if st.session_state.parcels_form_clear else "")
+                p_zloc = st.text_input("مكان التكليف (ZLOC)", key="p_zloc_input", value="" if st.session_state.parcels_form_clear else "")
+                p_zcity = st.text_input("مكان السكن (ZCITY)", key="p_zcity_input", value="" if st.session_state.parcels_form_clear else "")
                 p_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="p_zdate_input")
                 submit_parcels = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
@@ -2195,38 +2226,43 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_parcels"):
-                        zip_buffer = io.BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                            for _, row in df_parcels.iterrows():
-                                doc = generate_other_letter(row)
-                                if doc:
-                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
-                                    zip_file.writestr(filename, bio.getvalue())
-                        zip_buffer.seek(0)
-                        st.download_button(
-                            label="📥 تحميل ملف مضغوط",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"تكليفات_الطرود_{datetime.now().strftime('%Y%m%d')}.zip",
-                            mime="application/zip",
-                            key="dl_parcels_zip"
-                        )
+                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
+                    if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_parcels"):
+                        with st.spinner("جاري إنشاء الملف..."):
+                            word_buffer = generate_bulk_other_word(df_parcels, 'parcels')
+                            if word_buffer:
+                                st.download_button(
+                                    label="📥 تحميل ملف الوورد",
+                                    data=word_buffer.getvalue(),
+                                    file_name=f"تكليفات_الطرود_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="dl_parcels_word"
+                                )
                 
                 with col_btn2:
+                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
+                        arabic_cols_excel = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_export = df_parcels.copy()
+                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_parcels.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
+                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
                             wb = writer.book; ws = writer.sheets['مرافقة_الطرود']
                             h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
                             c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
                             ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(df_parcels.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_parcels)):
-                                for cn in range(len(df_parcels.columns)): ws.write(rn+1, cn, df_parcels.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_parcels.columns): ws.set_column(idx, idx, min(max(df_parcels[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
-                        st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel")
+                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_export)):
+                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "مرافقة_الطرود_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_parcels_excel_ar")
                 
                 st.divider()
                 df_parcels_display = df_parcels[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
@@ -2253,13 +2289,13 @@ if st.session_state.get('system_mode') == "other_assignments":
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_device_form"):
-                d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input")
-                d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input")
+                d_zid = st.text_input("رقم الهوية (ZID)", key="d_zid_input", value="" if st.session_state.device_form_clear else "")
+                d_zname = st.text_input("الاسم (ZNAME)", key="d_zname_input", value="" if st.session_state.device_form_clear else "")
                 d_zjob = st.text_input("المهمة (ZJOB)", value="جهاز امتحان", key="d_zjob_input")
-                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="d_ZSCHOOL_input")
-                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input")
-                d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input")
-                d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input")
+                d_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="d_ZSCHOOL_input", value="" if st.session_state.device_form_clear else "")
+                d_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="d_zwork_input", value="" if st.session_state.device_form_clear else "")
+                d_zloc = st.text_input("مكان التكليف (ZLOC)", key="d_zloc_input", value="" if st.session_state.device_form_clear else "")
+                d_zcity = st.text_input("مكان السكن (ZCITY)", key="d_zcity_input", value="" if st.session_state.device_form_clear else "")
                 d_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="d_zdate_input")
                 submit_device = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
@@ -2292,38 +2328,43 @@ if st.session_state.get('system_mode') == "other_assignments":
                 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_device"):
-                        zip_buffer = io.BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                            for _, row in df_device.iterrows():
-                                doc = generate_other_letter(row)
-                                if doc:
-                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
-                                    zip_file.writestr(filename, bio.getvalue())
-                        zip_buffer.seek(0)
-                        st.download_button(
-                            label="📥 تحميل ملف مضغوط",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"تكليفات_جهاز_الامتحان_{datetime.now().strftime('%Y%m%d')}.zip",
-                            mime="application/zip",
-                            key="dl_device_zip"
-                        )
+                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
+                    if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_device"):
+                        with st.spinner("جاري إنشاء الملف..."):
+                            word_buffer = generate_bulk_other_word(df_device, 'exam_device')
+                            if word_buffer:
+                                st.download_button(
+                                    label="📥 تحميل ملف الوورد",
+                                    data=word_buffer.getvalue(),
+                                    file_name=f"تكليفات_جهاز_الامتحان_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="dl_device_word"
+                                )
                 
                 with col_btn2:
+                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
+                        arabic_cols_excel = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_export = df_device.copy()
+                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_device.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
+                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
                             wb = writer.book; ws = writer.sheets['جهاز_الامتحان']
                             h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
                             c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
                             ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(df_device.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_device)):
-                                for cn in range(len(df_device.columns)): ws.write(rn+1, cn, df_device.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_device.columns): ws.set_column(idx, idx, min(max(df_device[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
-                        st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel")
+                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_export)):
+                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "جهاز_الامتحان_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_device_excel_ar")
                 
                 st.divider()
                 df_device_display = df_device[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
@@ -2350,13 +2391,13 @@ if st.session_state.get('system_mode') == "other_assignments":
         with col1:
             st.markdown("**➕ إضافة تكليف جديد**")
             with st.form("add_committee_form"):
-                c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input")
-                c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input")
+                c_zid = st.text_input("رقم الهوية (ZID)", key="c_zid_input", value="" if st.session_state.committee_form_clear else "")
+                c_zname = st.text_input("الاسم (ZNAME)", key="c_zname_input", value="" if st.session_state.committee_form_clear else "")
                 c_zjob = st.text_input("المهمة (ZJOB)", value="عضو لجنة امتحان", key="c_zjob_input")
-                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="c_ZSCHOOL_input")
-                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="c_zwork_input")
-                c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input")
-                c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input")
+                c_ZSCHOOL = st.text_input("الوظيفة الحالية (ZSCHOOL)", value="", key="c_ZSCHOOL_input", value="" if st.session_state.committee_form_clear else "")
+                c_zwork = st.text_input("وظيفته في التكليف (ZWORK)", value="", key="c_zwork_input", value="" if st.session_state.committee_form_clear else "")
+                c_zloc = st.text_input("مكان التكليف (ZLOC)", key="c_zloc_input", value="" if st.session_state.committee_form_clear else "")
+                c_zcity = st.text_input("مكان السكن (ZCITY)", key="c_zcity_input", value="" if st.session_state.committee_form_clear else "")
                 c_zdate = st.date_input("📅 تاريخ التكليف:", value=datetime.now(), key="c_zdate_input")
                 submit_committee = st.form_submit_button("💾 إضافة وحفظ", type="primary")
                 
@@ -2389,38 +2430,43 @@ if st.session_state.get('system_mode') == "other_assignments":
     
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    if st.button("📦 إنشاء كتب Word للجميع", type="primary", key="btn_word_committee"):
-                        zip_buffer = io.BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                            for _, row in df_committee.iterrows():
-                                doc = generate_other_letter(row)
-                                if doc:
-                                    bio = io.BytesIO(); doc.save(bio); bio.seek(0)
-                                    filename = f"تكليف_{row['zname']}_{row['zid']}.docx"
-                                    zip_file.writestr(filename, bio.getvalue())
-                        zip_buffer.seek(0)
-                        st.download_button(
-                            label="📥 تحميل ملف مضغوط",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"تكليفات_لجنة_الامتحان_{datetime.now().strftime('%Y%m%d')}.zip",
-                            mime="application/zip",
-                            key="dl_committee_zip"
-                        )
+                    # ✅ زر تصدير وورد واحد (بدلاً من المضغوط)
+                    if st.button("📄 إنشاء ملف وورد واحد للجميع", type="primary", key="btn_word_committee"):
+                        with st.spinner("جاري إنشاء الملف..."):
+                            word_buffer = generate_bulk_other_word(df_committee, 'exam_committee')
+                            if word_buffer:
+                                st.download_button(
+                                    label="📥 تحميل ملف الوورد",
+                                    data=word_buffer.getvalue(),
+                                    file_name=f"تكليفات_لجنة_الامتحان_{datetime.now().strftime('%Y%m%d')}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="dl_committee_word"
+                                )
                 
                 with col_btn2:
+                    # ✅ زر تصدير إكسل بأسماء أعمدة عربية
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
+                        arabic_cols_excel = {
+                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف',
+                            'zloc': 'الموقع', 'zcity': 'السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
+                        }
+                        df_export = df_committee.copy()
+                        df_export = df_export.rename(columns={k: v for k, v in arabic_cols_excel.items() if k in df_export.columns})
+                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'مكان التكليف', 'الموقع', 'السكن', 'التاريخ', 'وقت الإنشاء']
+                        safe_cols_excel = [c for c in cols_order if c in df_export.columns]
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_committee.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
+                            df_export[safe_cols_excel].to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
                             wb = writer.book; ws = writer.sheets['لجنة_الامتحان']
                             h_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#1a1c23', 'font_color': '#00ffcc', 'border': 1})
                             c_fmt = wb.add_format({'font_size': 14, 'bold': True, 'align': 'right', 'valign': 'vcenter', 'border': 1})
                             ws.right_to_left(); ws.set_landscape(); ws.fit_to_pages(1, 0); ws.set_default_row(height=30)
-                            for cn, val in enumerate(df_committee.columns): ws.write(0, cn, val, h_fmt)
-                            for rn in range(len(df_committee)):
-                                for cn in range(len(df_committee.columns)): ws.write(rn+1, cn, df_committee.iloc[rn, cn], c_fmt)
-                            for idx, col in enumerate(df_committee.columns): ws.set_column(idx, idx, min(max(df_committee[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
-                        st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel")
+                            for cn, val in enumerate(safe_cols_excel): ws.write(0, cn, val, h_fmt)
+                            for rn in range(len(df_export)):
+                                for cn in range(len(safe_cols_excel)): ws.write(rn+1, cn, df_export.iloc[rn, cn], c_fmt)
+                            for idx, col in enumerate(safe_cols_excel): ws.set_column(idx, idx, min(max(df_export[col].astype(str).map(len).max(), len(str(col)))+4, 30), c_fmt)
+                        st.download_button("📥 تحميل Excel", output.getvalue(), "لجنة_الامتحان_عربي.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_committee_excel_ar")
                 
                 st.divider()
                 df_committee_display = df_committee[['id', 'zname', 'zjob', 'ZSCHOOL']].copy()
