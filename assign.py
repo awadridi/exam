@@ -2124,7 +2124,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
                         col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
-                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        arabic_map = {'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                         df_exp = df_guard.reindex(columns=[c for c in col_order if c in df_guard.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_exp.to_excel(writer, index=False, sheet_name='الحرس')
@@ -2193,7 +2193,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
                         col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
-                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        arabic_map = {'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                         df_exp = df_parcels.reindex(columns=[c for c in col_order if c in df_parcels.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_exp.to_excel(writer, index=False, sheet_name='مرافقة_الطرود')
@@ -2262,7 +2262,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
                         col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
-                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        arabic_map = {'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                         df_exp = df_device.reindex(columns=[c for c in col_order if c in df_device.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_exp.to_excel(writer, index=False, sheet_name='جهاز_الامتحان')
@@ -2331,7 +2331,7 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
                         col_order = ['id', 'zid', 'zname', 'zjob', 'ZSCHOOL', 'zwork', 'zloc', 'zcity', 'zdate', 'created_at']
-                        arabic_map = {'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'مكان التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
+                        arabic_map = {'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة', 'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف', 'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'}
                         df_exp = df_committee.reindex(columns=[c for c in col_order if c in df_committee.columns]).rename(columns=arabic_map)
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                             df_exp.to_excel(writer, index=False, sheet_name='لجنة_الامتحان')
