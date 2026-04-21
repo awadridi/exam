@@ -2124,12 +2124,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_guard"):
                         output = io.BytesIO()
                         arabic_map = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
                             'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_exp = df_guard.rename(columns=arabic_map)
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols = [c for c in cols_order if c in df_exp.columns]
                         df_exp = df_exp[safe_cols]
 
@@ -2210,12 +2210,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_parcels"):
                         output = io.BytesIO()
                         arabic_map = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
                             'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_exp = df_parcels.rename(columns=arabic_map)
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols = [c for c in cols_order if c in df_exp.columns]
                         df_exp = df_exp[safe_cols]
 
@@ -2296,12 +2296,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_device"):
                         output = io.BytesIO()
                         arabic_map = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
                             'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_exp = df_device.rename(columns=arabic_map)
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols = [c for c in cols_order if c in df_exp.columns]
                         df_exp = df_exp[safe_cols]
 
@@ -2382,12 +2382,12 @@ if st.session_state.get('system_mode') == "other_assignments":
                     if st.button("📊 تصدير Excel", key="btn_excel_committee"):
                         output = io.BytesIO()
                         arabic_map = {
-                            'id': 'م', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
+                            'id': 'الرقم', 'zid': 'رقم الهوية', 'zname': 'الاسم', 'zjob': 'المهمة',
                             'ZSCHOOL': 'الوظيفة الحالية', 'zwork': 'المهمة في التكليف',
                             'zloc': 'الموقع', 'zcity': 'مكان السكن', 'zdate': 'التاريخ', 'created_at': 'وقت الإنشاء'
                         }
                         df_exp = df_committee.rename(columns=arabic_map)
-                        cols_order = ['م', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
+                        cols_order = ['الرقم', 'الاسم', 'رقم الهوية', 'المهمة', 'الوظيفة الحالية', 'المهمة في التكليف', 'الموقع', 'مكان السكن', 'التاريخ', 'وقت الإنشاء']
                         safe_cols = [c for c in cols_order if c in df_exp.columns]
                         df_exp = df_exp[safe_cols]
 
